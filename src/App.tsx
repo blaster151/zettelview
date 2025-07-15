@@ -6,11 +6,13 @@ import StoragePermission from './components/StoragePermission';
 import BacklinksPanel from './components/BacklinksPanel';
 import KeyboardShortcuts from './components/KeyboardShortcuts';
 import GraphView from './components/GraphView';
+import AISummarizer from './components/AISummarizer';
 import { useNoteStore } from './store/noteStore';
 
 function App() {
   const { selectedId, getNote, updateNote, initialize } = useNoteStore();
   const [viewMode, setViewMode] = useState<'editor' | 'graph'>('editor');
+  const [showAISummarizer, setShowAISummarizer] = useState(false);
 
   useEffect(() => {
     initialize();
@@ -66,11 +68,33 @@ function App() {
                 >
                   Graph View
                 </button>
+                {selectedNote && (
+                  <button
+                    onClick={() => setShowAISummarizer(true)}
+                    style={{
+                      background: '#28a745',
+                      color: 'white',
+                      border: '1px solid #28a745',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '14px'
+                    }}
+                    title="AI Analysis (Ctrl+Shift+A)"
+                  >
+                    🤖 AI
+                  </button>
+                )}
               </div>
             </div>
 
             {/* Content Area */}
-            {viewMode === 'editor' ? (
+            {showAISummarizer ? (
+              <AISummarizer 
+                noteId={selectedId || undefined}
+                onClose={() => setShowAISummarizer(false)}
+              />
+            ) : viewMode === 'editor' ? (
               selectedNote ? (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <div style={{ flex: 1 }}>

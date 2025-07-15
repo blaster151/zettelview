@@ -101,6 +101,17 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
         }
       },
       category: 'View'
+    },
+    {
+      key: 'Ctrl+Shift+A',
+      description: 'Open AI analysis',
+      action: () => {
+        const aiButton = document.querySelector('button[title*="AI Analysis"]') as HTMLButtonElement;
+        if (aiButton) {
+          aiButton.click();
+        }
+      },
+      category: 'AI'
     }
   ];
 
@@ -219,6 +230,13 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
           if (newNoteInput) {
             newNoteInput.focus();
             newNoteInput.select();
+          }
+          break;
+        case 'A':
+          event.preventDefault();
+          const aiButton = document.querySelector('button[title*="AI Analysis"]') as HTMLButtonElement;
+          if (aiButton) {
+            aiButton.click();
           }
           break;
       }
