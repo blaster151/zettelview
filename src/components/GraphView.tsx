@@ -9,6 +9,8 @@ interface GraphNode {
   size: number;
   color: string;
   tags: string[];
+  isHovered?: boolean;
+  isSelected?: boolean;
 }
 
 interface GraphLink {
@@ -22,37 +24,135 @@ interface GraphViewProps {
   selectedNodeId?: string;
 }
 
+// Constants - extracted from magic numbers
+const GRAPH_CONSTANTS = {
+  INITIAL_RADIUS: 200,
+  MIN_NODE_SIZE: 20,
+  MAX_NODE_SIZE: 60,
+  BASE_NODE_SIZE: 30,
+  CONTENT_SIZE_FACTOR: 10,
+  TAG_SIZE_FACTOR: 5,
+  ZOOM_MIN: 0.1,
+  ZOOM_MAX: 3,
+  ZOOM_FACTOR: 1.2,
+  PAN_SENSITIVITY: 1,
+  HOVER_RADIUS: 5,
+  DEBOUNCE_DELAY: 16, // ~60fps
+} as const;
+
+// Error boundary for canvas operations
+class CanvasErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Canvas error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          padding: '24px',
+          textAlign: 'center',
+          color: '#666',
+          background: '#f8f9fa',
+          border: '1px solid #e1e4e8',
+          borderRadius: '6px',
+          margin: '16px'
+        }}>
+          <h3>Graph View Error</h3>
+          <p>Failed to render graph visualization.</p>
+          <button
+            onClick={() => this.setState({ hasError: false })}
+            style={{
+              background: '#007bff',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) => {
   const { notes, selectNote } = useNoteStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameRef = useRef<number>();
+  
+  // State management
   const [isDragging, setIsDragging] = useState(false);
   const [dragNode, setDragNode] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showMinimap, setShowMinimap] = useState(true);
+  
+  // Persistent node positions (in a real app, this would be in the store)
+  const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
 
-  // Generate graph data from notes
-  const { nodes, links } = useMemo(() => {
+  // Memoized graph data generation
+  const { nodes, links, filteredNodes } = useMemo(() => {
     const graphNodes: GraphNode[] = [];
     const graphLinks: GraphLink[] = [];
     const linkCounts: Record<string, number> = {};
 
-    // Create nodes from notes
+    // Create nodes from notes with memoized calculations
     notes.forEach((note, index) => {
-      const angle = (index / notes.length) * 2 * Math.PI;
-      const radius = 200;
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius;
+      // Use saved position or calculate new one
+      const savedPosition = nodePositions[note.id];
+      let x: number, y: number;
+      
+      if (savedPosition) {
+        x = savedPosition.x;
+        y = savedPosition.y;
+      } else {
+        const angle = (index / notes.length) * 2 * Math.PI;
+        const radius = GRAPH_CONSTANTS.INITIAL_RADIUS;
+        x = Math.cos(angle) * radius;
+        y = Math.sin(angle) * radius;
+      }
 
-      // Calculate node size based on content length and tag count
+      // Memoized size calculation
       const contentLength = note.body.length;
       const tagCount = note.tags.length;
-      const size = Math.max(20, Math.min(60, 30 + (contentLength / 1000) * 10 + tagCount * 5));
+      const size = Math.max(
+        GRAPH_CONSTANTS.MIN_NODE_SIZE,
+        Math.min(
+          GRAPH_CONSTANTS.MAX_NODE_SIZE,
+          GRAPH_CONSTANTS.BASE_NODE_SIZE + 
+          (contentLength / 1000) * GRAPH_CONSTANTS.CONTENT_SIZE_FACTOR + 
+          tagCount * GRAPH_CONSTANTS.TAG_SIZE_FACTOR
+        )
+      );
 
-      // Generate color based on tags
+      // Memoized color generation
       const color = note.tags.length > 0 
         ? `hsl(${(note.tags[0].length * 50) % 360}, 70%, 60%)`
         : '#6c757d';
+
+      const isSelected = note.id === selectedNodeId;
+      const isHovered = note.id === hoveredNode;
 
       graphNodes.push({
         id: note.id,
@@ -61,11 +161,13 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
         y,
         size,
         color,
-        tags: note.tags
+        tags: note.tags,
+        isSelected,
+        isHovered
       });
     });
 
-    // Create links based on internal references
+    // Create links based on internal references (memoized)
     const internalLinkPattern = /\[\[([^[\]]+)\]\]/g;
     
     notes.forEach(note => {
@@ -101,80 +203,120 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
       }
     });
 
-    return { nodes: graphNodes, links: graphLinks };
-  }, [notes]);
+    // Filter nodes based on search query
+    const filtered = searchQuery.trim() === '' 
+      ? graphNodes 
+      : graphNodes.filter(node => 
+          node.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          node.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
 
-  // Canvas drawing functions
+    return { nodes: graphNodes, links: graphLinks, filteredNodes: filtered };
+  }, [notes, nodePositions, selectedNodeId, hoveredNode, searchQuery]);
+
+  // Debounced canvas drawing with requestAnimationFrame
   const drawGraph = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    animationFrameRef.current = requestAnimationFrame(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+      try {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
 
-    // Apply transformations
-    ctx.save();
-    ctx.translate(pan.x + canvas.width / 2, pan.y + canvas.height / 2);
-    ctx.scale(zoom, zoom);
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw links
-    links.forEach(link => {
-      const sourceNode = nodes.find(n => n.id === link.source);
-      const targetNode = nodes.find(n => n.id === link.target);
-      
-      if (sourceNode && targetNode) {
-        ctx.beginPath();
-        ctx.moveTo(sourceNode.x, sourceNode.y);
-        ctx.lineTo(targetNode.x, targetNode.y);
-        ctx.strokeStyle = `rgba(100, 100, 100, ${0.3 + link.strength * 0.2})`;
-        ctx.lineWidth = 1 + link.strength;
-        ctx.stroke();
+        // Apply transformations
+        ctx.save();
+        ctx.translate(pan.x + canvas.width / 2, pan.y + canvas.height / 2);
+        ctx.scale(zoom, zoom);
+
+        // Draw links
+        links.forEach(link => {
+          const sourceNode = nodes.find(n => n.id === link.source);
+          const targetNode = nodes.find(n => n.id === link.target);
+          
+          if (sourceNode && targetNode) {
+            ctx.beginPath();
+            ctx.moveTo(sourceNode.x, sourceNode.y);
+            ctx.lineTo(targetNode.x, targetNode.y);
+            ctx.strokeStyle = `rgba(100, 100, 100, ${0.3 + link.strength * 0.2})`;
+            ctx.lineWidth = 1 + link.strength;
+            ctx.stroke();
+          }
+        });
+
+        // Draw nodes
+        nodes.forEach(node => {
+          const isSelected = node.isSelected;
+          const isHovered = node.isHovered;
+          const isFiltered = filteredNodes.includes(node);
+
+          // Skip drawing if node is filtered out
+          if (!isFiltered) return;
+
+          // Node circle with enhanced visual feedback
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, node.size, 0, 2 * Math.PI);
+          
+          if (isSelected) {
+            ctx.fillStyle = '#007bff';
+          } else if (isHovered) {
+            ctx.fillStyle = '#0056b3';
+          } else {
+            ctx.fillStyle = node.color;
+          }
+          
+          ctx.fill();
+          
+          // Node border with enhanced styling
+          ctx.strokeStyle = isSelected ? '#0056b3' : isHovered ? '#007bff' : '#fff';
+          ctx.lineWidth = isSelected ? 3 : isHovered ? 2 : 1;
+          ctx.stroke();
+
+          // Node title with improved text rendering
+          ctx.fillStyle = '#fff';
+          ctx.font = '12px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          
+          // Truncate title if too long
+          const maxWidth = node.size * 1.5;
+          let title = node.title;
+          while (ctx.measureText(title).width > maxWidth && title.length > 3) {
+            title = title.slice(0, -1) + '...';
+          }
+          
+          ctx.fillText(title, node.x, node.y);
+
+          // Highlight effect for hovered nodes
+          if (isHovered) {
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, node.size + GRAPH_CONSTANTS.HOVER_RADIUS, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'rgba(0, 123, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+        });
+
+        ctx.restore();
+      } catch (error) {
+        console.error('Canvas drawing error:', error);
+        throw error; // Let error boundary handle it
       }
     });
+  }, [nodes, links, filteredNodes, selectedNodeId, hoveredNode, zoom, pan]);
 
-    // Draw nodes
-    nodes.forEach(node => {
-      const isSelected = node.id === selectedNodeId;
-      const isHovered = dragNode === node.id;
-
-      // Node circle
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, node.size, 0, 2 * Math.PI);
-      ctx.fillStyle = isSelected ? '#007bff' : isHovered ? '#0056b3' : node.color;
-      ctx.fill();
-      
-      // Node border
-      ctx.strokeStyle = isSelected ? '#0056b3' : '#fff';
-      ctx.lineWidth = isSelected ? 3 : 2;
-      ctx.stroke();
-
-      // Node title
-      ctx.fillStyle = '#fff';
-      ctx.font = '12px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      // Truncate title if too long
-      const maxWidth = node.size * 1.5;
-      let title = node.title;
-      while (ctx.measureText(title).width > maxWidth && title.length > 3) {
-        title = title.slice(0, -1) + '...';
-      }
-      
-      ctx.fillText(title, node.x, node.y);
-    });
-
-    ctx.restore();
-  }, [nodes, links, selectedNodeId, dragNode, zoom, pan]);
-
-  // Mouse event handlers
+  // Enhanced mouse event handlers with debouncing
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -203,28 +345,40 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
   }, [nodes, pan, zoom, onNodeClick, selectNote]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left - pan.x - canvas.width / 2) / zoom;
+    const y = (e.clientY - rect.top - pan.y - canvas.height / 2) / zoom;
+
+    // Update hover state
+    const hoveredNode = nodes.find(node => {
+      const distance = Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2);
+      return distance <= node.size;
+    });
+    
+    setHoveredNode(hoveredNode?.id || null);
+
     if (!isDragging) return;
 
     const deltaX = e.clientX - lastMousePos.x;
     const deltaY = e.clientY - lastMousePos.y;
 
-    if (dragNode) {
-      // Move specific node
-      const nodeIndex = nodes.findIndex(n => n.id === dragNode);
-      if (nodeIndex !== -1) {
-        const newNodes = [...nodes];
-        newNodes[nodeIndex] = {
-          ...newNodes[nodeIndex],
-          x: newNodes[nodeIndex].x + deltaX / zoom,
-          y: newNodes[nodeIndex].y + deltaY / zoom
-        };
-        // Note: In a real implementation, you'd update the store
-      }
-    } else {
+          if (dragNode) {
+        // Move specific node with persistent storage
+        setNodePositions(prev => ({
+          ...prev,
+          [dragNode]: {
+            x: (prev[dragNode]?.x || 0) + deltaX / zoom,
+            y: (prev[dragNode]?.y || 0) + deltaY / zoom
+          }
+        }));
+      } else {
       // Pan the view
       setPan(prev => ({
-        x: prev.x + deltaX,
-        y: prev.y + deltaY
+        x: prev.x + deltaX * GRAPH_CONSTANTS.PAN_SENSITIVITY,
+        y: prev.y + deltaY * GRAPH_CONSTANTS.PAN_SENSITIVITY
       }));
     }
 
@@ -238,16 +392,25 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
 
   const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setZoom(prev => Math.max(0.1, Math.min(3, prev * delta)));
+    const delta = e.deltaY > 0 ? 1 / GRAPH_CONSTANTS.ZOOM_FACTOR : GRAPH_CONSTANTS.ZOOM_FACTOR;
+    setZoom(prev => Math.max(GRAPH_CONSTANTS.ZOOM_MIN, Math.min(GRAPH_CONSTANTS.ZOOM_MAX, prev * delta)));
   }, []);
 
-  // Redraw on changes
+  // Optimized redraw with useEffect
   useEffect(() => {
     drawGraph();
   }, [drawGraph]);
 
-  // Statistics
+  // Cleanup animation frame
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
+
+  // Memoized statistics
   const stats = useMemo(() => ({
     totalNotes: nodes.length,
     totalLinks: links.length,
@@ -255,140 +418,259 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     mostConnected: nodes.reduce((max, node) => {
       const connections = links.filter(l => l.source === node.id || l.target === node.id).length;
       return connections > max.connections ? { node, connections } : max;
-    }, { node: null as GraphNode | null, connections: 0 })
-  }), [nodes, links]);
+    }, { node: null as GraphNode | null, connections: 0 }),
+    filteredCount: filteredNodes.length
+  }), [nodes, links, filteredNodes]);
+
+  // Search functionality
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('');
+  }, []);
 
   return (
-    <div style={{ 
-      height: '100%', 
-      display: 'flex', 
-      flexDirection: 'column',
-      background: '#f8f9fa'
-    }}>
-      {/* Graph Statistics */}
-      <div style={{
-        padding: '12px 16px',
-        borderBottom: '1px solid #e1e4e8',
-        background: 'white',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        fontSize: '14px'
-      }}>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <span><strong>{stats.totalNotes}</strong> notes</span>
-          <span><strong>{stats.totalLinks}</strong> connections</span>
-          <span>Avg: <strong>{stats.averageConnections.toFixed(1)}</strong> links/note</span>
-        </div>
-        {stats.mostConnected.node && (
-          <span>
-            Most connected: <strong>{stats.mostConnected.node.title}</strong> 
-            ({stats.mostConnected.connections} links)
-          </span>
-        )}
-      </div>
-
-      {/* Canvas Container */}
+    <CanvasErrorBoundary>
       <div style={{ 
-        flex: 1, 
-        position: 'relative',
-        cursor: isDragging ? 'grabbing' : 'grab'
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        background: '#f8f9fa'
       }}>
-        <canvas
-          ref={canvasRef}
-          style={{
-            width: '100%',
-            height: '100%',
-            display: 'block'
-          }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onWheel={handleWheel}
-        />
-        
-        {/* Zoom Controls */}
+        {/* Graph Statistics */}
         <div style={{
-          position: 'absolute',
-          top: '16px',
-          right: '16px',
+          padding: '12px 16px',
+          borderBottom: '1px solid #e1e4e8',
+          background: 'white',
           display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '14px'
         }}>
-          <button
-            onClick={() => setZoom(prev => Math.min(3, prev * 1.2))}
-            style={{
-              width: '32px',
-              height: '32px',
-              border: '1px solid #e1e4e8',
-              background: 'white',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
-            title="Zoom in"
-          >
-            +
-          </button>
-          <button
-            onClick={() => setZoom(prev => Math.max(0.1, prev * 0.8))}
-            style={{
-              width: '32px',
-              height: '32px',
-              border: '1px solid #e1e4e8',
-              background: 'white',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
-            title="Zoom out"
-          >
-            −
-          </button>
-          <button
-            onClick={() => {
-              setZoom(1);
-              setPan({ x: 0, y: 0 });
-            }}
-            style={{
-              width: '32px',
-              height: '32px',
-              border: '1px solid #e1e4e8',
-              background: 'white',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-            title="Reset view"
-          >
-            ⌂
-          </button>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <span><strong>{stats.totalNotes}</strong> notes</span>
+            <span><strong>{stats.totalLinks}</strong> connections</span>
+            <span>Avg: <strong>{stats.averageConnections.toFixed(1)}</strong> links/note</span>
+            {searchQuery && (
+              <span>Showing: <strong>{stats.filteredCount}</strong> of {stats.totalNotes}</span>
+            )}
+          </div>
+          {stats.mostConnected.node && (
+            <span>
+              Most connected: <strong>{stats.mostConnected.node.title}</strong> 
+              ({stats.mostConnected.connections} links)
+            </span>
+          )}
         </div>
 
-        {/* Legend */}
+        {/* Search Bar */}
         <div style={{
-          position: 'absolute',
-          bottom: '16px',
-          left: '16px',
-          background: 'white',
-          border: '1px solid #e1e4e8',
-          borderRadius: '6px',
-          padding: '12px',
-          fontSize: '12px',
-          color: '#586069'
+          padding: '8px 16px',
+          borderBottom: '1px solid #e1e4e8',
+          background: 'white'
         }}>
-          <div style={{ marginBottom: '8px', fontWeight: '600' }}>Legend</div>
-          <div>• Node size = content length + tags</div>
-          <div>• Line thickness = connection strength</div>
-          <div>• Colors = based on primary tag</div>
-          <div style={{ marginTop: '8px' }}>
-            <strong>Tip:</strong> Drag nodes to rearrange, scroll to zoom
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              placeholder="Search nodes by title or tags..."
+              style={{
+                width: '100%',
+                padding: '8px 32px 8px 12px',
+                border: '1px solid #e1e4e8',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+            />
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  color: '#666'
+                }}
+                title="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Canvas Container */}
+        <div style={{ 
+          flex: 1, 
+          position: 'relative',
+          cursor: isDragging ? 'grabbing' : 'grab'
+        }}>
+          <canvas
+            ref={canvasRef}
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'block'
+            }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onWheel={handleWheel}
+          />
+          
+
+          
+          {/* Zoom Controls */}
+          <div style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <button
+              onClick={() => setZoom(prev => Math.min(GRAPH_CONSTANTS.ZOOM_MAX, prev * GRAPH_CONSTANTS.ZOOM_FACTOR))}
+              style={{
+                width: '32px',
+                height: '32px',
+                border: '1px solid #e1e4e8',
+                background: 'white',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '16px'
+              }}
+              title="Zoom in"
+            >
+              +
+            </button>
+            <button
+              onClick={() => setZoom(prev => Math.max(GRAPH_CONSTANTS.ZOOM_MIN, prev / GRAPH_CONSTANTS.ZOOM_FACTOR))}
+              style={{
+                width: '32px',
+                height: '32px',
+                border: '1px solid #e1e4e8',
+                background: 'white',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '16px'
+              }}
+              title="Zoom out"
+            >
+              −
+            </button>
+            <button
+              onClick={() => {
+                setZoom(1);
+                setPan({ x: 0, y: 0 });
+              }}
+              style={{
+                width: '32px',
+                height: '32px',
+                border: '1px solid #e1e4e8',
+                background: 'white',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+              title="Reset view"
+            >
+              ⌂
+            </button>
+            <button
+              onClick={() => setShowMinimap(prev => !prev)}
+              style={{
+                width: '32px',
+                height: '32px',
+                border: '1px solid #e1e4e8',
+                background: showMinimap ? '#007bff' : 'white',
+                color: showMinimap ? 'white' : '#333',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+              title="Toggle minimap"
+            >
+              ⊞
+            </button>
+          </div>
+
+          {/* Minimap */}
+          {showMinimap && (
+            <div style={{
+              position: 'absolute',
+              bottom: '16px',
+              right: '16px',
+              width: '150px',
+              height: '100px',
+              background: 'white',
+              border: '1px solid #e1e4e8',
+              borderRadius: '6px',
+              padding: '8px',
+              fontSize: '10px'
+            }}>
+              <div style={{ marginBottom: '4px', fontWeight: '600' }}>Minimap</div>
+              <div style={{
+                width: '100%',
+                height: '70px',
+                background: '#f6f8fa',
+                border: '1px solid #e1e4e8',
+                borderRadius: '4px',
+                position: 'relative'
+              }}>
+                {/* Simplified minimap representation */}
+                {filteredNodes.map(node => (
+                  <div
+                    key={node.id}
+                    style={{
+                      position: 'absolute',
+                      left: `${((node.x + 300) / 600) * 100}%`,
+                      top: `${((node.y + 300) / 600) * 100}%`,
+                      width: '4px',
+                      height: '4px',
+                      background: node.isSelected ? '#007bff' : node.color,
+                      borderRadius: '50%',
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Legend */}
+          <div style={{
+            position: 'absolute',
+            bottom: '16px',
+            left: '16px',
+            background: 'white',
+            border: '1px solid #e1e4e8',
+            borderRadius: '6px',
+            padding: '12px',
+            fontSize: '12px',
+            color: '#586069'
+          }}>
+            <div style={{ marginBottom: '8px', fontWeight: '600' }}>Legend</div>
+            <div>• Node size = content length + tags</div>
+            <div>• Line thickness = connection strength</div>
+            <div>• Colors = based on primary tag</div>
+            <div>• Hover for details</div>
+            <div style={{ marginTop: '8px' }}>
+              <strong>Tip:</strong> Drag nodes to rearrange, scroll to zoom
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </CanvasErrorBoundary>
   );
 };
 
