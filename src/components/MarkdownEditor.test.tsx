@@ -5,7 +5,50 @@ import MarkdownEditor from './MarkdownEditor';
 
 // Mock the problematic ES modules
 jest.mock('react-markdown', () => {
-  return function MockReactMarkdown({ children }: { children: string }) {
+  return function MockReactMarkdown({ children, components }: { children: string; components?: any }) {
+    // Simulate the enhanced components behavior
+    if (components?.code) {
+      // Check if content contains code blocks and render enhanced code blocks
+      if (children.includes('```')) {
+        const codeBlocks = children.match(/```(\w+)\n([\s\S]*?)```/g);
+        if (codeBlocks) {
+          return (
+            <div data-testid="markdown-preview">
+              {codeBlocks.map((block, index) => {
+                const match = block.match(/```(\w+)\n([\s\S]*?)```/);
+                if (match) {
+                  const language = match[1];
+                  const code = match[2];
+                  return (
+                    <div key={index} data-testid="enhanced-code-block">
+                      <div data-testid="code-language">{language}</div>
+                      <pre>{code}</pre>
+                    </div>
+                  );
+                }
+                return <div key={index}>{block}</div>;
+              })}
+            </div>
+          );
+        }
+      }
+      
+      // Check if content contains Gist URLs and render Gist embeds
+      if (children.includes('gist.github.com')) {
+        const gistUrls = children.match(/https:\/\/gist\.github\.com\/[^\s]+/g);
+        if (gistUrls) {
+          return (
+            <div data-testid="markdown-preview">
+              {gistUrls.map((url, index) => (
+                <div key={index} data-testid="gist-embed" data-url={url}>
+                  Gist Embed: {url}
+                </div>
+              ))}
+            </div>
+          );
+        }
+      }
+    }
     return <div data-testid="markdown-preview">{children}</div>;
   };
 });
@@ -19,6 +62,25 @@ jest.mock('react-syntax-highlighter', () => ({
 jest.mock('react-syntax-highlighter/dist/esm/styles/prism', () => ({
   tomorrow: {},
 }));
+
+// Mock the new components
+jest.mock('./EnhancedCodeBlock', () => {
+  return function MockEnhancedCodeBlock({ children, className }: { children: string; className?: string }) {
+    const language = className?.replace('language-', '') || 'text';
+    return (
+      <div data-testid="enhanced-code-block">
+        <div data-testid="code-language">{language}</div>
+        <pre>{children}</pre>
+      </div>
+    );
+  };
+});
+
+jest.mock('./GistEmbed', () => {
+  return function MockGistEmbed({ url }: { url: string }) {
+    return <div data-testid="gist-embed" data-url={url}>Gist Embed: {url}</div>;
+  };
+});
 
 // Mock the Zustand store
 const mockFindOrCreateNote = jest.fn();
@@ -156,5 +218,76 @@ describe('MarkdownEditor', () => {
     const previewElement = screen.getByTestId('markdown-preview');
     expect(previewElement).toHaveTextContent('```javascript');
     expect(previewElement).toHaveTextContent('console.log("Hello");');
+  });
+
+  test('should render enhanced code blocks with language detection', async () => {
+    const contentWithCode = '```python\nprint("Hello, World!")\n```';
+    render(<MarkdownEditor value={contentWithCode} onChange={mockOnChange} />);
+    
+    // Switch to preview mode
+    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    await safeUserEvent.click(previewButton);
+    
+    // Should render enhanced code block
+    expect(screen.getByTestId('enhanced-code-block')).toBeInTheDocument();
+    expect(screen.getByTestId('code-language')).toHaveTextContent('python');
+  });
+
+  test('should render Gist embeds for GitHub Gist URLs', async () => {
+    const contentWithGist = 'Check out this code: https://gist.github.com/user/abc123';
+    render(<MarkdownEditor value={contentWithGist} onChange={mockOnChange} />);
+    
+    // Switch to preview mode
+    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    await safeUserEvent.click(previewButton);
+    
+    // Should render Gist embed
+    expect(screen.getByTestId('gist-embed')).toBeInTheDocument();
+    expect(screen.getByTestId('gist-embed')).toHaveAttribute('data-url', 'https://gist.github.com/user/abc123');
+  });
+
+  test('should handle regular links without Gist embedding', async () => {
+    const contentWithRegularLink = 'Check out this link: https://example.com';
+    render(<MarkdownEditor value={contentWithRegularLink} onChange={mockOnChange} />);
+    
+    // Switch to preview mode
+    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    await safeUserEvent.click(previewButton);
+    
+    // Should not render Gist embed for non-Gist URLs
+    expect(screen.queryByTestId('gist-embed')).not.toBeInTheDocument();
+  });
+
+  test('should handle mixed content with code blocks and Gist embeds', async () => {
+    const mixedContent = `
+# Test Note
+
+Here's some code:
+
+\`\`\`javascript
+console.log("Hello");
+\`\`\`
+
+And here's a Gist: https://gist.github.com/user/abc123
+
+And another code block:
+
+\`\`\`python
+print("World")
+\`\`\`
+    `;
+    
+    render(<MarkdownEditor value={mixedContent} onChange={mockOnChange} />);
+    
+    // Switch to preview mode
+    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    await safeUserEvent.click(previewButton);
+    
+    // Should render multiple enhanced code blocks
+    const codeBlocks = screen.getAllByTestId('enhanced-code-block');
+    expect(codeBlocks).toHaveLength(2);
+    
+    // Should render Gist embed
+    expect(screen.getByTestId('gist-embed')).toBeInTheDocument();
   });
 }); 

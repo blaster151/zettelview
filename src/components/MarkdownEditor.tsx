@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useNoteStore } from '../store/noteStore';
+import EnhancedCodeBlock from './EnhancedCodeBlock';
+import GistEmbed from './GistEmbed';
 
 interface MarkdownEditorProps {
   value: string;
@@ -92,13 +92,9 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 code({ node, inline, className, children, ...props }: any) {
                   const match = /language-(\w+)/.exec(className || '');
                   return !inline && match ? (
-                    <SyntaxHighlighter
-                      style={tomorrow}
-                      language={match[1]}
-                      PreTag="div"
-                    >
+                    <EnhancedCodeBlock className={className}>
                       {String(children).replace(/\n$/, '')}
-                    </SyntaxHighlighter>
+                    </EnhancedCodeBlock>
                   ) : (
                     <code className={className} {...props}>
                       {children}
@@ -121,6 +117,13 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                     );
                   }
                   return <p>{children}</p>;
+                },
+                a: ({ href, children }: any) => {
+                  // Handle Gist embeds
+                  if (href && href.includes('gist.github.com')) {
+                    return <GistEmbed url={href} />;
+                  }
+                  return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
                 }
               }}
             >
