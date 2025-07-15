@@ -85,6 +85,22 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
         }
       },
       category: 'Navigation'
+    },
+    {
+      key: 'Ctrl+G',
+      description: 'Toggle graph view',
+      action: () => {
+        const graphButton = document.querySelector('button:contains("Graph View")') as HTMLButtonElement;
+        const editorButton = document.querySelector('button:contains("Editor")') as HTMLButtonElement;
+        if (graphButton && editorButton) {
+          if (graphButton.style.background === 'rgb(0, 123, 255)') {
+            editorButton.click();
+          } else {
+            graphButton.click();
+          }
+        }
+      },
+      category: 'View'
     }
   ];
 
@@ -172,6 +188,18 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
           if (searchInput) {
             searchInput.focus();
             searchInput.select();
+          }
+          break;
+        case 'G':
+          event.preventDefault();
+          const graphButton = document.querySelector('button:contains("Graph View")') as HTMLButtonElement;
+          const editorButton = document.querySelector('button:contains("Editor")') as HTMLButtonElement;
+          if (graphButton && editorButton) {
+            if (graphButton.style.background === 'rgb(0, 123, 255)') {
+              editorButton.click();
+            } else {
+              graphButton.click();
+            }
           }
           break;
       }
