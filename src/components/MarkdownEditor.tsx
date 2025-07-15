@@ -139,7 +139,13 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 }) => {
   const [isPreview, setIsPreview] = useState(false);
   const [parseError, setParseError] = useState<Error | null>(null);
-  const { findOrCreateNote, selectNote, updateNote } = useNoteStore();
+  const { findOrCreateNote, selectNote, updateNote, getNote } = useNoteStore();
+
+  // Tag management state
+  const note = noteId ? getNote(noteId) : null;
+  const [tagInput, setTagInput] = useState('');
+  const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
+  const [editingTagValue, setEditingTagValue] = useState('');
 
   // Auto-save functionality
   const { isSaving, lastSaved, error, saveNow } = useAutoSave(
@@ -267,6 +273,51 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     }
   }), [handleInternalLink]);
 
+  // Tag management handlers
+  const handleAddTag = async () => {
+    if (!noteId || !tagInput.trim()) return;
+    const newTag = tagInput.trim();
+    if (note && !note.tags.includes(newTag)) {
+      await updateNote(noteId, { tags: [...note.tags, newTag] });
+      setTagInput('');
+    }
+  };
+
+  const handleRemoveTag = async (index: number) => {
+    if (!noteId || !note) return;
+    const newTags = note.tags.filter((_, i) => i !== index);
+    await updateNote(noteId, { tags: newTags });
+  };
+
+  const handleEditTag = (index: number) => {
+    if (!note) return;
+    setEditingTagIndex(index);
+    setEditingTagValue(note.tags[index]);
+  };
+
+  const handleEditTagChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingTagValue(e.target.value);
+  };
+
+  const handleEditTagSave = async (index: number) => {
+    if (!noteId || !note) return;
+    const newTag = editingTagValue.trim();
+    if (!newTag) return;
+    const newTags = note.tags.map((tag, i) => (i === index ? newTag : tag));
+    await updateNote(noteId, { tags: newTags });
+    setEditingTagIndex(null);
+    setEditingTagValue('');
+  };
+
+  const handleEditTagKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === 'Enter') {
+      await handleEditTagSave(index);
+    } else if (e.key === 'Escape') {
+      setEditingTagIndex(null);
+      setEditingTagValue('');
+    }
+  };
+
   return (
     <div 
       style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
@@ -362,6 +413,79 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           />
         )}
       </div>
+
+      {/* Tag management UI */}
+      {note && (
+        <div style={{
+          padding: '12px 16px',
+          borderTop: '1px solid #eee',
+          background: '#fafbfc',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+        }}>
+          <div style={{ fontWeight: 500, fontSize: '13px', color: '#555' }}>Tags</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {note.tags.map((tag, i) => (
+              <span key={i} style={{ display: 'flex', alignItems: 'center', background: '#e3e7ed', borderRadius: '12px', padding: '2px 8px', fontSize: '12px' }}>
+                {editingTagIndex === i ? (
+                  <input
+                    value={editingTagValue}
+                    onChange={handleEditTagChange}
+                    onBlur={() => handleEditTagSave(i)}
+                    onKeyDown={(e) => handleEditTagKeyDown(e, i)}
+                    autoFocus
+                    style={{ fontSize: '12px', border: '1px solid #bbb', borderRadius: '8px', padding: '2px 4px', marginRight: '4px' }}
+                    aria-label={`Edit tag ${tag}`}
+                  />
+                ) : (
+                  <span
+                    tabIndex={0}
+                    style={{ outline: 'none', cursor: 'pointer', marginRight: '4px' }}
+                    onClick={() => handleEditTag(i)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') handleEditTag(i);
+                    }}
+                    aria-label={`Edit tag ${tag}`}
+                    role="button"
+                  >
+                    {tag}
+                  </span>
+                )}
+                <button
+                  onClick={() => handleRemoveTag(i)}
+                  style={{ background: 'none', border: 'none', color: '#c00', marginLeft: '2px', cursor: 'pointer', fontSize: '14px', padding: 0 }}
+                  aria-label={`Remove tag ${tag}`}
+                  title="Remove tag"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter') await handleAddTag();
+              }}
+              placeholder="Add tag..."
+              style={{ fontSize: '12px', padding: '4px 8px', border: '1px solid #bbb', borderRadius: '8px', minWidth: '80px' }}
+              aria-label="Add tag"
+            />
+            <button
+              onClick={handleAddTag}
+              disabled={!tagInput.trim() || (note.tags.includes(tagInput.trim()))}
+              style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '8px', border: 'none', background: '#007bff', color: 'white', cursor: tagInput.trim() && !note.tags.includes(tagInput.trim()) ? 'pointer' : 'not-allowed', opacity: tagInput.trim() && !note.tags.includes(tagInput.trim()) ? 1 : 0.6 }}
+              aria-label="Add tag button"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

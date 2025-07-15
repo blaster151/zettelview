@@ -85,11 +85,15 @@ jest.mock('./GistEmbed', () => {
 // Mock the Zustand store
 const mockFindOrCreateNote = jest.fn();
 const mockSelectNote = jest.fn();
+const mockUpdateNote = jest.fn();
+const mockGetNote = jest.fn();
 
 jest.mock('../store/noteStore', () => ({
   useNoteStore: () => ({
     findOrCreateNote: mockFindOrCreateNote,
     selectNote: mockSelectNote,
+    updateNote: mockUpdateNote,
+    getNote: mockGetNote,
   }),
 }));
 
@@ -289,5 +293,297 @@ print("World")
     
     // Should render Gist embed
     expect(screen.getByTestId('gist-embed')).toBeInTheDocument();
+  });
+
+  // Tag management tests
+  describe('Tag Management', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockUpdateNote.mockResolvedValue(undefined);
+    });
+
+    test('should show tag management UI when noteId is provided', () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: ['test', 'example'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      expect(screen.getByText('Tags')).toBeInTheDocument();
+      expect(screen.getByText('test')).toBeInTheDocument();
+      expect(screen.getByText('example')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Add tag...')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Add tag button' })).toBeInTheDocument();
+    });
+
+    test('should not show tag management UI when noteId is not provided', () => {
+      render(<MarkdownEditor {...defaultProps} />);
+      
+      expect(screen.queryByText('Tags')).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText('Add tag...')).not.toBeInTheDocument();
+    });
+
+    test('should add a new tag when Add button is clicked', async () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: ['existing'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      const tagInput = screen.getByPlaceholderText('Add tag...');
+      const addButton = screen.getByRole('button', { name: 'Add tag button' });
+      
+      await safeUserEvent.type(tagInput, 'new-tag');
+      await safeUserEvent.click(addButton);
+      
+      expect(mockUpdateNote).toHaveBeenCalledWith('test-note', {
+        tags: ['existing', 'new-tag'],
+        updatedAt: expect.any(Date),
+      });
+    });
+
+    test('should add a new tag when Enter is pressed in tag input', async () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      const tagInput = screen.getByPlaceholderText('Add tag...');
+      
+      await safeUserEvent.type(tagInput, 'new-tag{enter}');
+      
+      expect(mockUpdateNote).toHaveBeenCalledWith('test-note', {
+        tags: ['new-tag'],
+        updatedAt: expect.any(Date),
+      });
+    });
+
+    test('should not add duplicate tags', async () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: ['existing'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      const tagInput = screen.getByPlaceholderText('Add tag...');
+      const addButton = screen.getByRole('button', { name: 'Add tag button' });
+      
+      await safeUserEvent.type(tagInput, 'existing');
+      
+      expect(addButton).toBeDisabled();
+      expect(addButton).toHaveStyle({ opacity: '0.6' });
+    });
+
+    test('should not add empty tags', async () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      const tagInput = screen.getByPlaceholderText('Add tag...');
+      const addButton = screen.getByRole('button', { name: 'Add tag button' });
+      
+      await safeUserEvent.type(tagInput, '   ');
+      
+      expect(addButton).toBeDisabled();
+    });
+
+    test('should remove a tag when remove button is clicked', async () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: ['tag1', 'tag2', 'tag3'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      const removeButtons = screen.getAllByTitle('Remove tag');
+      await safeUserEvent.click(removeButtons[1]); // Remove tag2
+      
+      expect(mockUpdateNote).toHaveBeenCalledWith('test-note', {
+        tags: ['tag1', 'tag3'],
+        updatedAt: expect.any(Date),
+      });
+    });
+
+    test('should enter edit mode when tag is clicked', async () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: ['editable-tag'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      const tagElement = screen.getByText('editable-tag');
+      await safeUserEvent.click(tagElement);
+      
+      const editInput = screen.getByDisplayValue('editable-tag');
+      expect(editInput).toBeInTheDocument();
+      expect(editInput).toHaveFocus();
+    });
+
+    test('should enter edit mode when Enter is pressed on tag', async () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: ['editable-tag'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      const tagElement = screen.getByText('editable-tag');
+      fireEvent.keyDown(tagElement, { key: 'Enter' });
+      
+      const editInput = screen.getByDisplayValue('editable-tag');
+      expect(editInput).toBeInTheDocument();
+    });
+
+    test('should save tag edit when Enter is pressed', async () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: ['old-tag'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      const tagElement = screen.getByText('old-tag');
+      await safeUserEvent.click(tagElement);
+      
+      const editInput = screen.getByDisplayValue('old-tag');
+      await safeUserEvent.type(editInput, '{selectall}new-tag{enter}');
+      
+      expect(mockUpdateNote).toHaveBeenCalledWith('test-note', {
+        tags: ['new-tag'],
+        updatedAt: expect.any(Date),
+      });
+    });
+
+    test('should cancel tag edit when Escape is pressed', async () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: ['original-tag'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      const tagElement = screen.getByText('original-tag');
+      await safeUserEvent.click(tagElement);
+      
+      const editInput = screen.getByDisplayValue('original-tag');
+      await safeUserEvent.type(editInput, '{selectall}changed-tag{escape}');
+      
+      expect(mockUpdateNote).not.toHaveBeenCalled();
+      expect(screen.getByText('original-tag')).toBeInTheDocument();
+    });
+
+    test('should save tag edit when input loses focus', async () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: ['old-tag'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      const tagElement = screen.getByText('old-tag');
+      await safeUserEvent.click(tagElement);
+      
+      const editInput = screen.getByDisplayValue('old-tag');
+      await safeUserEvent.type(editInput, '{selectall}new-tag');
+      fireEvent.blur(editInput);
+      
+      expect(mockUpdateNote).toHaveBeenCalledWith('test-note', {
+        tags: ['new-tag'],
+        updatedAt: expect.any(Date),
+      });
+    });
+
+    test('should not save empty tag edits', async () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: ['original-tag'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      const tagElement = screen.getByText('original-tag');
+      await safeUserEvent.click(tagElement);
+      
+      const editInput = screen.getByDisplayValue('original-tag');
+      await safeUserEvent.type(editInput, '{selectall}   ');
+      fireEvent.blur(editInput);
+      
+      expect(mockUpdateNote).not.toHaveBeenCalled();
+    });
+
+    test('should have proper accessibility attributes for tag management', () => {
+      mockGetNote.mockReturnValue({
+        id: 'test-note',
+        title: 'Test Note',
+        body: 'Test content',
+        tags: ['test-tag'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      render(<MarkdownEditor {...defaultProps} noteId="test-note" />);
+      
+      expect(screen.getByLabelText('Add tag')).toBeInTheDocument();
+      expect(screen.getByLabelText('Add tag button')).toBeInTheDocument();
+      expect(screen.getByLabelText('Edit tag test-tag')).toBeInTheDocument();
+      expect(screen.getByLabelText('Remove tag test-tag')).toBeInTheDocument();
+    });
   });
 }); 

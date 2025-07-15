@@ -3,6 +3,7 @@ import './App.css';
 import MarkdownEditor from './components/MarkdownEditor';
 import NoteSidebar from './components/NoteSidebar';
 import StoragePermission from './components/StoragePermission';
+import BacklinksPanel from './components/BacklinksPanel';
 import { useNoteStore } from './store/noteStore';
 
 function App() {
@@ -25,17 +26,20 @@ function App() {
               <div style={{ padding: '16px 24px', borderBottom: '1px solid #eee' }}>
                 <h1 style={{ margin: 0 }}>{selectedNote.title}</h1>
               </div>
-              <div style={{ flex: 1 }}>
-                <MarkdownEditor
-                  value={selectedNote.body}
-                  onChange={async (newBody) => {
-                    if (selectedId) {
-                      await updateNote(selectedId, { body: newBody });
-                    }
-                  }}
-                  noteId={selectedId || undefined}
-                  autoSave={true}
-                />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1 }}>
+                  <MarkdownEditor
+                    value={selectedNote.body}
+                    onChange={async (newBody) => {
+                      if (selectedId) {
+                        await updateNote(selectedId, { body: newBody });
+                      }
+                    }}
+                    noteId={selectedId || undefined}
+                    autoSave={true}
+                  />
+                </div>
+                <BacklinksPanel currentNoteId={selectedId!} />
               </div>
             </div>
           ) : (
