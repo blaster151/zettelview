@@ -48,6 +48,104 @@ jest.mock('react-markdown', () => {
           );
         }
       }
+
+      // Check if content contains tables
+      if (children.includes('|')) {
+        const tableRows = children.split('\n').filter(line => line.includes('|'));
+        if (tableRows.length > 0) {
+          return (
+            <div data-testid="markdown-preview">
+              {tableRows.map((row, index) => (
+                <div key={index} data-testid="table-row">
+                  {row.split('|').map((cell, cellIndex) => (
+                    <span key={cellIndex} data-testid="table-cell">
+                      {cell.trim()}
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
+          );
+        }
+      }
+
+      // Check if content contains images
+      if (children.includes('![')) {
+        const imageMatches = children.match(/!\[([^\]]*)\]\(([^)]+)\)/g);
+        if (imageMatches) {
+          return (
+            <div data-testid="markdown-preview">
+              {imageMatches.map((match, index) => {
+                const altMatch = match.match(/!\[([^\]]*)\]/);
+                const alt = altMatch ? altMatch[1] : 'Image';
+                return (
+                  <div key={index} data-testid="image">
+                    {alt}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        }
+      }
+
+      // Check if content contains headings
+      if (children.includes('#')) {
+        const headingMatches = children.match(/^(#{1,6})\s+(.+)$/gm);
+        if (headingMatches) {
+          return (
+            <div data-testid="markdown-preview">
+              {headingMatches.map((match, index) => {
+                const level = match.match(/^(#{1,6})/)?.[1].length || 1;
+                const text = match.replace(/^#{1,6}\s+/, '');
+                return (
+                  <div key={index} data-testid={`heading-${level}`}>
+                    {text}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        }
+      }
+
+      // Check if content contains blockquotes
+      if (children.includes('>')) {
+        const blockquoteMatches = children.match(/^>\s+(.+)$/gm);
+        if (blockquoteMatches) {
+          return (
+            <div data-testid="markdown-preview">
+              {blockquoteMatches.map((match, index) => {
+                const text = match.replace(/^>\s+/, '');
+                return (
+                  <div key={index} data-testid="blockquote">
+                    {text}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        }
+      }
+
+      // Check if content contains lists
+      if (children.includes('- ') || children.includes('1. ')) {
+        const listMatches = children.match(/^[-*]\s+(.+)$/gm) || children.match(/^\d+\.\s+(.+)$/gm);
+        if (listMatches) {
+          return (
+            <div data-testid="markdown-preview">
+              {listMatches.map((match, index) => {
+                const text = match.replace(/^[-*]\s+/, '').replace(/^\d+\.\s+/, '');
+                return (
+                  <div key={index} data-testid="list-item">
+                    {text}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        }
+      }
     }
     return <div data-testid="markdown-preview">{children}</div>;
   };
@@ -584,6 +682,152 @@ print("World")
       expect(screen.getByLabelText('Add tag button')).toBeInTheDocument();
       expect(screen.getByLabelText('Edit tag test-tag')).toBeInTheDocument();
       expect(screen.getByLabelText('Remove tag test-tag')).toBeInTheDocument();
+    });
+  });
+
+  // Enhanced markdown preview tests
+  describe('Enhanced Markdown Preview', () => {
+    test('should render tables with proper styling', async () => {
+      const tableContent = `
+| Name | Age | City |
+|------|-----|------|
+| John | 25  | NYC  |
+| Jane | 30  | LA   |
+      `;
+      
+      render(<MarkdownEditor value={tableContent} onChange={mockOnChange} />);
+      
+      const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
+      await safeUserEvent.click(previewButton);
+      
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('Name');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('Age');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('City');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('John');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('Jane');
+    });
+
+    test('should render images with proper styling and error handling', async () => {
+      const imageContent = `
+![Test Image](https://example.com/image.jpg "Test Image Title")
+
+![Broken Image](https://example.com/broken.jpg)
+      `;
+      
+      render(<MarkdownEditor value={imageContent} onChange={mockOnChange} />);
+      
+      const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
+      await safeUserEvent.click(previewButton);
+      
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('Test Image');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('Broken Image');
+    });
+
+    test('should render enhanced typography with proper styling', async () => {
+      const typographyContent = `
+# Heading 1
+## Heading 2
+### Heading 3
+
+**Bold text** and *italic text*
+
+> This is a blockquote
+
+- List item 1
+- List item 2
+
+1. Numbered item 1
+2. Numbered item 2
+
+---
+
+\`inline code\`
+      `;
+      
+      render(<MarkdownEditor value={typographyContent} onChange={mockOnChange} />);
+      
+      const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
+      await safeUserEvent.click(previewButton);
+      
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('Heading 1');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('Heading 2');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('Heading 3');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('Bold text');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('italic text');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('This is a blockquote');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('List item 1');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('Numbered item 1');
+      expect(screen.getByTestId('markdown-preview')).toHaveTextContent('inline code');
+    });
+
+    test('should handle mixed content with tables, images, and typography', async () => {
+      const mixedContent = `
+# Test Document
+
+## Table Section
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Tables | ✅ | Working |
+| Images | ✅ | Working |
+| Typography | ✅ | Working |
+
+## Image Section
+![Sample Image](https://example.com/sample.jpg "Sample")
+
+## Typography Section
+**Bold text** and *italic text* with \`inline code\`.
+
+> This is a blockquote with some important information.
+
+- Feature 1
+- Feature 2
+- Feature 3
+      `;
+      
+      render(<MarkdownEditor value={mixedContent} onChange={mockOnChange} />);
+      
+      const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
+      await safeUserEvent.click(previewButton);
+      
+      const preview = screen.getByTestId('markdown-preview');
+      expect(preview).toHaveTextContent('Test Document');
+      expect(preview).toHaveTextContent('Table Section');
+      expect(preview).toHaveTextContent('Feature');
+      expect(preview).toHaveTextContent('Status');
+      expect(preview).toHaveTextContent('Working');
+      expect(preview).toHaveTextContent('Image Section');
+      expect(preview).toHaveTextContent('Sample Image');
+      expect(preview).toHaveTextContent('Typography Section');
+      expect(preview).toHaveTextContent('Bold text');
+      expect(preview).toHaveTextContent('italic text');
+      expect(preview).toHaveTextContent('inline code');
+      expect(preview).toHaveTextContent('This is a blockquote');
+      expect(preview).toHaveTextContent('Feature 1');
+    });
+
+    test('should maintain accessibility in enhanced preview', async () => {
+      const accessibleContent = `
+# Main Heading
+
+![Accessible Image](https://example.com/image.jpg "Image description")
+
+| Accessible Table | Data |
+|------------------|------|
+| Row 1 | Value 1 |
+
+[Accessible Link](https://example.com)
+      `;
+      
+      render(<MarkdownEditor value={accessibleContent} onChange={mockOnChange} />);
+      
+      const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
+      await safeUserEvent.click(previewButton);
+      
+      const preview = screen.getByTestId('markdown-preview');
+      expect(preview).toHaveTextContent('Main Heading');
+      expect(preview).toHaveTextContent('Accessible Image');
+      expect(preview).toHaveTextContent('Accessible Table');
+      expect(preview).toHaveTextContent('Accessible Link');
     });
   });
 }); 

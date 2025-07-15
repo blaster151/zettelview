@@ -270,7 +270,247 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           {children}
         </a>
       );
-    }
+    },
+    // Enhanced table support
+    table: ({ children }: any) => (
+      <div style={{ overflowX: 'auto', margin: '16px 0' }}>
+        <table style={{
+          borderCollapse: 'collapse',
+          width: '100%',
+          border: '1px solid #e1e4e8',
+          borderRadius: '6px',
+          overflow: 'hidden'
+        }}>
+          {children}
+        </table>
+      </div>
+    ),
+    thead: ({ children }: any) => (
+      <thead style={{ backgroundColor: '#f6f8fa' }}>
+        {children}
+      </thead>
+    ),
+    tbody: ({ children }: any) => (
+      <tbody>
+        {children}
+      </tbody>
+    ),
+    tr: ({ children }: any) => (
+      <tr style={{ borderBottom: '1px solid #e1e4e8' }}>
+        {children}
+      </tr>
+    ),
+    th: ({ children }: any) => (
+      <th style={{
+        padding: '12px 16px',
+        textAlign: 'left',
+        fontWeight: '600',
+        fontSize: '14px',
+        color: '#24292e',
+        borderBottom: '2px solid #e1e4e8'
+      }}>
+        {children}
+      </th>
+    ),
+    td: ({ children }: any) => (
+      <td style={{
+        padding: '12px 16px',
+        fontSize: '14px',
+        color: '#24292e',
+        borderBottom: '1px solid #e1e4e8'
+      }}>
+        {children}
+      </td>
+    ),
+    // Enhanced image support
+    img: ({ src, alt, title }: any) => (
+      <div style={{ margin: '16px 0', textAlign: 'center' }}>
+        <img
+          src={src}
+          alt={alt || 'Image'}
+          title={title}
+          style={{
+            maxWidth: '100%',
+            height: 'auto',
+            borderRadius: '6px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #e1e4e8'
+          }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = `
+              padding: 16px;
+              background: #f6f8fa;
+              border: 1px solid #e1e4e8;
+              border-radius: 6px;
+              color: #586069;
+              text-align: center;
+              font-size: 14px;
+            `;
+            errorDiv.textContent = `Failed to load image: ${alt || src}`;
+            e.currentTarget.parentNode?.appendChild(errorDiv);
+          }}
+        />
+        {alt && (
+          <div style={{
+            marginTop: '8px',
+            fontSize: '12px',
+            color: '#586069',
+            fontStyle: 'italic'
+          }}>
+            {alt}
+          </div>
+        )}
+      </div>
+    ),
+    // Enhanced typography
+    h1: ({ children }: any) => (
+      <h1 style={{
+        fontSize: '2em',
+        fontWeight: '600',
+        margin: '24px 0 16px 0',
+        paddingBottom: '8px',
+        borderBottom: '1px solid #e1e4e8',
+        color: '#24292e'
+      }}>
+        {children}
+      </h1>
+    ),
+    h2: ({ children }: any) => (
+      <h2 style={{
+        fontSize: '1.5em',
+        fontWeight: '600',
+        margin: '20px 0 12px 0',
+        paddingBottom: '6px',
+        borderBottom: '1px solid #e1e4e8',
+        color: '#24292e'
+      }}>
+        {children}
+      </h2>
+    ),
+    h3: ({ children }: any) => (
+      <h3 style={{
+        fontSize: '1.25em',
+        fontWeight: '600',
+        margin: '16px 0 8px 0',
+        color: '#24292e'
+      }}>
+        {children}
+      </h3>
+    ),
+    h4: ({ children }: any) => (
+      <h4 style={{
+        fontSize: '1em',
+        fontWeight: '600',
+        margin: '12px 0 6px 0',
+        color: '#24292e'
+      }}>
+        {children}
+      </h4>
+    ),
+    h5: ({ children }: any) => (
+      <h5 style={{
+        fontSize: '0.875em',
+        fontWeight: '600',
+        margin: '10px 0 4px 0',
+        color: '#24292e'
+      }}>
+        {children}
+      </h5>
+    ),
+    h6: ({ children }: any) => (
+      <h6 style={{
+        fontSize: '0.85em',
+        fontWeight: '600',
+        margin: '8px 0 4px 0',
+        color: '#24292e'
+      }}>
+        {children}
+      </h6>
+    ),
+    // Enhanced list styling
+    ul: ({ children }: any) => (
+      <ul style={{
+        margin: '16px 0',
+        paddingLeft: '24px',
+        lineHeight: '1.6'
+      }}>
+        {children}
+      </ul>
+    ),
+    ol: ({ children }: any) => (
+      <ol style={{
+        margin: '16px 0',
+        paddingLeft: '24px',
+        lineHeight: '1.6'
+      }}>
+        {children}
+      </ol>
+    ),
+    li: ({ children }: any) => (
+      <li style={{
+        margin: '4px 0',
+        lineHeight: '1.6'
+      }}>
+        {children}
+      </li>
+    ),
+    // Enhanced blockquote styling
+    blockquote: ({ children }: any) => (
+      <blockquote style={{
+        margin: '16px 0',
+        padding: '12px 16px',
+        borderLeft: '4px solid #0366d6',
+        backgroundColor: '#f6f8fa',
+        borderRadius: '0 6px 6px 0',
+        fontStyle: 'italic',
+        color: '#24292e'
+      }}>
+        {children}
+      </blockquote>
+    ),
+    // Enhanced horizontal rule
+    hr: () => (
+      <hr style={{
+        margin: '24px 0',
+        border: 'none',
+        height: '1px',
+        backgroundColor: '#e1e4e8'
+      }} />
+    ),
+    // Enhanced inline code
+    code: ({ className, children, ...props }: any) => {
+      const match = /language-(\w+)/.exec(className || '');
+      const isInline = !className || !match;
+      return !isInline ? (
+        <EnhancedCodeBlock className={className}>
+          {String(children).replace(/\n$/, '')}
+        </EnhancedCodeBlock>
+      ) : (
+        <code style={{
+          backgroundColor: '#f6f8fa',
+          padding: '2px 6px',
+          borderRadius: '3px',
+          fontSize: '0.875em',
+          fontFamily: 'monospace',
+          color: '#e36209'
+        }} {...props}>
+          {children}
+        </code>
+      );
+    },
+    // Enhanced strong and emphasis
+    strong: ({ children }: any) => (
+      <strong style={{ fontWeight: '600', color: '#24292e' }}>
+        {children}
+      </strong>
+    ),
+    em: ({ children }: any) => (
+      <em style={{ fontStyle: 'italic', color: '#24292e' }}>
+        {children}
+      </em>
+    )
   }), [handleInternalLink]);
 
   // Tag management handlers
