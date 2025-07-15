@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useNoteStore } from '../store/noteStore';
 
 interface MarkdownEditorProps {
   value: string;
@@ -15,6 +16,37 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   placeholder = 'Start writing your note...'
 }) => {
   const [isPreview, setIsPreview] = useState(false);
+  const { findOrCreateNote, selectNote } = useNoteStore();
+
+  const handleInternalLink = (noteTitle: string) => {
+    const noteId = findOrCreateNote(noteTitle);
+    selectNote(noteId);
+  };
+
+  // Custom component for internal links
+  const InternalLink: React.FC<{ children: string }> = ({ children }) => {
+    const linkText = children.toString();
+    if (linkText.startsWith('[[') && linkText.endsWith(']]')) {
+      const noteTitle = linkText.slice(2, -2);
+      return (
+        <button
+          onClick={() => handleInternalLink(noteTitle)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#007bff',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            padding: 0,
+            font: 'inherit'
+          }}
+        >
+          {noteTitle}
+        </button>
+      );
+    }
+    return <span>{children}</span>;
+  };
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -53,14 +85,13 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           <div style={{ padding: '16px' }}>
             <ReactMarkdown
               components={{
-                code({ node, inline, className, children, ...props }) {
+                code({ node, inline, className, children, ...props }: any) {
                   const match = /language-(\w+)/.exec(className || '');
                   return !inline && match ? (
                     <SyntaxHighlighter
                       style={tomorrow}
                       language={match[1]}
                       PreTag="div"
-                      {...props}
                     >
                       {String(children).replace(/\n$/, '')}
                     </SyntaxHighlighter>
@@ -69,6 +100,23 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                       {children}
                     </code>
                   );
+                },
+                p: ({ children }: any) => {
+                  // Handle internal links in paragraphs
+                  if (typeof children === 'string') {
+                    const parts = children.split(/(\[\[.*?\]\])/);
+                    return (
+                      <p>
+                        {parts.map((part: string, index: number) => {
+                          if (part.match(/^\[\[.*?\]\]$/)) {
+                            return <InternalLink key={index}>{part}</InternalLink>;
+                          }
+                          return part;
+                        })}
+                      </p>
+                    );
+                  }
+                  return <p>{children}</p>;
                 }
               }}
             >

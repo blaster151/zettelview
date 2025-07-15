@@ -18,6 +18,33 @@ jest.mock('react-syntax-highlighter/dist/esm/styles/prism', () => ({
   tomorrow: {},
 }));
 
+// Mock Zustand store
+jest.mock('./store/noteStore', () => ({
+  useNoteStore: () => ({
+    notes: [
+      {
+        id: 'welcome',
+        title: 'Welcome',
+        body: '# Welcome to ZettelView!\n\nThis is your first note!',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
+    selectedId: 'welcome',
+    getNote: (id: string) => ({
+      id: 'welcome',
+      title: 'Welcome',
+      body: '# Welcome to ZettelView!\n\nThis is your first note!',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+    updateNote: jest.fn(),
+    selectNote: jest.fn(),
+    addNote: jest.fn(),
+    findOrCreateNote: jest.fn(),
+  }),
+}));
+
 import App from './App';
 
 test('renders sidebar and initial note', () => {
@@ -25,5 +52,5 @@ test('renders sidebar and initial note', () => {
   expect(screen.getByRole('heading', { name: /Notes/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /Welcome/i })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: /Welcome/i })).toBeInTheDocument();
-  expect(screen.getByDisplayValue(/Welcome to ZettelView!/i)).toBeInTheDocument();
+  expect(screen.getByDisplayValue(/# Welcome to ZettelView!/i)).toBeInTheDocument();
 });
