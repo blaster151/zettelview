@@ -18,9 +18,13 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const [isPreview, setIsPreview] = useState(false);
   const { findOrCreateNote, selectNote } = useNoteStore();
 
-  const handleInternalLink = (noteTitle: string) => {
-    const noteId = findOrCreateNote(noteTitle);
-    selectNote(noteId);
+  const handleInternalLink = async (noteTitle: string) => {
+    try {
+      const noteId = await findOrCreateNote(noteTitle);
+      selectNote(noteId);
+    } catch (error) {
+      console.error('Failed to handle internal link:', error);
+    }
   };
 
   // Custom component for internal links

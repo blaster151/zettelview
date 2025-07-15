@@ -4,12 +4,20 @@ import { useNoteStore } from '../store/noteStore';
 const NoteSidebar: React.FC = () => {
   const { notes, selectedId, selectNote, addNote } = useNoteStore();
   const [newNoteTitle, setNewNoteTitle] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreateNote = (e: React.FormEvent) => {
+  const handleCreateNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newNoteTitle.trim()) {
-      addNote(newNoteTitle.trim());
-      setNewNoteTitle('');
+    if (newNoteTitle.trim() && !isCreating) {
+      setIsCreating(true);
+      try {
+        await addNote(newNoteTitle.trim());
+        setNewNoteTitle('');
+      } catch (error) {
+        console.error('Failed to create note:', error);
+      } finally {
+        setIsCreating(false);
+      }
     }
   };
 
@@ -23,6 +31,7 @@ const NoteSidebar: React.FC = () => {
           value={newNoteTitle}
           onChange={(e) => setNewNoteTitle(e.target.value)}
           placeholder="New note title..."
+          disabled={isCreating}
           style={{
             width: '100%',
             padding: '8px',
@@ -33,7 +42,7 @@ const NoteSidebar: React.FC = () => {
         />
         <button
           type="submit"
-          disabled={!newNoteTitle.trim()}
+          disabled={!newNoteTitle.trim() || isCreating}
           style={{
             width: '100%',
             padding: '8px',
@@ -41,11 +50,11 @@ const NoteSidebar: React.FC = () => {
             color: 'white',
             border: 'none',
             borderRadius: '4px',
-            cursor: newNoteTitle.trim() ? 'pointer' : 'not-allowed',
-            opacity: newNoteTitle.trim() ? 1 : 0.6
+            cursor: newNoteTitle.trim() && !isCreating ? 'pointer' : 'not-allowed',
+            opacity: newNoteTitle.trim() && !isCreating ? 1 : 0.6
           }}
         >
-          Create Note
+          {isCreating ? 'Creating...' : 'Create Note'}
         </button>
       </form>
 

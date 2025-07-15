@@ -1,10 +1,10 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import NoteSidebar from './NoteSidebar';
 
 // Mock the Zustand store
-const mockAddNote = jest.fn();
+const mockAddNote = jest.fn().mockResolvedValue(undefined);
 const mockSelectNote = jest.fn();
 const mockNotes = [
   {
@@ -82,16 +82,22 @@ describe('NoteSidebar', () => {
     expect(submitButton).toBeDisabled();
     
     // Type in the input
-    await safeUserEvent.type(input, 'New Note Title');
+    await act(async () => {
+      await safeUserEvent.type(input, 'New Note Title');
+    });
     
     // Button should now be enabled
     expect(submitButton).not.toBeDisabled();
     
     // Submit the form
-    await safeUserEvent.click(submitButton);
+    await act(async () => {
+      await safeUserEvent.click(submitButton);
+    });
     
-    // Check that addNote was called with the correct title
-    expect(mockAddNote).toHaveBeenCalledWith('New Note Title');
+    // Wait for the async operation to complete
+    await waitFor(() => {
+      expect(mockAddNote).toHaveBeenCalledWith('New Note Title');
+    });
     
     // Check that input is cleared after submission
     await waitFor(() => {
@@ -106,7 +112,9 @@ describe('NoteSidebar', () => {
     const testNoteButton = screen.getByText('Test Note').closest('button');
     expect(testNoteButton).toBeInTheDocument();
     
-    await safeUserEvent.click(testNoteButton!);
+    await act(async () => {
+      await safeUserEvent.click(testNoteButton!);
+    });
     
     // Check that selectNote was called with the correct note id
     expect(mockSelectNote).toHaveBeenCalledWith('test-note');
@@ -119,7 +127,9 @@ describe('NoteSidebar', () => {
     const submitButton = screen.getByRole('button', { name: 'Create Note' });
     
     // Try to submit with empty input
-    await safeUserEvent.click(submitButton);
+    await act(async () => {
+      await safeUserEvent.click(submitButton);
+    });
     
     // Check that addNote was not called
     expect(mockAddNote).not.toHaveBeenCalled();
@@ -132,13 +142,17 @@ describe('NoteSidebar', () => {
     const submitButton = screen.getByRole('button', { name: 'Create Note' });
     
     // Type only whitespace
-    await safeUserEvent.type(input, '   ');
+    await act(async () => {
+      await safeUserEvent.type(input, '   ');
+    });
     
     // Button should still be disabled
     expect(submitButton).toBeDisabled();
     
     // Try to submit
-    await safeUserEvent.click(submitButton);
+    await act(async () => {
+      await safeUserEvent.click(submitButton);
+    });
     
     // Check that addNote was not called
     expect(mockAddNote).not.toHaveBeenCalled();

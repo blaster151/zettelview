@@ -31,6 +31,10 @@ jest.mock('./store/noteStore', () => ({
       },
     ],
     selectedId: 'welcome',
+    isInitialized: true,
+    storagePermission: false,
+    initialize: jest.fn().mockResolvedValue(undefined),
+    requestStoragePermission: jest.fn().mockResolvedValue(undefined),
     getNote: (id: string) => ({
       id: 'welcome',
       title: 'Welcome',
@@ -38,10 +42,12 @@ jest.mock('./store/noteStore', () => ({
       createdAt: new Date(),
       updatedAt: new Date(),
     }),
-    updateNote: jest.fn(),
+    updateNote: jest.fn().mockResolvedValue(undefined),
     selectNote: jest.fn(),
-    addNote: jest.fn(),
-    findOrCreateNote: jest.fn(),
+    addNote: jest.fn().mockResolvedValue(undefined),
+    findOrCreateNote: jest.fn().mockResolvedValue('welcome'),
+    deleteNote: jest.fn().mockResolvedValue(undefined),
+    loadNotesFromStorage: jest.fn().mockResolvedValue(undefined),
   }),
 }));
 
