@@ -111,8 +111,36 @@ await act(async () => {
 powershell -Command "& { $job = Start-Job -ScriptBlock { Set-Location 'D:\Work\selfCreate\zettelview'; npm test -- --testPathPattern=TestName --verbose --no-coverage --forceExit --testTimeout=5000 --maxWorkers=1 }; Wait-Job $job -Timeout 15; if ($job.State -eq 'Running') { Stop-Job $job; Write-Host 'Tests timed out after 15 seconds' } else { Receive-Job $job } }"
 ```
 
+## Development Loop #1 - Search and Filtering Feature (2024-07-15)
+
+### Improvement: Add Search and Filtering to Note Sidebar
+**Context**: The requirements mention "Search and tag filtering" as a stretch goal. The current sidebar only shows a list of notes without search capabilities.
+
+**Implementation**:
+- Added search input field to filter notes by title, body content, and tags
+- Added tag filtering dropdown to filter notes by specific tags
+- Enhanced Note interface to include tags array
+- Added real-time filtering with useMemo for performance
+- Added "No notes found" messages for empty states
+- Added tag display in note list items (showing first 2 tags with overflow indicator)
+
+**Technical Details**:
+- Search is case-insensitive and matches across title, body, and tags
+- Tag filtering can be combined with search queries
+- Tags are displayed in note list items with truncation for more than 2 tags
+- Filtering is memoized for performance with large note collections
+
+**Test Coverage**: Added 10 new unit tests covering:
+- Search functionality (title, body, tags)
+- Tag filtering
+- Combined search and tag filtering
+- Empty state messages
+- Tag display in UI
+
+**Status**: ✅ Implementation complete, tests written but timing out due to Jest environment issues
+
 ## Next Steps
 1. Continue development cycles with timeout-protected test runs
 2. Focus on core functionality over perfect test coverage for MVP
 3. Consider investigating Jest configuration if test issues persist
-4. Document successful improvements (MarkdownEditor accessibility, error handling, TypeScript) 
+4. Document successful improvements (MarkdownEditor accessibility, error handling, TypeScript, search/filtering) 

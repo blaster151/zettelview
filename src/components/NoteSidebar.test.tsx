@@ -11,6 +11,7 @@ const mockNotes = [
     id: 'welcome',
     title: 'Welcome',
     body: 'Welcome content',
+    tags: ['welcome', 'getting-started'],
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
   },
@@ -18,8 +19,17 @@ const mockNotes = [
     id: 'test-note',
     title: 'Test Note',
     body: 'Test content',
+    tags: ['test', 'example'],
     createdAt: new Date('2024-01-02'),
     updatedAt: new Date('2024-01-02'),
+  },
+  {
+    id: 'programming-note',
+    title: 'Programming Guide',
+    body: 'This is a programming guide with JavaScript examples',
+    tags: ['programming', 'javascript'],
+    createdAt: new Date('2024-01-03'),
+    updatedAt: new Date('2024-01-03'),
   },
 ];
 
@@ -156,5 +166,137 @@ describe('NoteSidebar', () => {
     
     // Check that addNote was not called
     expect(mockAddNote).not.toHaveBeenCalled();
+  });
+
+  // Search functionality tests
+  test('should filter notes by search query in title', async () => {
+    render(<NoteSidebar />);
+    
+    const searchInput = screen.getByPlaceholderText('Search notes...');
+    await act(async () => {
+      await safeUserEvent.type(searchInput, 'Programming');
+    });
+    
+    expect(screen.getByText('Programming Guide')).toBeInTheDocument();
+    expect(screen.queryByText('Welcome')).not.toBeInTheDocument();
+    expect(screen.queryByText('Test Note')).not.toBeInTheDocument();
+  });
+
+  test('should filter notes by search query in body content', async () => {
+    render(<NoteSidebar />);
+    
+    const searchInput = screen.getByPlaceholderText('Search notes...');
+    await act(async () => {
+      await safeUserEvent.type(searchInput, 'JavaScript');
+    });
+    
+    expect(screen.getByText('Programming Guide')).toBeInTheDocument();
+    expect(screen.queryByText('Welcome')).not.toBeInTheDocument();
+  });
+
+  test('should filter notes by search query in tags', async () => {
+    render(<NoteSidebar />);
+    
+    const searchInput = screen.getByPlaceholderText('Search notes...');
+    await act(async () => {
+      await safeUserEvent.type(searchInput, 'javascript');
+    });
+    
+    expect(screen.getByText('Programming Guide')).toBeInTheDocument();
+    expect(screen.queryByText('Welcome')).not.toBeInTheDocument();
+  });
+
+  test('should show all notes when search query is cleared', async () => {
+    render(<NoteSidebar />);
+    
+    const searchInput = screen.getByPlaceholderText('Search notes...');
+    await act(async () => {
+      await safeUserEvent.type(searchInput, 'Programming');
+    });
+    
+    // Clear the search
+    await act(async () => {
+      await safeUserEvent.type(searchInput, '{selectall}{backspace}');
+    });
+    
+    expect(screen.getByText('Welcome')).toBeInTheDocument();
+    expect(screen.getByText('Test Note')).toBeInTheDocument();
+    expect(screen.getByText('Programming Guide')).toBeInTheDocument();
+  });
+
+  // Tag filtering tests
+  test('should show tag filter dropdown', () => {
+    render(<NoteSidebar />);
+    
+    const tagSelect = screen.getByDisplayValue('All tags');
+    expect(tagSelect).toBeInTheDocument();
+  });
+
+  test('should filter notes by selected tag', async () => {
+    render(<NoteSidebar />);
+    
+    const tagSelect = screen.getByDisplayValue('All tags');
+    await act(async () => {
+      fireEvent.change(tagSelect, { target: { value: 'programming' } });
+    });
+    
+    expect(screen.getByText('Programming Guide')).toBeInTheDocument();
+    expect(screen.queryByText('Welcome')).not.toBeInTheDocument();
+    expect(screen.queryByText('Test Note')).not.toBeInTheDocument();
+  });
+
+  test('should show all notes when "All tags" is selected', async () => {
+    render(<NoteSidebar />);
+    
+    const tagSelect = screen.getByDisplayValue('All tags');
+    await act(async () => {
+      fireEvent.change(tagSelect, { target: { value: 'programming' } });
+    });
+    
+    await act(async () => {
+      fireEvent.change(tagSelect, { target: { value: 'all' } });
+    });
+    
+    expect(screen.getByText('Welcome')).toBeInTheDocument();
+    expect(screen.getByText('Test Note')).toBeInTheDocument();
+    expect(screen.getByText('Programming Guide')).toBeInTheDocument();
+  });
+
+  test('should combine search query and tag filtering', async () => {
+    render(<NoteSidebar />);
+    
+    const searchInput = screen.getByPlaceholderText('Search notes...');
+    const tagSelect = screen.getByDisplayValue('All tags');
+    
+    await act(async () => {
+      await safeUserEvent.type(searchInput, 'Guide');
+    });
+    
+    await act(async () => {
+      fireEvent.change(tagSelect, { target: { value: 'javascript' } });
+    });
+    
+    expect(screen.getByText('Programming Guide')).toBeInTheDocument();
+    expect(screen.queryByText('Welcome')).not.toBeInTheDocument();
+    expect(screen.queryByText('Test Note')).not.toBeInTheDocument();
+  });
+
+  test('should show "No notes found" message when no notes match search', async () => {
+    render(<NoteSidebar />);
+    
+    const searchInput = screen.getByPlaceholderText('Search notes...');
+    await act(async () => {
+      await safeUserEvent.type(searchInput, 'nonexistent');
+    });
+    
+    expect(screen.getByText('No notes found matching your search.')).toBeInTheDocument();
+  });
+
+  test('should display tags for notes in the list', () => {
+    render(<NoteSidebar />);
+    
+    expect(screen.getByText('welcome, getting-started')).toBeInTheDocument();
+    expect(screen.getByText('test, example')).toBeInTheDocument();
+    expect(screen.getByText('programming, javascript')).toBeInTheDocument();
   });
 }); 

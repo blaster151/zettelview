@@ -5,6 +5,7 @@ export interface Note {
   id: string;
   title: string;
   body: string;
+  tags: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,6 +51,7 @@ function hello() {
 \`\`\`
 
 Try switching to Preview mode to see the rendered Markdown!`,
+      tags: ['welcome', 'getting-started'],
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -108,6 +110,7 @@ Try switching to Preview mode to see the rendered Markdown!`,
       id,
       title,
       body: `# ${title}\n\nStart writing your note here...`,
+      tags: [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
