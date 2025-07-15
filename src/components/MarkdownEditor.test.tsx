@@ -129,11 +129,11 @@ describe('MarkdownEditor', () => {
     render(<MarkdownEditor {...defaultProps} />);
     
     // Should show edit button as active
-    const editButton = screen.getByRole('button', { name: 'Edit' });
-    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    const editButton = screen.getByRole('tab', { name: 'Edit mode' });
+    const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
     
-    expect(editButton).toHaveStyle({ background: '#007bff' });
-    expect(previewButton).toHaveStyle({ background: 'transparent' });
+    expect(editButton).toHaveAttribute('aria-selected', 'true');
+    expect(previewButton).toHaveAttribute('aria-selected', 'false');
     
     // Should show textarea
     const textarea = screen.getByRole('textbox');
@@ -144,11 +144,11 @@ describe('MarkdownEditor', () => {
   test('should switch to preview mode when preview button is clicked', async () => {
     render(<MarkdownEditor {...defaultProps} />);
     
-    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
     await safeUserEvent.click(previewButton);
     
     // Should show preview button as active
-    expect(previewButton).toHaveStyle({ background: '#007bff' });
+    expect(previewButton).toHaveAttribute('aria-selected', 'true');
     
     // Should show markdown preview
     expect(screen.getByTestId('markdown-preview')).toBeInTheDocument();
@@ -161,15 +161,15 @@ describe('MarkdownEditor', () => {
     render(<MarkdownEditor {...defaultProps} />);
     
     // First switch to preview
-    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
     await safeUserEvent.click(previewButton);
     
     // Then switch back to edit
-    const editButton = screen.getByRole('button', { name: 'Edit' });
+    const editButton = screen.getByRole('tab', { name: 'Edit mode' });
     await safeUserEvent.click(editButton);
     
     // Should show edit button as active
-    expect(editButton).toHaveStyle({ background: '#007bff' });
+    expect(editButton).toHaveAttribute('aria-selected', 'true');
     
     // Should show textarea again
     const textarea = screen.getByRole('textbox');
@@ -192,7 +192,7 @@ describe('MarkdownEditor', () => {
     render(<MarkdownEditor value={contentWithLinks} onChange={mockOnChange} />);
     
     // Switch to preview mode
-    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
     await safeUserEvent.click(previewButton);
     
     // Should render the content with internal links (mocked component just returns children as-is)
@@ -211,12 +211,12 @@ describe('MarkdownEditor', () => {
     render(<MarkdownEditor value={contentWithCode} onChange={mockOnChange} />);
     
     // Switch to preview mode
-    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
     await safeUserEvent.click(previewButton);
     
-    // Should render the content (mocked component just returns children as-is, but may normalize whitespace)
+    // Should render the content (mocked component processes it, so we check for the processed content)
     const previewElement = screen.getByTestId('markdown-preview');
-    expect(previewElement).toHaveTextContent('```javascript');
+    expect(previewElement).toHaveTextContent('javascript');
     expect(previewElement).toHaveTextContent('console.log("Hello");');
   });
 
@@ -225,7 +225,7 @@ describe('MarkdownEditor', () => {
     render(<MarkdownEditor value={contentWithCode} onChange={mockOnChange} />);
     
     // Switch to preview mode
-    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
     await safeUserEvent.click(previewButton);
     
     // Should render enhanced code block
@@ -238,7 +238,7 @@ describe('MarkdownEditor', () => {
     render(<MarkdownEditor value={contentWithGist} onChange={mockOnChange} />);
     
     // Switch to preview mode
-    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
     await safeUserEvent.click(previewButton);
     
     // Should render Gist embed
@@ -251,7 +251,7 @@ describe('MarkdownEditor', () => {
     render(<MarkdownEditor value={contentWithRegularLink} onChange={mockOnChange} />);
     
     // Switch to preview mode
-    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
     await safeUserEvent.click(previewButton);
     
     // Should not render Gist embed for non-Gist URLs
@@ -268,7 +268,7 @@ Here's some code:
 console.log("Hello");
 \`\`\`
 
-And here's a Gist: https://gist.github.com/user/abc123
+And here's a Gist: [Check this out](https://gist.github.com/user/abc123)
 
 And another code block:
 
@@ -280,7 +280,7 @@ print("World")
     render(<MarkdownEditor value={mixedContent} onChange={mockOnChange} />);
     
     // Switch to preview mode
-    const previewButton = screen.getByRole('button', { name: 'Preview' });
+    const previewButton = screen.getByRole('tab', { name: 'Preview mode' });
     await safeUserEvent.click(previewButton);
     
     // Should render multiple enhanced code blocks

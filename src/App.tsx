@@ -33,6 +33,8 @@ function App() {
                       await updateNote(selectedId, { body: newBody });
                     }
                   }}
+                  noteId={selectedId || undefined}
+                  autoSave={true}
                 />
               </div>
             </div>
