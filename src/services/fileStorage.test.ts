@@ -53,8 +53,9 @@ describe('FileStorageService', () => {
       id: 'test-note',
       title: 'Test Note',
       body: '# Test Content\n\nThis is a test note.',
-      createdAt: new Date('2024-01-01'),
-      updatedAt: new Date('2024-01-01'),
+      tags: ['test'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     await expect(fileStorageService.saveNote(testNote)).resolves.not.toThrow();

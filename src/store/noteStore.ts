@@ -19,7 +19,7 @@ interface NoteStore {
   // Actions
   initialize: () => Promise<void>;
   requestStoragePermission: () => Promise<void>;
-  addNote: (title: string) => Promise<void>;
+  addNote: (title: string, options?: { body?: string; tags?: string[]; createdAt?: Date; id?: string }) => Promise<void>;
   updateNote: (id: string, updates: Partial<Note>) => Promise<void>;
   selectNote: (id: string) => void;
   getNote: (id: string) => Note | undefined;
@@ -104,14 +104,14 @@ Try switching to Preview mode to see the rendered Markdown!`,
     }
   },
 
-  addNote: async (title: string) => {
-    const id = title.toLowerCase().replace(/[^a-z0-9]/g, '-');
+  addNote: async (title: string, options?: { body?: string; tags?: string[]; createdAt?: Date; id?: string }) => {
+    const id = options?.id || title.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const newNote: Note = {
       id,
       title,
-      body: `# ${title}\n\nStart writing your note here...`,
-      tags: [],
-      createdAt: new Date(),
+      body: options?.body || `# ${title}\n\nStart writing your note here...`,
+      tags: options?.tags || [],
+      createdAt: options?.createdAt || new Date(),
       updatedAt: new Date(),
     };
     

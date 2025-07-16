@@ -43,7 +43,7 @@ const AISummarizer: React.FC<AISummarizerProps> = ({ noteId, onClose }) => {
       return {
         summary,
         questions,
-        tags: [...new Set(tags)]
+        tags: Array.from(new Set(tags))
       };
     },
 

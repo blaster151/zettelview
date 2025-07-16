@@ -181,6 +181,7 @@ updated: "${note.updatedAt.toISOString()}"
           id,
           title: metadata.title || id,
           body: body.trim(),
+          tags: Array.isArray(metadata.tags) ? metadata.tags : [],
           createdAt: new Date(metadata.created || Date.now()),
           updatedAt: new Date(metadata.updated || Date.now()),
         };
@@ -190,6 +191,7 @@ updated: "${note.updatedAt.toISOString()}"
           id,
           title: id,
           body: content.trim(),
+          tags: [],
           createdAt: new Date(),
           updatedAt: new Date(),
         };

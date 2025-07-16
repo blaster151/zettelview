@@ -7,12 +7,17 @@ import BacklinksPanel from './components/BacklinksPanel';
 import KeyboardShortcuts from './components/KeyboardShortcuts';
 import GraphView from './components/GraphView';
 import AISummarizer from './components/AISummarizer';
+import ExportImport from './components/ExportImport';
+import ThemeToggle from './components/ThemeToggle';
 import { useNoteStore } from './store/noteStore';
+import { useThemeStore } from './store/themeStore';
 
 function App() {
   const { selectedId, getNote, updateNote, initialize } = useNoteStore();
+  const { colors } = useThemeStore();
   const [viewMode, setViewMode] = useState<'editor' | 'graph'>('editor');
   const [showAISummarizer, setShowAISummarizer] = useState(false);
+  const [showExportImport, setShowExportImport] = useState(false);
 
   useEffect(() => {
     initialize();
@@ -22,7 +27,17 @@ function App() {
 
   return (
     <KeyboardShortcuts>
-      <div className="app-container" style={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
+      <div 
+        className="app-container" 
+        style={{ 
+          display: 'flex', 
+          height: '100vh', 
+          flexDirection: 'column',
+          background: colors.background,
+          color: colors.text,
+          transition: 'all 0.2s ease'
+        }}
+      >
         <StoragePermission />
         <div style={{ display: 'flex', flex: 1 }}>
           <NoteSidebar />
@@ -30,26 +45,28 @@ function App() {
             {/* View Mode Toggle */}
             <div style={{ 
               padding: '12px 24px', 
-              borderBottom: '1px solid #eee',
-              background: '#f8f9fa',
+              borderBottom: `1px solid ${colors.border}`,
+              background: colors.surface,
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              transition: 'all 0.2s ease'
             }}>
-              <h1 style={{ margin: 0, fontSize: '20px' }}>
+              <h1 style={{ margin: 0, fontSize: '20px', color: colors.text }}>
                 {viewMode === 'editor' ? selectedNote?.title : 'Knowledge Graph'}
               </h1>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   onClick={() => setViewMode('editor')}
                   style={{
-                    background: viewMode === 'editor' ? '#007bff' : 'transparent',
-                    color: viewMode === 'editor' ? 'white' : '#007bff',
-                    border: '1px solid #007bff',
+                    background: viewMode === 'editor' ? colors.primary : 'transparent',
+                    color: viewMode === 'editor' ? 'white' : colors.primary,
+                    border: `1px solid ${colors.primary}`,
                     padding: '6px 12px',
                     borderRadius: '4px',
                     cursor: 'pointer',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   Editor
@@ -57,13 +74,14 @@ function App() {
                 <button
                   onClick={() => setViewMode('graph')}
                   style={{
-                    background: viewMode === 'graph' ? '#007bff' : 'transparent',
-                    color: viewMode === 'graph' ? 'white' : '#007bff',
-                    border: '1px solid #007bff',
+                    background: viewMode === 'graph' ? colors.primary : 'transparent',
+                    color: viewMode === 'graph' ? 'white' : colors.primary,
+                    border: `1px solid ${colors.primary}`,
                     padding: '6px 12px',
                     borderRadius: '4px',
                     cursor: 'pointer',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   Graph View
@@ -72,19 +90,37 @@ function App() {
                   <button
                     onClick={() => setShowAISummarizer(true)}
                     style={{
-                      background: '#28a745',
+                      background: colors.success,
                       color: 'white',
-                      border: '1px solid #28a745',
+                      border: `1px solid ${colors.success}`,
                       padding: '6px 12px',
                       borderRadius: '4px',
                       cursor: 'pointer',
-                      fontSize: '14px'
+                      fontSize: '14px',
+                      transition: 'all 0.2s ease'
                     }}
                     title="AI Analysis (Ctrl+Shift+A)"
                   >
                     🤖 AI
                   </button>
                 )}
+                <button
+                  onClick={() => setShowExportImport(true)}
+                  style={{
+                    background: colors.secondary,
+                    color: 'white',
+                    border: `1px solid ${colors.secondary}`,
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  title="Export/Import Notes"
+                >
+                  📁 Export/Import
+                </button>
+                <ThemeToggle />
               </div>
             </div>
 
@@ -93,6 +129,10 @@ function App() {
               <AISummarizer 
                 noteId={selectedId || undefined}
                 onClose={() => setShowAISummarizer(false)}
+              />
+            ) : showExportImport ? (
+              <ExportImport 
+                onClose={() => setShowExportImport(false)}
               />
             ) : viewMode === 'editor' ? (
               selectedNote ? (
@@ -112,7 +152,7 @@ function App() {
                   <BacklinksPanel currentNoteId={selectedId!} />
                 </div>
               ) : (
-                <div style={{ padding: 24 }}>Select a note</div>
+                <div style={{ padding: 24, color: colors.textSecondary }}>Select a note</div>
               )
             ) : (
               <GraphView 

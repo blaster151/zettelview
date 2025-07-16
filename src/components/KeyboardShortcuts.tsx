@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNoteStore } from '../store/noteStore';
+import { useThemeStore } from '../store/themeStore';
 
 interface KeyboardShortcutsProps {
   children: React.ReactNode;
@@ -14,6 +15,7 @@ interface ShortcutAction {
 
 const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
   const { notes, selectedId, selectNote, addNote } = useNoteStore();
+  const { toggleTheme } = useThemeStore();
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [commandPaletteQuery, setCommandPaletteQuery] = useState('');
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
@@ -112,6 +114,25 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
         }
       },
       category: 'AI'
+    },
+    {
+      key: 'Ctrl+Shift+E',
+      description: 'Open export/import',
+      action: () => {
+        const exportButton = document.querySelector('button[title*="Export/Import"]') as HTMLButtonElement;
+        if (exportButton) {
+          exportButton.click();
+        }
+      },
+      category: 'System'
+    },
+    {
+      key: 'Ctrl+Shift+T',
+      description: 'Toggle theme',
+      action: () => {
+        toggleTheme();
+      },
+      category: 'System'
     }
   ];
 
@@ -239,9 +260,20 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
             aiButton.click();
           }
           break;
+        case 'E':
+          event.preventDefault();
+          const exportButton = document.querySelector('button[title*="Export/Import"]') as HTMLButtonElement;
+          if (exportButton) {
+            exportButton.click();
+          }
+          break;
+        case 'T':
+          event.preventDefault();
+          toggleTheme();
+          break;
       }
     }
-  }, [notes, selectedId, selectNote, addNote, showCommandPalette, commandPaletteQuery, filteredCommands, selectedCommandIndex, currentNoteIndex, hasNotes]);
+  }, [notes, selectedId, selectNote, addNote, showCommandPalette, commandPaletteQuery, filteredCommands, selectedCommandIndex, currentNoteIndex, hasNotes, toggleTheme]);
 
   // Handle command palette input
   const handleCommandPaletteInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

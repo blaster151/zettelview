@@ -1,11 +1,14 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
 import { useNoteStore } from '../store/noteStore';
-import EnhancedCodeBlock from './EnhancedCodeBlock';
-import GistEmbed from './GistEmbed';
 import { useAutoSave } from '../hooks/useAutoSave';
 import SaveStatus from './SaveStatus';
+import EnhancedCodeBlock from './EnhancedCodeBlock';
+import GistEmbed from './GistEmbed';
 
 // Constants
 const INTERNAL_LINK_PATTERN = /\[\[([^[\]]+)\]\]/g;
@@ -218,14 +221,14 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         role="link"
         tabIndex={0}
       >
-        {noteTitle}
+        {children}
       </button>
     );
   });
 
   // Memoized markdown components
   const markdownComponents = useMemo((): Components => ({
-    code({ className, children, ...props }: any) {
+    code({ className, children, ...props }: any): React.JSX.Element {
       const match = /language-(\w+)/.exec(className || '');
       const isInline = !className || !match;
       return !isInline ? (
@@ -480,27 +483,6 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       }} />
     ),
     // Enhanced inline code
-    code: ({ className, children, ...props }: any) => {
-      const match = /language-(\w+)/.exec(className || '');
-      const isInline = !className || !match;
-      return !isInline ? (
-        <EnhancedCodeBlock className={className}>
-          {String(children).replace(/\n$/, '')}
-        </EnhancedCodeBlock>
-      ) : (
-        <code style={{
-          backgroundColor: '#f6f8fa',
-          padding: '2px 6px',
-          borderRadius: '3px',
-          fontSize: '0.875em',
-          fontFamily: 'monospace',
-          color: '#e36209'
-        }} {...props}>
-          {children}
-        </code>
-      );
-    },
-    // Enhanced strong and emphasis
     strong: ({ children }: any) => (
       <strong style={{ fontWeight: '600', color: '#24292e' }}>
         {children}
@@ -625,6 +607,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             <MarkdownErrorBoundary>
               <ReactMarkdown
                 components={markdownComponents}
+                remarkPlugins={[remarkGfm]}
               >
                 {value}
               </ReactMarkdown>

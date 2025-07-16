@@ -96,7 +96,7 @@ class CanvasErrorBoundary extends React.Component<
 const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) => {
   const { notes, selectNote } = useNoteStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   
   // State management
   const [isDragging, setIsDragging] = useState(false);
