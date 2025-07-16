@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-webpack5';
-import MarkdownEditor from '../components/MarkdownEditor';
+import { MarkdownEditor } from '../components';
 
 const meta: Meta<typeof MarkdownEditor> = {
   title: 'Components/MarkdownEditor',

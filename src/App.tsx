@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
-import MarkdownEditor from './components/MarkdownEditor';
-import NoteSidebar from './components/NoteSidebar';
-import StoragePermission from './components/StoragePermission';
-import BacklinksPanel from './components/BacklinksPanel';
-import KeyboardShortcuts from './components/KeyboardShortcuts';
-import GraphView from './components/GraphView';
-import AISummarizer from './components/AISummarizer';
-import ExportImport from './components/ExportImport';
-import ThemeToggle from './components/ThemeToggle';
+import {
+  MarkdownEditor,
+  NoteSidebar,
+  StoragePermission,
+  BacklinksPanel,
+  KeyboardShortcuts,
+  GraphView,
+  AISummarizer,
+  ExportImport,
+  ThemeToggle
+} from './components';
 import { useNoteStore } from './store/noteStore';
 import { useThemeStore } from './store/themeStore';
 

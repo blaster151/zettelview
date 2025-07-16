@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-webpack5';
-import NoteSidebar from '../components/NoteSidebar';
+import { NoteSidebar } from '../components';
 
 const meta: Meta<typeof NoteSidebar> = {
   title: 'Components/NoteSidebar',

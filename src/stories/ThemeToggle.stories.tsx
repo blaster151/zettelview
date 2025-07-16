@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-webpack5';
-import ThemeToggle from '../components/ThemeToggle';
+import { ThemeToggle } from '../components';
 import { useThemeStore } from '../store/themeStore';
 
 // Mock the theme store for Storybook
