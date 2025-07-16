@@ -1,4 +1,8 @@
-import { Note } from '../store/noteStore';
+// Platform/infra layer: Encapsulates browser-only File System Access API logic.
+// If adding backend/server logic (e.g., SQLite, Express), create a separate service under server/ or services/.
+// This makes hybrid/SSR/desktop support easier to maintain.
+
+import { Note } from '../types/domain';
 
 export interface FileStorageService {
   initialize(): Promise<void>;

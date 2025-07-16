@@ -9,10 +9,61 @@ import { useAutoSave } from '../hooks/useAutoSave';
 import SaveStatus from './SaveStatus';
 import EnhancedCodeBlock from './EnhancedCodeBlock';
 import GistEmbed from './GistEmbed';
+import { useDebouncedCallback } from '../hooks/useDebounce';
+import { useMarkdownEditorShortcuts } from '../hooks/useMarkdownEditorShortcuts';
 
 // Constants
 const INTERNAL_LINK_PATTERN = /\[\[([^[\]]+)\]\]/g;
 const GIST_URL_PATTERN = /^https?:\/\/gist\.github\.com\/[^\/]+\/[a-f0-9]+$/i;
+
+// TypeScript interfaces for markdown components
+interface MarkdownComponentProps {
+  children?: React.ReactNode;
+  className?: string;
+}
+
+interface LinkComponentProps extends MarkdownComponentProps {
+  href?: string;
+}
+
+interface ImageComponentProps extends MarkdownComponentProps {
+  src?: string;
+  alt?: string;
+  title?: string;
+}
+
+interface CodeComponentProps extends MarkdownComponentProps {
+  className?: string;
+  children?: string;
+}
+
+interface TableComponentProps extends MarkdownComponentProps {
+  children: React.ReactNode;
+}
+
+interface HeadingComponentProps extends MarkdownComponentProps {
+  children: React.ReactNode;
+}
+
+interface ListComponentProps extends MarkdownComponentProps {
+  children: React.ReactNode;
+}
+
+interface ListItemComponentProps extends MarkdownComponentProps {
+  children: React.ReactNode;
+}
+
+interface BlockquoteComponentProps extends MarkdownComponentProps {
+  children: React.ReactNode;
+}
+
+interface TextComponentProps extends MarkdownComponentProps {
+  children: React.ReactNode;
+}
+
+interface ParagraphComponentProps extends MarkdownComponentProps {
+  children: React.ReactNode;
+}
 
 interface MarkdownEditorProps {
   value: string;
@@ -150,6 +201,9 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
   const [editingTagValue, setEditingTagValue] = useState('');
 
+  // Debounced onChange for editor input
+  const debouncedOnChange = useDebouncedCallback(onChange, 300);
+
   // Auto-save functionality
   const { isSaving, lastSaved, error, saveNow } = useAutoSave(
     { content: value, noteId },
@@ -176,19 +230,8 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     }
   }, [findOrCreateNote, selectNote]);
 
-  // Keyboard navigation handlers
-  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    // Ctrl/Cmd + Enter to toggle preview
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-      event.preventDefault();
-      setIsPreview(prev => !prev);
-    }
-    
-    // Escape to exit preview mode
-    if (event.key === 'Escape' && isPreview) {
-      setIsPreview(false);
-    }
-  }, [isPreview]);
+  // Keyboard shortcut handler (extracted)
+  const { handleKeyDown } = useMarkdownEditorShortcuts({ isPreview, setIsPreview });
 
   // Custom component for internal links
   const InternalLink: React.FC<{ children: string; noteTitle: string }> = React.memo(({ children, noteTitle }) => {
@@ -213,35 +256,45 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           color: '#007bff',
           textDecoration: 'underline',
           cursor: 'pointer',
-          padding: '0 2px',
-          font: 'inherit',
-          borderRadius: '2px'
+          padding: '2px 4px',
+          borderRadius: '3px',
+          fontFamily: 'inherit',
+          fontSize: 'inherit'
         }}
-        aria-label={`Navigate to note: ${noteTitle}`}
-        role="link"
-        tabIndex={0}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#f8f9fa';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent';
+        }}
+        aria-label={`Link to note: ${noteTitle}`}
       >
         {children}
       </button>
     );
   });
 
-  // Memoized markdown components
-  const markdownComponents = useMemo((): Components => ({
-    code({ className, children, ...props }: any): React.JSX.Element {
+  // Markdown components with proper TypeScript types
+  const markdownComponents: Components = useMemo(() => ({
+    code: ({ className, children, ...props }: CodeComponentProps): React.JSX.Element => {
       const match = /language-(\w+)/.exec(className || '');
-      const isInline = !className || !match;
-      return !isInline ? (
-        <EnhancedCodeBlock className={className}>
-          {String(children).replace(/\n$/, '')}
-        </EnhancedCodeBlock>
-      ) : (
+      const language = match ? match[1] : '';
+      
+      if (language) {
+        return (
+          <EnhancedCodeBlock language={language}>
+            {children as string}
+          </EnhancedCodeBlock>
+        );
+      }
+      
+      return (
         <code className={className} {...props}>
           {children}
         </code>
       );
     },
-    p: ({ children }: any) => {
+    p: ({ children }: ParagraphComponentProps) => {
       // Handle internal links in paragraphs
       if (typeof children === 'string') {
         const parts = parseInternalLinks(children);
@@ -258,7 +311,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       }
       return <p>{children}</p>;
     },
-    a: ({ href, children }: any) => {
+    a: ({ href, children }: LinkComponentProps) => {
       // Handle Gist embeds with validation
       if (href && typeof href === 'string' && isValidGistUrl(href)) {
         return <GistEmbed url={href} />;
@@ -275,7 +328,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       );
     },
     // Enhanced table support
-    table: ({ children }: any) => (
+    table: ({ children }: TableComponentProps) => (
       <div style={{ overflowX: 'auto', margin: '16px 0' }}>
         <table style={{
           borderCollapse: 'collapse',
@@ -288,22 +341,22 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         </table>
       </div>
     ),
-    thead: ({ children }: any) => (
+    thead: ({ children }: TableComponentProps) => (
       <thead style={{ backgroundColor: '#f6f8fa' }}>
         {children}
       </thead>
     ),
-    tbody: ({ children }: any) => (
+    tbody: ({ children }: TableComponentProps) => (
       <tbody>
         {children}
       </tbody>
     ),
-    tr: ({ children }: any) => (
+    tr: ({ children }: TableComponentProps) => (
       <tr style={{ borderBottom: '1px solid #e1e4e8' }}>
         {children}
       </tr>
     ),
-    th: ({ children }: any) => (
+    th: ({ children }: TableComponentProps) => (
       <th style={{
         padding: '12px 16px',
         textAlign: 'left',
@@ -315,7 +368,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         {children}
       </th>
     ),
-    td: ({ children }: any) => (
+    td: ({ children }: TableComponentProps) => (
       <td style={{
         padding: '12px 16px',
         fontSize: '14px',
@@ -326,7 +379,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       </td>
     ),
     // Enhanced image support
-    img: ({ src, alt, title }: any) => (
+    img: ({ src, alt, title }: ImageComponentProps) => (
       <div style={{ margin: '16px 0', textAlign: 'center' }}>
         <img
           src={src}
@@ -367,8 +420,8 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         )}
       </div>
     ),
-    // Enhanced typography
-    h1: ({ children }: any) => (
+    // Enhanced heading support
+    h1: ({ children }: HeadingComponentProps) => (
       <h1 style={{
         fontSize: '2em',
         fontWeight: '600',
@@ -380,7 +433,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         {children}
       </h1>
     ),
-    h2: ({ children }: any) => (
+    h2: ({ children }: HeadingComponentProps) => (
       <h2 style={{
         fontSize: '1.5em',
         fontWeight: '600',
@@ -392,7 +445,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         {children}
       </h2>
     ),
-    h3: ({ children }: any) => (
+    h3: ({ children }: HeadingComponentProps) => (
       <h3 style={{
         fontSize: '1.25em',
         fontWeight: '600',
@@ -402,7 +455,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         {children}
       </h3>
     ),
-    h4: ({ children }: any) => (
+    h4: ({ children }: HeadingComponentProps) => (
       <h4 style={{
         fontSize: '1em',
         fontWeight: '600',
@@ -412,7 +465,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         {children}
       </h4>
     ),
-    h5: ({ children }: any) => (
+    h5: ({ children }: HeadingComponentProps) => (
       <h5 style={{
         fontSize: '0.875em',
         fontWeight: '600',
@@ -422,7 +475,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         {children}
       </h5>
     ),
-    h6: ({ children }: any) => (
+    h6: ({ children }: HeadingComponentProps) => (
       <h6 style={{
         fontSize: '0.85em',
         fontWeight: '600',
@@ -432,26 +485,26 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         {children}
       </h6>
     ),
-    // Enhanced list styling
-    ul: ({ children }: any) => (
+    // Enhanced list support
+    ul: ({ children }: ListComponentProps) => (
       <ul style={{
-        margin: '16px 0',
         paddingLeft: '24px',
+        margin: '12px 0',
         lineHeight: '1.6'
       }}>
         {children}
       </ul>
     ),
-    ol: ({ children }: any) => (
+    ol: ({ children }: ListComponentProps) => (
       <ol style={{
-        margin: '16px 0',
         paddingLeft: '24px',
+        margin: '12px 0',
         lineHeight: '1.6'
       }}>
         {children}
       </ol>
     ),
-    li: ({ children }: any) => (
+    li: ({ children }: ListItemComponentProps) => (
       <li style={{
         margin: '4px 0',
         lineHeight: '1.6'
@@ -459,41 +512,32 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         {children}
       </li>
     ),
-    // Enhanced blockquote styling
-    blockquote: ({ children }: any) => (
+    // Enhanced blockquote support
+    blockquote: ({ children }: BlockquoteComponentProps) => (
       <blockquote style={{
         margin: '16px 0',
         padding: '12px 16px',
-        borderLeft: '4px solid #0366d6',
-        backgroundColor: '#f6f8fa',
-        borderRadius: '0 6px 6px 0',
+        borderLeft: '4px solid #007bff',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '4px',
         fontStyle: 'italic',
-        color: '#24292e'
+        color: '#495057'
       }}>
         {children}
       </blockquote>
     ),
-    // Enhanced horizontal rule
-    hr: () => (
-      <hr style={{
-        margin: '24px 0',
-        border: 'none',
-        height: '1px',
-        backgroundColor: '#e1e4e8'
-      }} />
-    ),
-    // Enhanced inline code
-    strong: ({ children }: any) => (
+    // Enhanced text formatting
+    strong: ({ children }: TextComponentProps) => (
       <strong style={{ fontWeight: '600', color: '#24292e' }}>
         {children}
       </strong>
     ),
-    em: ({ children }: any) => (
+    em: ({ children }: TextComponentProps) => (
       <em style={{ fontStyle: 'italic', color: '#24292e' }}>
         {children}
       </em>
-    )
-  }), [handleInternalLink]);
+    ),
+  }), []);
 
   // Tag management handlers
   const handleAddTag = async () => {
@@ -616,7 +660,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         ) : (
           <textarea
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => debouncedOnChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             style={{

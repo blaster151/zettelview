@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BacklinksPanel from './BacklinksPanel';
 import { useNoteStore } from '../store/noteStore';
+import { createMockNote } from '../types/test';
 
 // Mock the note store
 jest.mock('../store/noteStore');
@@ -12,15 +13,6 @@ const mockUseNoteStore = useNoteStore as jest.MockedFunction<typeof useNoteStore
 describe('BacklinksPanel', () => {
   const mockSelectNote = jest.fn();
   const mockGetNote = jest.fn();
-
-  const createMockNote = (id: string, title: string, body: string) => ({
-    id,
-    title,
-    body,
-    tags: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
 
   beforeEach(() => {
     jest.clearAllMocks();

@@ -1,26 +1,29 @@
 import React, { useMemo } from 'react';
 import { useNoteStore } from '../store/noteStore';
+import { Note, LinkReference, NoteIdProps } from '../types/domain';
 
-interface BacklinksPanelProps {
-  currentNoteId: string;
-}
-
-const BacklinksPanel: React.FC<BacklinksPanelProps> = ({ currentNoteId }) => {
+const BacklinksPanel: React.FC<NoteIdProps> = ({ noteId }) => {
   const { notes, getNote, selectNote } = useNoteStore();
 
+  // Memoize the regex pattern to avoid recreating it on every render
+  const internalLinkPattern = useMemo(() => /\[\[([^[\]]+)\]\]/g, []);
+
   // Find notes that link to the current note
-  const backlinks = useMemo(() => {
-    const currentNote = getNote(currentNoteId);
+  const backlinks = useMemo<LinkReference[]>(() => {
+    const currentNote = getNote(noteId) as Note | undefined;
     if (!currentNote) return [];
 
-    const links: Array<{ noteId: string; noteTitle: string; context: string }> = [];
-    const internalLinkPattern = /\[\[([^[\]]+)\]\]/g;
+    const links: LinkReference[] = [];
+    const currentNoteTitleLower = currentNote.title.toLowerCase();
 
     notes.forEach(note => {
-      if (note.id === currentNoteId) return; // Skip the current note
+      if (note.id === noteId) return; // Skip the current note
 
       let match;
       const matches: string[] = [];
+      
+      // Reset regex lastIndex to ensure proper matching
+      internalLinkPattern.lastIndex = 0;
       
       // Find all internal links in this note
       while ((match = internalLinkPattern.exec(note.body)) !== null) {
@@ -29,10 +32,10 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({ currentNoteId }) => {
 
       // Check if any of the links match the current note's title
       if (matches.some(linkTitle => 
-        linkTitle.toLowerCase() === currentNote.title.toLowerCase()
+        linkTitle.toLowerCase() === currentNoteTitleLower
       )) {
         // Find the context around the link (first occurrence)
-        const firstMatchIndex = note.body.toLowerCase().indexOf(`[[${currentNote.title.toLowerCase()}]]`);
+        const firstMatchIndex = note.body.toLowerCase().indexOf(`[[${currentNoteTitleLower}]]`);
         if (firstMatchIndex !== -1) {
           const start = Math.max(0, firstMatchIndex - 50);
           const end = Math.min(note.body.length, firstMatchIndex + currentNote.title.length + 50);
@@ -42,11 +45,10 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({ currentNoteId }) => {
           if (start > 0) context = '...' + context;
           if (end < note.body.length) context = context + '...';
           
-          // Highlight the link in context
-          context = context.replace(
-            new RegExp(`\\[\\[${currentNote.title}\\]\\]`, 'gi'),
-            '**$&**'
-          );
+          // Highlight the link in context - escape regex special characters for safe matching
+          const escapedTitle = currentNote.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const highlightRegex = new RegExp(`\\[\\[${escapedTitle}\\]\\]`, 'gi');
+          context = context.replace(highlightRegex, '**$&**');
 
           links.push({
             noteId: note.id,
@@ -58,7 +60,7 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({ currentNoteId }) => {
     });
 
     return links;
-  }, [notes, currentNoteId, getNote]);
+  }, [notes, noteId, getNote, internalLinkPattern]);
 
   if (backlinks.length === 0) {
     return (

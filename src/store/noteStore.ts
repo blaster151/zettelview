@@ -1,14 +1,6 @@
 import { create } from 'zustand';
 import { fileStorageService } from '../services/fileStorage';
-
-export interface Note {
-  id: string;
-  title: string;
-  body: string;
-  tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { Note } from '../types/domain';
 
 interface NoteStore {
   notes: Note[];

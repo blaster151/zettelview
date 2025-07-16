@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { detectLanguage, getLanguageDisplayName } from '../utils/languageDetection';
 
 interface EnhancedCodeBlockProps {
   children: string;
@@ -25,7 +26,15 @@ const EnhancedCodeBlock: React.FC<EnhancedCodeBlockProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Extract language from className (format: language-{lang})
-  const detectedLanguage = (className.replace('language-', '') || language).toUpperCase();
+  const specifiedLanguage = (className.replace('language-', '') || language).toLowerCase();
+  
+  // Use automatic detection if no language is specified or if it's 'text'
+  const detectedLanguage = specifiedLanguage === 'text' || specifiedLanguage === '' 
+    ? detectLanguage(children)
+    : specifiedLanguage;
+  
+  // Get display name for the language
+  const languageDisplayName = getLanguageDisplayName(detectedLanguage);
 
   const handleCopy = async () => {
     setIsCopying(true);
@@ -42,15 +51,17 @@ const EnhancedCodeBlock: React.FC<EnhancedCodeBlockProps> = ({
     }
   };
 
+  // TODO: Integrate with GitHub Gist API for real export functionality.
   const handleExportToGist = async () => {
     setIsExporting(true);
     setError(null);
+    setExportSuccess(null);
     
     try {
       // Note: In a real implementation, you'd need a GitHub token
       // For now, we'll simulate the API call and show the expected behavior
       const gistData = {
-        description: `Code block from ZettelView - ${detectedLanguage}`,
+        description: `Code block from ZettelView - ${languageDisplayName}`,
         public: true,
         files: {
           [`code.${detectedLanguage === 'text' ? 'txt' : detectedLanguage}`]: {
@@ -80,7 +91,7 @@ const EnhancedCodeBlock: React.FC<EnhancedCodeBlockProps> = ({
   return (
     <div className="enhanced-code-block">
       <div className="code-block-header">
-        <span className="language-label">{detectedLanguage}</span>
+        <span className="language-label">{languageDisplayName}</span>
         <div className="code-block-actions">
           <button
             onClick={handleCopy}
@@ -94,7 +105,8 @@ const EnhancedCodeBlock: React.FC<EnhancedCodeBlockProps> = ({
             onClick={handleExportToGist}
             disabled={isExporting}
             className={`action-button export-button ${exportSuccess ? 'success' : ''}`}
-            title="Export to Gist"
+            title="Export to Gist (mocked, does not create a real Gist)"
+            aria-label="Export code block to GitHub Gist (mocked)"
           >
             {isExporting ? 'Exporting...' : exportSuccess ? 'Exported!' : 'Export to Gist'}
           </button>

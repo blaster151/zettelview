@@ -1,23 +1,6 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { useNoteStore } from '../store/noteStore';
-
-interface GraphNode {
-  id: string;
-  title: string;
-  x: number;
-  y: number;
-  size: number;
-  color: string;
-  tags: string[];
-  isHovered?: boolean;
-  isSelected?: boolean;
-}
-
-interface GraphLink {
-  source: string;
-  target: string;
-  strength: number;
-}
+import { Note, GraphNode, GraphLink } from '../types/domain';
 
 interface GraphViewProps {
   onNodeClick?: (nodeId: string) => void;

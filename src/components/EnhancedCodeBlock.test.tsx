@@ -148,4 +148,70 @@ describe('EnhancedCodeBlock', () => {
     const header = screen.getByText('JAVASCRIPT').closest('.code-block-header');
     expect(header).toBeInTheDocument();
   });
+
+  test('handles export to Gist (mock) and shows success message', async () => {
+    render(<EnhancedCodeBlock {...defaultProps} />);
+    const exportButton = screen.getByText('Export to Gist');
+    await act(async () => {
+      fireEvent.click(exportButton);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Exported!')).toBeInTheDocument();
+    });
+    // Should show the mock success message and link
+    expect(screen.getByText('View Gist →')).toBeInTheDocument();
+  });
+
+  test('export to Gist button has proper aria-label and is keyboard accessible', () => {
+    render(<EnhancedCodeBlock {...defaultProps} />);
+    const exportButton = screen.getByLabelText(/export code block to github gist/i);
+    expect(exportButton).toBeInTheDocument();
+    exportButton.focus();
+    expect(document.activeElement).toBe(exportButton);
+  });
+
+  test('should automatically detect JavaScript language when no language specified', () => {
+    const jsCode = `
+      function hello() {
+        console.log("Hello, World!");
+        return "Hello";
+      }
+    `;
+    render(<EnhancedCodeBlock children={jsCode} className="" />);
+    
+    expect(screen.getByText('JavaScript')).toBeInTheDocument();
+  });
+
+  test('should automatically detect Python language when no language specified', () => {
+    const pythonCode = `
+      def hello():
+          print("Hello, World!")
+          return "Hello"
+    `;
+    render(<EnhancedCodeBlock children={pythonCode} className="" />);
+    
+    expect(screen.getByText('Python')).toBeInTheDocument();
+  });
+
+  test('should use specified language over automatic detection', () => {
+    const jsCode = `
+      function hello() {
+        console.log("Hello, World!");
+        return "Hello";
+      }
+    `;
+    render(<EnhancedCodeBlock children={jsCode} className="language-python" />);
+    
+    expect(screen.getByText('Python')).toBeInTheDocument();
+  });
+
+  test('should fall back to Text for unknown code patterns', () => {
+    const unknownCode = `
+      This is just some random text
+      that doesn't match any known patterns
+    `;
+    render(<EnhancedCodeBlock children={unknownCode} className="" />);
+    
+    expect(screen.getByText('Text')).toBeInTheDocument();
+  });
 }); 

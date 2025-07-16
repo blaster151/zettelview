@@ -2,35 +2,15 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import NoteSidebar from './NoteSidebar';
+import { createMockNote } from '../types/test';
 
 // Mock the Zustand store
 const mockAddNote = jest.fn().mockResolvedValue(undefined);
 const mockSelectNote = jest.fn();
 const mockNotes = [
-  {
-    id: 'welcome',
-    title: 'Welcome',
-    body: 'Welcome content',
-    tags: ['welcome', 'getting-started'],
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
-  },
-  {
-    id: 'test-note',
-    title: 'Test Note',
-    body: 'Test content',
-    tags: ['test', 'example'],
-    createdAt: new Date('2024-01-02'),
-    updatedAt: new Date('2024-01-02'),
-  },
-  {
-    id: 'programming-note',
-    title: 'Programming Guide',
-    body: 'This is a programming guide with JavaScript examples',
-    tags: ['programming', 'javascript'],
-    createdAt: new Date('2024-01-03'),
-    updatedAt: new Date('2024-01-03'),
-  },
+  createMockNote('welcome', 'Welcome', 'Welcome content', ['welcome', 'getting-started']),
+  createMockNote('test-note', 'Test Note', 'Test content', ['test', 'example']),
+  createMockNote('programming-note', 'Programming Guide', 'This is a programming guide with JavaScript examples', ['programming', 'javascript']),
 ];
 
 jest.mock('../store/noteStore', () => ({

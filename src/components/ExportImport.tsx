@@ -1,21 +1,15 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useNoteStore } from '../store/noteStore';
+import { Note } from '../types/domain';
 
 interface ExportImportProps {
-  onClose?: () => void;
+  onClose: () => void;
 }
 
 interface ExportData {
   version: string;
   exportedAt: string;
-  notes: Array<{
-    id: string;
-    title: string;
-    body: string;
-    tags: string[];
-    createdAt: string;
-    updatedAt: string;
-  }>;
+  notes: Note[];
 }
 
 const ExportImport: React.FC<ExportImportProps> = ({ onClose }) => {
