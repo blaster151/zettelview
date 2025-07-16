@@ -7,6 +7,7 @@ interface AppHeaderProps {
   onAISummaryClick: () => void;
   onExportImportClick: () => void;
   onViewModeToggle: () => void;
+  onHelpClick: () => void;
   viewMode: 'editor' | 'graph';
 }
 
@@ -15,13 +16,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   onAISummaryClick,
   onExportImportClick,
   onViewModeToggle,
+  onHelpClick,
   viewMode
 }) => {
   const { colors } = useThemeStore();
 
   return (
-    <div style={{ 
-      padding: '12px 24px', 
+    <header style={{
+      padding: '12px 16px',
       borderBottom: `1px solid ${colors.border}`,
       background: colors.surface,
       display: 'flex',
@@ -29,61 +31,130 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       alignItems: 'center',
       transition: 'all 0.2s ease'
     }}>
-      <h1 style={{ margin: 0, fontSize: '20px', color: colors.text }}>
+      <h1 style={{
+        margin: 0,
+        fontSize: '18px',
+        fontWeight: 'bold',
+        color: colors.text
+      }}>
         {title}
       </h1>
-      
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-        <ErrorBoundary>
-          <ThemeToggle />
-        </ErrorBoundary>
-        
+
+      <div style={{
+        display: 'flex',
+        gap: '8px',
+        alignItems: 'center'
+      }}>
+        {/* View Mode Toggle */}
+        <div style={{
+          display: 'flex',
+          border: `1px solid ${colors.border}`,
+          borderRadius: '4px',
+          overflow: 'hidden'
+        }}>
+          <button
+            onClick={onViewModeToggle}
+            style={{
+              background: viewMode === 'editor' ? colors.primary : 'transparent',
+              color: viewMode === 'editor' ? 'white' : colors.text,
+              border: 'none',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Editor
+          </button>
+          <button
+            onClick={onViewModeToggle}
+            style={{
+              background: viewMode === 'graph' ? colors.primary : 'transparent',
+              color: viewMode === 'graph' ? 'white' : colors.text,
+              border: 'none',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Graph View
+          </button>
+        </div>
+
+        {/* Help Button */}
+        <button
+          onClick={onHelpClick}
+          title="Help & Keyboard Shortcuts"
+          style={{
+            background: 'transparent',
+            border: `1px solid ${colors.border}`,
+            color: colors.text,
+            padding: '6px 12px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = colors.surfaceHover;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+          }}
+        >
+          ❓ Help
+        </button>
+
+        {/* AI Analysis Button */}
         <button
           onClick={onAISummaryClick}
+          title="AI Analysis"
           style={{
-            background: colors.primary,
-            color: 'white',
-            border: 'none',
-            padding: '8px 16px',
+            background: 'transparent',
+            border: `1px solid ${colors.border}`,
+            color: colors.text,
+            padding: '6px 12px',
             borderRadius: '4px',
             cursor: 'pointer',
-            fontSize: '14px'
+            fontSize: '14px',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = colors.surfaceHover;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
           }}
         >
-          AI Summary
+          🤖 AI
         </button>
-        
+
+        {/* Export/Import Button */}
         <button
           onClick={onExportImportClick}
+          title="Export/Import Notes"
           style={{
-            background: colors.secondary,
-            color: 'white',
-            border: 'none',
-            padding: '8px 16px',
+            background: 'transparent',
+            border: `1px solid ${colors.border}`,
+            color: colors.text,
+            padding: '6px 12px',
             borderRadius: '4px',
             cursor: 'pointer',
-            fontSize: '14px'
+            fontSize: '14px',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = colors.surfaceHover;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
           }}
         >
-          Export/Import
-        </button>
-        
-        <button
-          onClick={onViewModeToggle}
-          style={{
-            background: colors.accent,
-            color: 'white',
-            border: 'none',
-            padding: '8px 16px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px'
-          }}
-        >
-          {viewMode === 'editor' ? 'Graph View' : 'Editor View'}
+          📤 Export
         </button>
       </div>
-    </div>
+    </header>
   );
 };
 

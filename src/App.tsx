@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 import {
   NoteSidebar,
@@ -6,7 +6,9 @@ import {
   KeyboardShortcuts,
   AppHeader,
   MainContent,
-  ErrorBoundary
+  ErrorBoundary,
+  WelcomeOnboarding,
+  HelpPanel
 } from './components';
 import { useNoteStore } from './store/noteStore';
 import { useThemeStore } from './store/themeStore';
@@ -26,8 +28,18 @@ const AppContent: React.FC = () => {
     setSelectedNoteId
   } = useAppState();
 
+  // Onboarding and help state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+
   useEffect(() => {
     initialize();
+    
+    // Check if user has completed onboarding
+    const onboardingCompleted = localStorage.getItem('zettelview_onboarding_completed');
+    if (!onboardingCompleted) {
+      setShowOnboarding(true);
+    }
   }, [initialize]);
 
   // Sync selectedNoteId with noteStore's selectedId
@@ -44,6 +56,22 @@ const AppContent: React.FC = () => {
 
   const handleNodeClick = (nodeId: string) => {
     setViewMode('editor');
+  };
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+  };
+
+  const handleOnboardingSkip = () => {
+    setShowOnboarding(false);
+  };
+
+  const handleShowHelp = () => {
+    setShowHelp(true);
+  };
+
+  const handleCloseHelp = () => {
+    setShowHelp(false);
   };
 
   return (
@@ -79,6 +107,7 @@ const AppContent: React.FC = () => {
                 onAISummaryClick={showAI}
                 onExportImportClick={showExport}
                 onViewModeToggle={handleViewModeToggle}
+                onHelpClick={handleShowHelp}
                 viewMode={viewMode}
               />
 
@@ -95,6 +124,20 @@ const AppContent: React.FC = () => {
           </div>
         </div>
       </KeyboardShortcuts>
+
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <WelcomeOnboarding
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+        />
+      )}
+
+      {/* Help Panel */}
+      <HelpPanel
+        isOpen={showHelp}
+        onClose={handleCloseHelp}
+      />
     </ErrorBoundary>
   );
 };

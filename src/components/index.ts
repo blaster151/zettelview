@@ -14,4 +14,8 @@ export * from './features';
 export * from './utils';
 
 // Search components
-export { default as EnhancedSearch } from './EnhancedSearch'; 
+export { default as EnhancedSearch } from './EnhancedSearch';
+
+// Onboarding and Help components
+export { default as WelcomeOnboarding } from './WelcomeOnboarding';
+export { default as HelpPanel } from './HelpPanel'; 
