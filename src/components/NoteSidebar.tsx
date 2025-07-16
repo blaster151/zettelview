@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
+import EnhancedSearch from './EnhancedSearch';
 
 const NoteSidebar: React.FC = () => {
   const { notes, selectedId, selectNote, addNote } = useNoteStore();
@@ -48,6 +49,14 @@ const NoteSidebar: React.FC = () => {
     });
   }, [notes, searchQuery, selectedTag]);
 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
+  const handleSelectNote = (noteId: string) => {
+    selectNote(noteId);
+  };
+
   return (
     <aside style={{ 
       width: 240, 
@@ -59,41 +68,32 @@ const NoteSidebar: React.FC = () => {
     }}>
       <h2 style={{ color: colors.text, marginTop: 0 }}>Notes</h2>
       
-      {/* Search Input */}
+      {/* Enhanced Search Input */}
       <div style={{ marginBottom: 16 }}>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+        <EnhancedSearch
+          notes={notes}
+          onSearch={handleSearch}
+          onSelectNote={handleSelectNote}
           placeholder="Search notes..."
-          style={{
-            width: '100%',
-            padding: '8px',
-            border: `1px solid ${colors.border}`,
-            borderRadius: '4px',
-            marginBottom: '8px',
-            background: colors.background,
-            color: colors.text,
-            transition: 'all 0.2s ease'
-          }}
         />
         
         {/* Tag Filter */}
         {allTags.length > 0 && (
-                  <select
-          value={selectedTag}
-          onChange={(e) => setSelectedTag(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '6px',
-            border: `1px solid ${colors.border}`,
-            borderRadius: '4px',
-            fontSize: '14px',
-            background: colors.background,
-            color: colors.text,
-            transition: 'all 0.2s ease'
-          }}
-        >
+          <select
+            value={selectedTag}
+            onChange={(e) => setSelectedTag(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '6px',
+              border: `1px solid ${colors.border}`,
+              borderRadius: '4px',
+              fontSize: '14px',
+              background: colors.background,
+              color: colors.text,
+              transition: 'all 0.2s ease',
+              marginTop: '8px'
+            }}
+          >
             <option value="all">All tags</option>
             {allTags.map(tag => (
               <option key={tag} value={tag}>{tag}</option>
@@ -184,9 +184,8 @@ const NoteSidebar: React.FC = () => {
                   {new Date(note.updatedAt).toLocaleDateString()}
                 </div>
                 {note.tags.length > 0 && (
-                  <div style={{ fontSize: '10px', color: colors.textMuted, marginTop: '2px' }}>
-                    {note.tags.slice(0, 2).join(', ')}
-                    {note.tags.length > 2 && ` +${note.tags.length - 2}`}
+                  <div style={{ fontSize: '11px', color: colors.primary, marginTop: '4px' }}>
+                    {note.tags.join(', ')}
                   </div>
                 )}
               </button>

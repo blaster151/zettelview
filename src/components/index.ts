@@ -11,4 +11,7 @@ export * from './layout';
 export * from './features';
 
 // Utility components
-export * from './utils'; 
+export * from './utils';
+
+// Search components
+export { default as EnhancedSearch } from './EnhancedSearch'; 
