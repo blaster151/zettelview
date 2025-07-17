@@ -3,7 +3,9 @@ import { useNoteStore } from '../store/noteStore';
 import { Note } from '../types/domain';
 import { GraphNode, GraphLink, GraphRenderMode } from '../types/graph';
 import { GraphLinkService } from '../services/graphLinkService';
+import { GraphOptimizationService, OptimizedGraphData, Viewport } from '../services/graphOptimizationService';
 import RenderModeSelector from './graph/RenderModeSelector';
+import GraphPerformanceMonitor from './graph/GraphPerformanceMonitor';
 
 interface GraphViewProps {
   onNodeClick?: (nodeId: string) => void;
@@ -93,6 +95,7 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMinimap, setShowMinimap] = useState(true);
+  const [performanceMode, setPerformanceMode] = useState<'quality' | 'performance' | 'auto'>('auto');
   
   // Render mode state with localStorage persistence
   const [renderMode, setRenderMode] = useState<GraphRenderMode>(() => {
@@ -178,6 +181,35 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     return { nodes: graphNodes, links: graphLinks, filteredNodes: filtered };
   }, [notes, nodePositions, selectedNodeId, hoveredNode, searchQuery, renderMode]);
 
+  // Optimize graph data based on viewport and performance mode
+  const optimizedGraphData = useMemo((): OptimizedGraphData => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return {
+        visibleNodes: filteredNodes,
+        visibleLinks: links,
+        totalNodes: nodes.length,
+        totalLinks: links.length,
+        clusteringLevel: 'none',
+        performanceMetrics: { cullingEfficiency: 0, clusteringEfficiency: 0, renderTime: 0 }
+      };
+    }
+
+    const viewport = GraphOptimizationService.calculateViewport(
+      canvas.width,
+      canvas.height,
+      pan,
+      zoom
+    );
+
+    return GraphOptimizationService.optimizeGraph(
+      filteredNodes,
+      links,
+      viewport,
+      performanceMode
+    );
+  }, [filteredNodes, links, nodes.length, pan, zoom, performanceMode]);
+
   // Debounced canvas drawing with requestAnimationFrame
   const drawGraph = useCallback(() => {
     if (animationFrameRef.current) {
@@ -204,10 +236,10 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
         ctx.translate(pan.x + canvas.width / 2, pan.y + canvas.height / 2);
         ctx.scale(zoom, zoom);
 
-        // Draw links with different styles based on type
-        links.forEach(link => {
-          const sourceNode = nodes.find(n => n.id === link.source);
-          const targetNode = nodes.find(n => n.id === link.target);
+        // Draw optimized links
+        optimizedGraphData.visibleLinks.forEach(link => {
+          const sourceNode = optimizedGraphData.visibleNodes.find(n => n.id === link.source);
+          const targetNode = optimizedGraphData.visibleNodes.find(n => n.id === link.target);
           
           if (sourceNode && targetNode) {
             ctx.beginPath();
@@ -246,14 +278,11 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
           }
         });
 
-        // Draw nodes
-        nodes.forEach(node => {
+        // Draw optimized nodes (including clusters)
+        optimizedGraphData.visibleNodes.forEach(node => {
           const isSelected = node.isSelected;
           const isHovered = node.isHovered;
-          const isFiltered = filteredNodes.includes(node);
-
-          // Skip drawing if node is filtered out
-          if (!isFiltered) return;
+          const isCluster = 'isCluster' in node && node.isCluster;
 
           // Node circle with enhanced visual feedback
           ctx.beginPath();
@@ -289,6 +318,20 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
           
           ctx.fillText(title, node.x, node.y);
 
+          // Special styling for clusters
+          if (isCluster) {
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, node.size + 5, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'rgba(0, 123, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Show cluster size
+            ctx.fillStyle = '#007bff';
+            ctx.font = '10px Arial';
+            ctx.fillText(`${node.clusterSize}`, node.x, node.y + node.size + 15);
+          }
+
           // Highlight effect for hovered nodes
           if (isHovered) {
             ctx.beginPath();
@@ -305,7 +348,7 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
         throw error; // Let error boundary handle it
       }
     });
-  }, [nodes, links, filteredNodes, selectedNodeId, hoveredNode, zoom, pan]);
+  }, [optimizedGraphData, selectedNodeId, hoveredNode, zoom, pan]);
 
   // Enhanced mouse event handlers with debouncing
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -316,8 +359,8 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     const x = (e.clientX - rect.left - pan.x - canvas.width / 2) / zoom;
     const y = (e.clientY - rect.top - pan.y - canvas.height / 2) / zoom;
 
-    // Check if clicking on a node
-    const clickedNode = nodes.find(node => {
+    // Check if clicking on a node (including clusters)
+    const clickedNode = optimizedGraphData.visibleNodes.find(node => {
       const distance = Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2);
       return distance <= node.size;
     });
@@ -325,15 +368,25 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     if (clickedNode) {
       setIsDragging(true);
       setDragNode(clickedNode.id);
-      onNodeClick?.(clickedNode.id);
-      selectNote(clickedNode.id);
+      
+      // Handle cluster clicks
+      if ('isCluster' in clickedNode && clickedNode.isCluster) {
+        // For now, just select the representative node
+        if (clickedNode.representativeNode) {
+          onNodeClick?.(clickedNode.representativeNode.id);
+          selectNote(clickedNode.representativeNode.id);
+        }
+      } else {
+        onNodeClick?.(clickedNode.id);
+        selectNote(clickedNode.id);
+      }
     } else {
       setIsDragging(true);
       setDragNode(null);
     }
 
     setLastMousePos({ x: e.clientX, y: e.clientY });
-  }, [nodes, pan, zoom, onNodeClick, selectNote]);
+  }, [optimizedGraphData.visibleNodes, pan, zoom, onNodeClick, selectNote]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -344,7 +397,7 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     const y = (e.clientY - rect.top - pan.y - canvas.height / 2) / zoom;
 
     // Update hover state
-    const hoveredNode = nodes.find(node => {
+    const hoveredNode = optimizedGraphData.visibleNodes.find(node => {
       const distance = Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2);
       return distance <= node.size;
     });
@@ -374,7 +427,7 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     }
 
     setLastMousePos({ x: e.clientX, y: e.clientY });
-  }, [isDragging, dragNode, lastMousePos, zoom, nodes]);
+  }, [isDragging, dragNode, lastMousePos, zoom, optimizedGraphData.visibleNodes]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -401,279 +454,123 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     };
   }, []);
 
-  // Memoized statistics with render mode info
-  const stats = useMemo(() => ({
-    totalNotes: nodes.length,
-    totalLinks: links.length,
-    averageConnections: nodes.length > 0 ? (links.length * 2) / nodes.length : 0,
-    mostConnected: nodes.reduce((max, node) => {
-      const connections = links.filter(l => l.source === node.id || l.target === node.id).length;
-      return connections > max.connections ? { node, connections } : max;
-    }, { node: null as GraphNode | null, connections: 0 }),
-    filteredCount: filteredNodes.length,
-    linkTypeBreakdown: links.reduce((acc, link) => {
-      acc[link.type] = (acc[link.type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>)
-  }), [nodes, links, filteredNodes]);
-
-  // Search functionality
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  }, []);
-
-  const clearSearch = useCallback(() => {
-    setSearchQuery('');
-  }, []);
-
   return (
     <CanvasErrorBoundary>
-      <div style={{ 
-        height: '100%', 
-        display: 'flex', 
-        flexDirection: 'column',
-        background: '#f8f9fa'
-      }}>
-        {/* Graph Statistics */}
-        <div style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid #e1e4e8',
-          background: 'white',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '14px'
-        }}>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <span><strong>{stats.totalNotes}</strong> notes</span>
-            <span><strong>{stats.totalLinks}</strong> connections</span>
-            <span>Avg: <strong>{stats.averageConnections.toFixed(1)}</strong> links/note</span>
-            {searchQuery && (
-              <span>Showing: <strong>{stats.filteredCount}</strong> of {stats.totalNotes}</span>
-            )}
-          </div>
-          {stats.mostConnected.node && (
-            <span>
-              Most connected: <strong>{stats.mostConnected.node.title}</strong> 
-              ({stats.mostConnected.connections} links)
-            </span>
-          )}
-        </div>
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        {/* Performance Monitor */}
+        <GraphPerformanceMonitor
+          graphData={optimizedGraphData}
+          onPerformanceModeChange={setPerformanceMode}
+          currentMode={performanceMode}
+        />
 
-        {/* Search Bar */}
+        {/* Render Mode Selector */}
         <div style={{
-          padding: '8px 16px',
-          borderBottom: '1px solid #e1e4e8',
-          background: 'white'
+          position: 'absolute',
+          top: '10px',
+          left: '10px',
+          zIndex: 1000
         }}>
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={handleSearchChange}
-              placeholder="Search nodes by title or tags..."
-              style={{
-                width: '100%',
-                padding: '8px 32px 8px 12px',
-                border: '1px solid #e1e4e8',
-                borderRadius: '4px',
-                fontSize: '14px'
-              }}
-            />
-            {searchQuery && (
-              <button
-                onClick={clearSearch}
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '16px',
-                  color: '#666'
-                }}
-                title="Clear search"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Canvas Container */}
-        <div style={{
-          flex: 1, 
-          position: 'relative',
-          cursor: isDragging ? 'grabbing' : 'grab'
-        }}>
-          <canvas
-            ref={canvasRef}
-            style={{
-              width: '100%',
-              height: '100%',
-              display: 'block'
-            }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onWheel={handleWheel}
-          />
-          
-          {/* Render Mode Selector */}
           <RenderModeSelector
             currentMode={renderMode}
             onModeChange={handleRenderModeChange}
           />
+        </div>
 
-          {/* Zoom Controls */}
-          <div style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-          }}>
-            <button
-              onClick={() => setZoom(prev => Math.min(GRAPH_CONSTANTS.ZOOM_MAX, prev * GRAPH_CONSTANTS.ZOOM_FACTOR))}
-              style={{
-                width: '32px',
-                height: '32px',
-                border: '1px solid #e1e4e8',
-                background: 'white',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '16px'
-              }}
-              title="Zoom in"
-            >
-              +
-            </button>
-            <button
-              onClick={() => setZoom(prev => Math.max(GRAPH_CONSTANTS.ZOOM_MIN, prev / GRAPH_CONSTANTS.ZOOM_FACTOR))}
-              style={{
-                width: '32px',
-                height: '32px',
-                border: '1px solid #e1e4e8',
-                background: 'white',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '16px'
-              }}
-              title="Zoom out"
-            >
-              −
-            </button>
-            <button
-              onClick={() => {
-                setZoom(1);
-                setPan({ x: 0, y: 0 });
-              }}
-              style={{
-                width: '32px',
-                height: '32px',
-                border: '1px solid #e1e4e8',
-                background: 'white',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-              title="Reset view"
-            >
-              ⌂
-            </button>
-            <button
-              onClick={() => setShowMinimap(prev => !prev)}
-              style={{
-                width: '32px',
-                height: '32px',
-                border: '1px solid #e1e4e8',
-                background: showMinimap ? '#007bff' : 'white',
-                color: showMinimap ? 'white' : '#333',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-              title="Toggle minimap"
-            >
-              ⊞
-            </button>
-          </div>
+        {/* Canvas */}
+        <canvas
+          ref={canvasRef}
+          style={{
+            width: '100%',
+            height: '100%',
+            cursor: isDragging ? 'grabbing' : 'grab',
+            background: '#f8f9fa'
+          }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onWheel={handleWheel}
+        />
 
-          {/* Minimap */}
-          {showMinimap && (
-            <div style={{
-              position: 'absolute',
-              bottom: '16px',
-              right: '16px',
-              width: '150px',
-              height: '100px',
+        {/* Search Input */}
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000
+        }}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search nodes..."
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontSize: '14px',
+              width: '200px'
+            }}
+          />
+        </div>
+
+        {/* Zoom Controls */}
+        <div style={{
+          position: 'absolute',
+          bottom: '10px',
+          right: '10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px',
+          zIndex: 1000
+        }}>
+          <button
+            onClick={() => setZoom(prev => Math.min(GRAPH_CONSTANTS.ZOOM_MAX, prev * GRAPH_CONSTANTS.ZOOM_FACTOR))}
+            style={{
+              width: '32px',
+              height: '32px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
               background: 'white',
-              border: '1px solid #e1e4e8',
-              borderRadius: '6px',
-              padding: '8px',
-              fontSize: '10px'
-            }}>
-              <div style={{ marginBottom: '4px', fontWeight: '600' }}>Minimap</div>
-              <div style={{
-                width: '100%',
-                height: '70px',
-                background: '#f6f8fa',
-                border: '1px solid #e1e4e8',
-                borderRadius: '4px',
-                position: 'relative'
-              }}>
-                {/* Simplified minimap representation */}
-                {filteredNodes.map(node => (
-                  <div
-                    key={node.id}
-                    style={{
-                      position: 'absolute',
-                      left: `${((node.x + 300) / 600) * 100}%`,
-                      top: `${((node.y + 300) / 600) * 100}%`,
-                      width: '4px',
-                      height: '4px',
-                      background: node.isSelected ? '#007bff' : node.color,
-                      borderRadius: '50%',
-                      transform: 'translate(-50%, -50%)'
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Legend */}
-          <div style={{
-            position: 'absolute',
-            bottom: '16px',
-            left: '16px',
-            background: 'white',
-            border: '1px solid #e1e4e8',
-            borderRadius: '6px',
-            padding: '12px',
-            fontSize: '12px',
-            color: '#586069'
-          }}>
-            <div style={{ marginBottom: '8px', fontWeight: '600' }}>Legend</div>
-            <div>• Node size = content length + tags</div>
-            <div>• Line thickness = connection strength</div>
-            <div>• Colors = based on primary tag</div>
-            <div>• Hover for details</div>
-            <div style={{ marginTop: '8px', borderTop: '1px solid #e1e4e8', paddingTop: '8px' }}>
-              <div style={{ fontWeight: '600' }}>Link Types:</div>
-              <div style={{ color: '#007bff' }}>• Blue = Internal links</div>
-              <div style={{ color: '#28a745' }}>• Green = Tag connections</div>
-              <div style={{ color: '#ffc107' }}>• Yellow = Content similarity</div>
-              <div style={{ color: '#dc3545' }}>• Red = Hierarchical</div>
-            </div>
-            <div style={{ marginTop: '8px' }}>
-              <strong>Tip:</strong> Drag nodes to rearrange, scroll to zoom
-            </div>
-          </div>
+              cursor: 'pointer',
+              fontSize: '16px'
+            }}
+          >
+            +
+          </button>
+          <button
+            onClick={() => setZoom(prev => Math.max(GRAPH_CONSTANTS.ZOOM_MIN, prev / GRAPH_CONSTANTS.ZOOM_FACTOR))}
+            style={{
+              width: '32px',
+              height: '32px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              background: 'white',
+              cursor: 'pointer',
+              fontSize: '16px'
+            }}
+          >
+            −
+          </button>
+          <button
+            onClick={() => {
+              setZoom(1);
+              setPan({ x: 0, y: 0 });
+            }}
+            style={{
+              width: '32px',
+              height: '32px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              background: 'white',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            ⌂
+          </button>
         </div>
       </div>
     </CanvasErrorBoundary>
