@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { fuzzySearch, SearchHistory, highlightSearchTerms, getSearchSuggestions, SearchResult } from '../utils/searchUtils';
 import { useThemeStore } from '../store/themeStore';
+import VirtualizedSearchResults from './VirtualizedSearchResults';
 
 interface EnhancedSearchProps {
   notes: Array<{ id: string; title: string; body: string; tags: string[] }>;
@@ -28,7 +29,7 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
   // Search results with fuzzy matching
   const searchResults = useMemo(() => {
     if (!query.trim()) return [];
-    return fuzzySearch(notes, query, { maxResults: 10 });
+    return fuzzySearch(notes, query, { maxResults: 50 }); // Increased max results for virtualization
   }, [notes, query]);
 
   // Search suggestions
@@ -133,20 +134,13 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
     inputRef.current?.blur();
   };
 
-  // Clear search history
+  // Handle clear history
   const handleClearHistory = () => {
     SearchHistory.clearHistory();
     setShowHistory(false);
   };
 
-  // Add to search history when search is performed
-  useEffect(() => {
-    if (query.trim() && searchResults.length > 0) {
-      SearchHistory.addToHistory(query, searchResults.length);
-    }
-  }, [query, searchResults.length]);
-
-  // Click outside to close
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -156,75 +150,36 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   return (
-    <div ref={containerRef} className={`enhanced-search ${className}`} style={{ position: 'relative' }}>
-      <div style={{ position: 'relative' }}>
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={handleInputChange}
-          onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          style={{
-            width: '100%',
-            padding: '8px 32px 8px 12px',
-            border: `1px solid ${colors.border}`,
-            borderRadius: '4px',
-            background: colors.background,
-            color: colors.text,
-            fontSize: '14px',
-            transition: 'all 0.2s ease'
-          }}
-        />
-        
-        {/* Search icon */}
-        <div style={{
-          position: 'absolute',
-          left: '8px',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          color: colors.textSecondary,
-          fontSize: '14px'
-        }}>
-          🔍
-        </div>
-        
-        {/* Clear button */}
-        {query && (
-          <button
-            onClick={() => {
-              setQuery('');
-              onSearch('');
-              setShowSuggestions(false);
-              setShowHistory(false);
-              inputRef.current?.focus();
-            }}
-            style={{
-              position: 'absolute',
-              right: '8px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '16px',
-              color: colors.textSecondary,
-              padding: '2px'
-            }}
-            title="Clear search"
-          >
-            ×
-          </button>
-        )}
-      </div>
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <input
+        ref={inputRef}
+        type="text"
+        value={query}
+        onChange={handleInputChange}
+        onFocus={handleInputFocus}
+        onBlur={handleInputBlur}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        className={className}
+        style={{
+          width: '100%',
+          padding: '8px 12px',
+          border: `1px solid ${colors.border}`,
+          borderRadius: '4px',
+          fontSize: '14px',
+          background: colors.background,
+          color: colors.text,
+          transition: 'all 0.2s ease'
+        }}
+      />
 
-      {/* Suggestions and Results Dropdown */}
+      {/* Dropdown with Virtualized Results */}
       {(showSuggestions || showHistory) && (
         <div style={{
           position: 'absolute',
@@ -237,7 +192,7 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
           zIndex: 1000,
           maxHeight: '400px',
-          overflow: 'auto'
+          overflow: 'hidden'
         }}>
           {/* Search History */}
           {showHistory && recentQueries.length > 0 && (
@@ -336,7 +291,7 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
             </div>
           )}
 
-          {/* Search Results */}
+          {/* Virtualized Search Results */}
           {showSuggestions && searchResults.length > 0 && (
             <div>
               <div style={{
@@ -348,50 +303,15 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
               }}>
                 Results ({searchResults.length})
               </div>
-              {searchResults.map((result, index) => {
-                const resultIndex = suggestions.length + index;
-                return (
-                  <button
-                    key={result.noteId}
-                    onClick={() => handleResultClick(result)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      background: selectedIndex === resultIndex ? colors.surfaceActive : 'transparent',
-                      border: 'none',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      color: colors.text,
-                      fontSize: '14px',
-                      borderBottom: `1px solid ${colors.border}`,
-                      transition: 'background 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = colors.surfaceHover;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = selectedIndex === resultIndex ? colors.surfaceActive : 'transparent';
-                    }}
-                  >
-                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                      📝 {result.title}
-                    </div>
-                    <div style={{ 
-                      fontSize: '12px', 
-                      color: colors.textSecondary,
-                      marginBottom: '4px',
-                      lineHeight: '1.3'
-                    }}>
-                      {result.body.substring(0, 80)}...
-                    </div>
-                    {result.tags.length > 0 && (
-                      <div style={{ fontSize: '11px', color: colors.primary }}>
-                        🏷️ {result.tags.join(', ')}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+              <div style={{ height: '300px' }}>
+                <VirtualizedSearchResults
+                  results={searchResults}
+                  selectedIndex={Math.max(0, selectedIndex - suggestions.length)}
+                  onSelectResult={handleResultClick}
+                  height={300}
+                  itemHeight={100}
+                />
+              </div>
             </div>
           )}
 

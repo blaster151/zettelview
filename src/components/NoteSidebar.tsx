@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
 import EnhancedSearch from './EnhancedSearch';
+import VirtualizedNoteList from './VirtualizedNoteList';
 
 const NoteSidebar: React.FC = () => {
   const { notes, selectedId, selectNote, addNote } = useNoteStore();
@@ -57,6 +58,9 @@ const NoteSidebar: React.FC = () => {
     selectNote(noteId);
   };
 
+  // Calculate available height for the note list
+  const listHeight = Math.max(400, window.innerHeight - 300); // Minimum 400px, or viewport height minus header space
+
   return (
     <aside style={{ 
       width: 240, 
@@ -64,7 +68,10 @@ const NoteSidebar: React.FC = () => {
       padding: 16,
       background: colors.surface,
       color: colors.text,
-      transition: 'all 0.2s ease'
+      transition: 'all 0.2s ease',
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh'
     }}>
       <h2 style={{ color: colors.text, marginTop: 0 }}>Notes</h2>
       
@@ -113,98 +120,67 @@ const NoteSidebar: React.FC = () => {
           </select>
         )}
       </div>
-      
+
+      {/* Create Note Form */}
       <form onSubmit={handleCreateNote} style={{ marginBottom: 16 }}>
-        <input
-          type="text"
-          value={newNoteTitle}
-          onChange={(e) => setNewNoteTitle(e.target.value)}
-          placeholder="New note title..."
-          disabled={isCreating}
-          style={{
-            width: '100%',
-            padding: '8px',
-            border: `1px solid ${colors.border}`,
-            borderRadius: '4px',
-            marginBottom: '8px',
-            background: colors.background,
-            color: colors.text,
-            transition: 'all 0.2s ease'
-          }}
-        />
-        <button
-          type="submit"
-          disabled={!newNoteTitle.trim() || isCreating}
-          style={{
-            width: '100%',
-            padding: '8px',
-            background: colors.primary,
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: newNoteTitle.trim() && !isCreating ? 'pointer' : 'not-allowed',
-            opacity: newNoteTitle.trim() && !isCreating ? 1 : 0.6,
-            transition: 'all 0.2s ease'
-          }}
-        >
-          {isCreating ? 'Creating...' : 'Create Note'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="text"
+            value={newNoteTitle}
+            onChange={(e) => setNewNoteTitle(e.target.value)}
+            placeholder="New note title..."
+            style={{
+              flex: 1,
+              padding: '6px 8px',
+              border: `1px solid ${colors.border}`,
+              borderRadius: '4px',
+              fontSize: '14px',
+              background: colors.background,
+              color: colors.text
+            }}
+            disabled={isCreating}
+          />
+          <button
+            type="submit"
+            disabled={!newNoteTitle.trim() || isCreating}
+            style={{
+              padding: '6px 12px',
+              background: newNoteTitle.trim() && !isCreating ? colors.primary : colors.border,
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: newNoteTitle.trim() && !isCreating ? 'pointer' : 'not-allowed',
+              fontSize: '14px'
+            }}
+          >
+            {isCreating ? '...' : '+'}
+          </button>
+        </div>
       </form>
 
-      {filteredNotes.length === 0 ? (
-        <div style={{ 
-          textAlign: 'center', 
-          color: colors.textSecondary, 
-          padding: '20px 0',
-          fontSize: '14px'
-        }}>
-          {searchQuery || selectedTag !== 'all' 
-            ? 'No notes found matching your search.' 
-            : 'No notes yet. Create your first note!'}
-        </div>
-      ) : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {filteredNotes.map((note) => (
-            <li key={note.id}>
-              <button
-                style={{
-                  background: note.id === selectedId ? colors.surfaceActive : 'transparent',
-                  border: 'none',
-                  textAlign: 'left',
-                  width: '100%',
-                  padding: 8,
-                  cursor: 'pointer',
-                  borderRadius: '4px',
-                  marginBottom: '4px',
-                  color: colors.text,
-                  transition: 'all 0.2s ease'
-                }}
-                onClick={() => selectNote(note.id)}
-                onMouseEnter={(e) => {
-                  if (note.id !== selectedId) {
-                    e.currentTarget.style.background = colors.surfaceHover;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (note.id !== selectedId) {
-                    e.currentTarget.style.background = 'transparent';
-                  }
-                }}
-              >
-                <div style={{ fontWeight: 'bold', color: colors.text }}>{note.title}</div>
-                <div style={{ fontSize: '12px', color: colors.textSecondary }}>
-                  {new Date(note.updatedAt).toLocaleDateString()}
-                </div>
-                {note.tags.length > 0 && (
-                  <div style={{ fontSize: '11px', color: colors.primary, marginTop: '4px' }}>
-                    {note.tags.join(', ')}
-                  </div>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* Virtualized Note List */}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        {filteredNotes.length === 0 ? (
+          <div style={{ 
+            textAlign: 'center', 
+            color: colors.textSecondary, 
+            padding: '20px 0',
+            fontSize: '14px'
+          }}>
+            {searchQuery || selectedTag !== 'all' 
+              ? 'No notes found matching your search.' 
+              : 'No notes yet. Create your first note!'}
+          </div>
+        ) : (
+          <VirtualizedNoteList
+            notes={filteredNotes}
+            selectedId={selectedId}
+            onSelectNote={handleSelectNote}
+            height={listHeight}
+            itemHeight={80}
+          />
+        )}
+      </div>
     </aside>
   );
 };

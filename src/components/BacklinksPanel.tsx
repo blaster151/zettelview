@@ -1,54 +1,51 @@
 import React, { useMemo } from 'react';
 import { useNoteStore } from '../store/noteStore';
-import { Note, LinkReference, NoteIdProps } from '../types/domain';
+import { NoteIdProps } from '../types/domain';
+import VirtualizedBacklinksList from './VirtualizedBacklinksList';
 
 const BacklinksPanel: React.FC<NoteIdProps> = ({ noteId }) => {
-  const { notes, getNote, selectNote } = useNoteStore();
+  const { notes, selectNote } = useNoteStore();
 
-  // Memoize the regex pattern to avoid recreating it on every render
-  const internalLinkPattern = useMemo(() => /\[\[([^[\]]+)\]\]/g, []);
+  // Find backlinks to the current note
+  const backlinks = useMemo(() => {
+    if (!noteId) return [];
 
-  // Find notes that link to the current note
-  const backlinks = useMemo<LinkReference[]>(() => {
-    const currentNote = getNote(noteId) as Note | undefined;
+    const currentNote = notes.find(note => note.id === noteId);
     if (!currentNote) return [];
 
-    const links: LinkReference[] = [];
-    const currentNoteTitleLower = currentNote.title.toLowerCase();
+    const links: Array<{
+      noteId: string;
+      noteTitle: string;
+      context: string;
+    }> = [];
 
     notes.forEach(note => {
       if (note.id === noteId) return; // Skip the current note
 
+      // Check for internal links to the current note
+      const internalLinkPattern = new RegExp(`\\[\\[([^\\]]*)\\]\\]`, 'g');
       let match;
-      const matches: string[] = [];
-      
-      // Reset regex lastIndex to ensure proper matching
-      internalLinkPattern.lastIndex = 0;
-      
-      // Find all internal links in this note
-      while ((match = internalLinkPattern.exec(note.body)) !== null) {
-        matches.push(match[1].trim());
-      }
+      let contextStart = 0;
 
-      // Check if any of the links match the current note's title
-      if (matches.some(linkTitle => 
-        linkTitle.toLowerCase() === currentNoteTitleLower
-      )) {
-        // Find the context around the link (first occurrence)
-        const firstMatchIndex = note.body.toLowerCase().indexOf(`[[${currentNoteTitleLower}]]`);
-        if (firstMatchIndex !== -1) {
-          const start = Math.max(0, firstMatchIndex - 50);
-          const end = Math.min(note.body.length, firstMatchIndex + currentNote.title.length + 50);
-          let context = note.body.slice(start, end);
+      while ((match = internalLinkPattern.exec(note.body)) !== null) {
+        const linkText = match[1];
+        const linkId = linkText.includes('|') ? linkText.split('|')[1] : linkText;
+        
+        if (linkId === currentNote.title || linkId === noteId) {
+          // Extract context around the link
+          const matchStart = Math.max(0, match.index - 50);
+          const matchEnd = Math.min(note.body.length, match.index + match[0].length + 50);
+          let context = note.body.substring(matchStart, matchEnd);
           
           // Clean up context
-          if (start > 0) context = '...' + context;
-          if (end < note.body.length) context = context + '...';
+          if (matchStart > 0) context = '...' + context;
+          if (matchEnd < note.body.length) context = context + '...';
           
-          // Highlight the link in context - escape regex special characters for safe matching
-          const escapedTitle = currentNote.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const highlightRegex = new RegExp(`\\[\\[${escapedTitle}\\]\\]`, 'gi');
-          context = context.replace(highlightRegex, '**$&**');
+          // Highlight the link in context
+          context = context.replace(
+            match[0],
+            `**${match[0]}**`
+          );
 
           links.push({
             noteId: note.id,
@@ -60,32 +57,10 @@ const BacklinksPanel: React.FC<NoteIdProps> = ({ noteId }) => {
     });
 
     return links;
-  }, [notes, noteId, getNote, internalLinkPattern]);
+  }, [notes, noteId]);
 
   if (backlinks.length === 0) {
-    return (
-      <div style={{
-        padding: '16px',
-        borderTop: '1px solid #eee',
-        backgroundColor: '#fafafa'
-      }}>
-        <h3 style={{ 
-          margin: '0 0 8px 0', 
-          fontSize: '14px', 
-          color: '#666',
-          fontWeight: 'normal'
-        }}>
-          Backlinks
-        </h3>
-        <div style={{ 
-          fontSize: '12px', 
-          color: '#999',
-          fontStyle: 'italic'
-        }}>
-          No other notes link to this one yet.
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -93,8 +68,9 @@ const BacklinksPanel: React.FC<NoteIdProps> = ({ noteId }) => {
       padding: '16px',
       borderTop: '1px solid #eee',
       backgroundColor: '#fafafa',
-      maxHeight: '200px',
-      overflowY: 'auto'
+      height: '200px',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
       <h3 style={{ 
         margin: '0 0 12px 0', 
@@ -104,51 +80,13 @@ const BacklinksPanel: React.FC<NoteIdProps> = ({ noteId }) => {
       }}>
         Backlinks ({backlinks.length})
       </h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {backlinks.map((link) => (
-          <div key={link.noteId} style={{
-            padding: '8px',
-            backgroundColor: 'white',
-            border: '1px solid #e0e0e0',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#f5f5f5';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'white';
-          }}
-          onClick={() => selectNote(link.noteId)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              selectNote(link.noteId);
-            }
-          }}
-          aria-label={`Navigate to note: ${link.noteTitle}`}
-          >
-            <div style={{ 
-              fontWeight: 'bold', 
-              fontSize: '13px',
-              color: '#007bff',
-              marginBottom: '4px'
-            }}>
-              {link.noteTitle}
-            </div>
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#666',
-              lineHeight: '1.3',
-              fontFamily: 'monospace'
-            }}>
-              {link.context}
-            </div>
-          </div>
-        ))}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        <VirtualizedBacklinksList
+          backlinks={backlinks}
+          onSelectNote={selectNote}
+          height={150}
+          itemHeight={80}
+        />
       </div>
     </div>
   );

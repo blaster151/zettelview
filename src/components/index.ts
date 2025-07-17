@@ -16,6 +16,11 @@ export * from './utils';
 // Search components
 export { default as EnhancedSearch } from './EnhancedSearch';
 
+// Virtualized components
+export { default as VirtualizedNoteList } from './VirtualizedNoteList';
+export { default as VirtualizedSearchResults } from './VirtualizedSearchResults';
+export { default as VirtualizedBacklinksList } from './VirtualizedBacklinksList';
+
 // Onboarding and Help components
 export { default as WelcomeOnboarding } from './WelcomeOnboarding';
 export { default as HelpPanel } from './HelpPanel';
