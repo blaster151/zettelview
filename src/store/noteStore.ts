@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { fileStorageService } from '../services/fileStorage';
 import { searchService, SearchResult, SearchHistory } from '../services/searchService';
+import { advancedSearchService, AdvancedSearchResult } from '../services/advancedSearchService';
 import { Note } from '../types/domain';
 
 interface NoteStore {
@@ -28,6 +29,11 @@ interface NoteStore {
   searchByTags: (tags: string[]) => Promise<void>;
   clearSearch: () => void;
   getSearchSuggestions: (partialQuery: string, maxSuggestions?: number) => string[];
+  
+  // Advanced search actions
+  advancedSearch: (query: string, options?: { maxResults?: number; includeBody?: boolean; caseSensitive?: boolean }) => Promise<void>;
+  validateAdvancedQuery: (query: string) => { isValid: boolean; error?: string };
+  getAdvancedSearchSuggestions: (query: string) => string[];
 }
 
 export const useNoteStore = create<NoteStore>((set, get) => ({
@@ -254,5 +260,32 @@ Try switching to Preview mode to see the rendered Markdown!`,
 
   getSearchSuggestions: (partialQuery: string, maxSuggestions: number = 5) => {
     return searchService.getSuggestions(partialQuery, maxSuggestions);
+  },
+
+  // Advanced search actions
+  advancedSearch: async (query: string, options?: { maxResults?: number; includeBody?: boolean; caseSensitive?: boolean }) => {
+    set({ isSearching: true });
+    
+    try {
+      // Initialize advanced search service if needed
+      advancedSearchService.initialize(get().notes);
+      
+      const results = advancedSearchService.search(query, options);
+      set({ searchResults: results, isSearching: false });
+      
+      // Add to search history
+      SearchHistory.addToHistory(query, results.length);
+    } catch (error) {
+      console.error('Advanced search failed:', error);
+      set({ searchResults: [], isSearching: false });
+    }
+  },
+
+  validateAdvancedQuery: (query: string) => {
+    return advancedSearchService.validateQuery(query);
+  },
+
+  getAdvancedSearchSuggestions: (query: string) => {
+    return advancedSearchService.getSuggestions(query);
   },
 })); 

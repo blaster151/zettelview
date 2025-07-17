@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNoteStore } from '../store/noteStore';
 import { SearchResult } from '../services/searchService';
+import { AdvancedQueryParser } from '../services/advancedQueryParser';
 
 interface UseSearchWithFeedbackOptions {
   loadingDelay?: number; // Delay before showing loading indicator (default: 100ms)
   maxResults?: number;
   includeBody?: boolean;
+  enableAdvancedSearch?: boolean;
 }
 
 interface UseSearchWithFeedbackReturn {
@@ -15,6 +17,8 @@ interface UseSearchWithFeedbackReturn {
   isLoading: boolean;
   isSearching: boolean; // True when search is in progress
   searchSuggestions: string[];
+  isAdvancedQuery: boolean;
+  queryError: string | null;
   performSearch: (query: string) => Promise<void>;
   clearSearch: () => void;
 }
@@ -25,15 +29,24 @@ export const useSearchWithFeedback = (
   const {
     loadingDelay = 100,
     maxResults = 50,
-    includeBody = true
+    includeBody = true,
+    enableAdvancedSearch = true
   } = options;
 
-  const { searchNotes, getSearchSuggestions } = useNoteStore();
+  const { 
+    searchNotes, 
+    getSearchSuggestions, 
+    advancedSearch, 
+    validateAdvancedQuery, 
+    getAdvancedSearchSuggestions 
+  } = useNoteStore();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  const [isAdvancedQuery, setIsAdvancedQuery] = useState(false);
+  const [queryError, setQueryError] = useState<string | null>(null);
 
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -50,6 +63,14 @@ export const useSearchWithFeedback = (
     }
   }, []);
 
+  // Check if query contains advanced operators
+  const checkAdvancedQuery = useCallback((searchQuery: string) => {
+    if (!enableAdvancedSearch || !searchQuery.trim()) {
+      return false;
+    }
+    return /(tag:|title:|body:|AND|OR|NOT|\(|\)|")/i.test(searchQuery);
+  }, [enableAdvancedSearch]);
+
   // Perform search with loading feedback
   const performSearch = useCallback(async (searchQuery: string) => {
     clearTimeouts();
@@ -59,10 +80,31 @@ export const useSearchWithFeedback = (
       setIsLoading(false);
       setIsSearching(false);
       setSearchSuggestions([]);
+      setIsAdvancedQuery(false);
+      setQueryError(null);
       return;
     }
 
     setIsSearching(true);
+
+    // Check if this is an advanced query
+    const isAdvanced = checkAdvancedQuery(searchQuery);
+    setIsAdvancedQuery(isAdvanced);
+
+    // Validate advanced query if needed
+    if (isAdvanced) {
+      const validation = validateAdvancedQuery(searchQuery);
+      setQueryError(validation.error || null);
+      
+      if (!validation.isValid) {
+        setIsLoading(false);
+        setIsSearching(false);
+        setResults([]);
+        return;
+      }
+    } else {
+      setQueryError(null);
+    }
 
     // Start loading indicator after delay
     loadingTimeoutRef.current = setTimeout(() => {
@@ -70,11 +112,17 @@ export const useSearchWithFeedback = (
     }, loadingDelay);
 
     try {
-      // Perform the search
-      await searchNotes(searchQuery, { maxResults, includeBody });
+      // Perform the appropriate search
+      if (isAdvanced) {
+        await advancedSearch(searchQuery, { maxResults, includeBody });
+      } else {
+        await searchNotes(searchQuery, { maxResults, includeBody });
+      }
       
       // Get search suggestions
-      const suggestions = getSearchSuggestions(searchQuery, 5);
+      const suggestions = isAdvanced 
+        ? getAdvancedSearchSuggestions(searchQuery)
+        : getSearchSuggestions(searchQuery, 5);
       setSearchSuggestions(suggestions);
 
       // Clear loading state
@@ -87,7 +135,18 @@ export const useSearchWithFeedback = (
       setResults([]);
       setSearchSuggestions([]);
     }
-  }, [searchNotes, getSearchSuggestions, maxResults, includeBody, loadingDelay, clearTimeouts]);
+  }, [
+    searchNotes, 
+    getSearchSuggestions, 
+    advancedSearch, 
+    validateAdvancedQuery, 
+    getAdvancedSearchSuggestions, 
+    maxResults, 
+    includeBody, 
+    loadingDelay, 
+    clearTimeouts, 
+    checkAdvancedQuery
+  ]);
 
   // Debounced search for real-time input
   const debouncedSearch = useCallback((searchQuery: string) => {
@@ -98,6 +157,8 @@ export const useSearchWithFeedback = (
       setIsLoading(false);
       setIsSearching(false);
       setSearchSuggestions([]);
+      setIsAdvancedQuery(false);
+      setQueryError(null);
       return;
     }
 
@@ -121,6 +182,8 @@ export const useSearchWithFeedback = (
     setIsLoading(false);
     setIsSearching(false);
     setSearchSuggestions([]);
+    setIsAdvancedQuery(false);
+    setQueryError(null);
   }, [clearTimeouts]);
 
   // Cleanup on unmount
@@ -149,6 +212,8 @@ export const useSearchWithFeedback = (
     isLoading,
     isSearching,
     searchSuggestions,
+    isAdvancedQuery,
+    queryError,
     performSearch,
     clearSearch
   };

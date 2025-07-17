@@ -16,6 +16,7 @@ export * from './utils';
 // Search components
 export { default as EnhancedSearch } from './EnhancedSearch';
 export { default as SearchLoadingSpinner } from './SearchLoadingSpinner';
+export { default as AdvancedSearchHelp } from './AdvancedSearchHelp';
 
 // Virtualized components
 export { default as VirtualizedNoteList } from './VirtualizedNoteList';

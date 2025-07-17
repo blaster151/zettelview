@@ -4,7 +4,9 @@ import { useThemeStore } from '../store/themeStore';
 import VirtualizedSearchResults from './VirtualizedSearchResults';
 import { useSearchWithFeedback } from '../hooks/useSearchWithFeedback';
 import SearchLoadingSpinner from './SearchLoadingSpinner';
+import AdvancedSearchHelp from './AdvancedSearchHelp';
 import { SearchResult } from '../services/searchService';
+import { advancedSearchService } from '../services/advancedSearchService';
 
 interface EnhancedSearchProps {
   notes: Array<{ id: string; title: string; body: string; tags: string[] }>;
@@ -12,6 +14,7 @@ interface EnhancedSearchProps {
   onSelectNote: (noteId: string) => void;
   placeholder?: string;
   className?: string;
+  enableAdvancedSearch?: boolean;
 }
 
 const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
@@ -19,12 +22,16 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
   onSearch,
   onSelectNote,
   placeholder = "Search notes...",
-  className = ""
+  className = "",
+  enableAdvancedSearch = true
 }) => {
   const { colors } = useThemeStore();
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [showAdvancedHelp, setShowAdvancedHelp] = useState(false);
+  const [isAdvancedQuery, setIsAdvancedQuery] = useState(false);
+  const [queryError, setQueryError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +49,32 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
     maxResults: 50,
     includeBody: true
   });
+
+  // Initialize advanced search service
+  useEffect(() => {
+    if (enableAdvancedSearch) {
+      advancedSearchService.initialize(notes);
+    }
+  }, [notes, enableAdvancedSearch]);
+
+  // Check if query contains advanced operators
+  useEffect(() => {
+    if (enableAdvancedSearch && query.trim()) {
+      const hasAdvancedOperators = /(tag:|title:|body:|AND|OR|NOT|\(|\)|")/i.test(query);
+      setIsAdvancedQuery(hasAdvancedOperators);
+      
+      // Validate advanced query
+      if (hasAdvancedOperators) {
+        const validation = advancedSearchService.validateQuery(query);
+        setQueryError(validation.error || null);
+      } else {
+        setQueryError(null);
+      }
+    } else {
+      setIsAdvancedQuery(false);
+      setQueryError(null);
+    }
+  }, [query, enableAdvancedSearch]);
 
   // Search history
   const recentQueries = SearchHistory.getRecentQueries(5);
@@ -111,6 +144,12 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
         setShowHistory(false);
         inputRef.current?.blur();
         break;
+      case 'F1':
+        if (enableAdvancedSearch) {
+          e.preventDefault();
+          setShowAdvancedHelp(true);
+        }
+        break;
     }
   };
 
@@ -175,7 +214,7 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
             width: '100%',
             padding: '8px 12px',
             paddingRight: isLoading ? '40px' : '12px', // Make room for spinner
-            border: `1px solid ${colors.border}`,
+            border: `1px solid ${queryError ? '#e74c3c' : colors.border}`,
             borderRadius: '4px',
             fontSize: '14px',
             background: colors.background,
@@ -196,7 +235,65 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
             <SearchLoadingSpinner size="small" showText={false} />
           </div>
         )}
+
+        {/* Advanced search indicator */}
+        {enableAdvancedSearch && isAdvancedQuery && !queryError && (
+          <div style={{
+            position: 'absolute',
+            right: isLoading ? '40px' : '8px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            fontSize: '12px',
+            color: colors.primary,
+            fontWeight: '600',
+            pointerEvents: 'none'
+          }}>
+            ⚡
+          </div>
+        )}
       </div>
+
+      {/* Query error message */}
+      {queryError && (
+        <div style={{
+          marginTop: '4px',
+          padding: '6px 8px',
+          background: '#fee',
+          border: '1px solid #e74c3c',
+          borderRadius: '4px',
+          fontSize: '12px',
+          color: '#e74c3c'
+        }}>
+          {queryError}
+        </div>
+      )}
+
+      {/* Advanced search help button */}
+      {enableAdvancedSearch && (
+        <div style={{
+          marginTop: '4px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '12px',
+          color: colors.textSecondary
+        }}>
+          <span>Press F1 for advanced search help</span>
+          <button
+            onClick={() => setShowAdvancedHelp(true)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: colors.primary,
+              cursor: 'pointer',
+              fontSize: '12px',
+              textDecoration: 'underline'
+            }}
+          >
+            Advanced Search
+          </button>
+        </div>
+      )}
 
       {/* Dropdown with Virtualized Results */}
       {(showSuggestions || showHistory) && (
@@ -359,6 +456,12 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
           )}
         </div>
       )}
+
+      {/* Advanced Search Help Modal */}
+      <AdvancedSearchHelp
+        isOpen={showAdvancedHelp}
+        onClose={() => setShowAdvancedHelp(false)}
+      />
     </div>
   );
 };
