@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
+import { useCalendarData } from '../hooks/useCalendarData';
 import { Note } from '../types/domain';
 
 type DateMode = 'created' | 'modified';
@@ -10,76 +11,25 @@ interface CalendarViewProps {
   selectedNoteId?: string;
 }
 
-interface CalendarDay {
-  date: Date;
-  notes: Note[];
-  isCurrentMonth: boolean;
-  isToday: boolean;
-}
-
 const CalendarView: React.FC<CalendarViewProps> = ({ onNoteClick, selectedNoteId }) => {
   const { notes, selectNote } = useNoteStore();
   const { colors } = useThemeStore();
+  const { getCalendarData, getMonthName, getDayNames, isToday } = useCalendarData();
+  
   const [currentDate, setCurrentDate] = useState(new Date());
   const [dateMode, setDateMode] = useState<DateMode>(() => {
     const saved = localStorage.getItem('zettelview_calendar_date_mode');
     return (saved as DateMode) || 'created';
   });
 
+  // Get calendar data using the custom hook
+  const calendarData = getCalendarData(currentDate, notes, dateMode);
+
   // Handle date mode change with persistence
   const handleDateModeChange = useCallback((mode: DateMode) => {
     setDateMode(mode);
     localStorage.setItem('zettelview_calendar_date_mode', mode);
   }, []);
-
-  // Get calendar data for the current month
-  const calendarData = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    
-    // Get first day of month and last day of month
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    
-    // Get first day of calendar (including previous month's days)
-    const firstCalendarDay = new Date(firstDay);
-    firstCalendarDay.setDate(firstDay.getDate() - firstDay.getDay());
-    
-    // Get last day of calendar (including next month's days)
-    const lastCalendarDay = new Date(lastDay);
-    lastCalendarDay.setDate(lastDay.getDate() + (6 - lastDay.getDay()));
-    
-    const days: CalendarDay[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    for (let d = new Date(firstCalendarDay); d <= lastCalendarDay; d.setDate(d.getDate() + 1)) {
-      const date = new Date(d);
-      const dateKey = date.toISOString().split('T')[0];
-      
-      // Filter notes for this date based on selected mode
-      const dayNotes = notes.filter(note => {
-        try {
-          const noteDate = dateMode === 'created' ? note.createdAt : note.updatedAt;
-          const noteDateKey = new Date(noteDate).toISOString().split('T')[0];
-          return noteDateKey === dateKey;
-        } catch (error) {
-          // Handle invalid dates gracefully
-          console.warn('Invalid date for note:', note.id, error);
-          return false;
-        }
-      });
-      
-      days.push({
-        date: new Date(date),
-        notes: dayNotes,
-        isCurrentMonth: date.getMonth() === month,
-        isToday: date.getTime() === today.getTime()
-      });
-    }
-    
-    return days;
-  }, [currentDate, notes, dateMode]);
 
   // Navigation handlers
   const goToPreviousMonth = useCallback(() => {
@@ -99,12 +49,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onNoteClick, selectedNoteId
     onNoteClick(noteId);
   }, [selectNote, onNoteClick]);
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayNames = getDayNames();
 
   return (
     <div style={{
@@ -149,7 +94,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onNoteClick, selectedNoteId
             minWidth: '200px',
             textAlign: 'center'
           }}>
-            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            {calendarData.monthName} {calendarData.year}
           </h2>
           
           <button
@@ -237,7 +182,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onNoteClick, selectedNoteId
         ))}
 
         {/* Calendar Days */}
-        {calendarData.map((day, index) => (
+        {calendarData.days.map((day, index) => (
           <div
             key={index}
             style={{
