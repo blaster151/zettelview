@@ -68,6 +68,18 @@ const NoteSidebar: React.FC = () => {
     }}>
       <h2 style={{ color: colors.text, marginTop: 0 }}>Notes</h2>
       
+      {/* Note Count Indicator */}
+      <div style={{ 
+        fontSize: '12px', color: colors.textSecondary, 
+        marginBottom: '8px',
+        textAlign: 'center'
+      }}>
+        {searchQuery || selectedTag !== 'all' 
+          ? `${filteredNotes.length} of ${notes.length} notes`
+          : `${notes.length} note${notes.length !== 1 ? 's' : ''}`
+        }
+      </div>
+      
       {/* Enhanced Search Input */}
       <div style={{ marginBottom: 16 }}>
         <EnhancedSearch

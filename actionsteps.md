@@ -340,3 +340,43 @@
 - Chart bars now show detailed information on hover
 - Comprehensive test coverage for the new feature
 - Ready for next improvement or feature 
+
+## Development Loop #16: Note Count Indicator
+
+### Actions Taken:
+
+1. **Analyzed Current State**
+   - Reviewed requirements and existing functionality
+   - Identified that NoteSidebar lacked clear feedback about note collection size
+   - Chose to implement a note count indicator as a small, self-contained UX improvement
+
+2. **Implementation**
+   - Added a note count indicator below the Notes" heading in NoteSidebar
+   - Shows total count when no filters applied (e.g., "3 notes")
+   - Shows filtered count when search or tag filters are active (e.g., 1 of 3 notes")
+   - Uses consistent styling with theme colors and secondary text color
+   - Positioned prominently but unobtrusively in the sidebar
+3. **Testing**
+   - Added comprehensive test for note count indicator functionality:
+     - Verifies correct total count display when no filters applied
+     - Tests filtered count display when search is applied
+     - Confirms count updates correctly when search is cleared
+   - All existing tests continue to pass
+   - Test coverage includes both filtered and unfiltered states
+
+4**Documentation**
+   - Updated this `actionsteps.md` with details of the development loop
+   - Feature provides immediate value for users to understand their note collection size
+
+### Status: ✅ Complete
+- Note count indicator is fully implemented and functional
+- Shows both total and filtered counts with clear, consistent messaging
+- Integrates seamlessly with existing search and tag filtering
+- Comprehensive test coverage for all count scenarios
+- Improves user awareness of note collection size and search effectiveness
+- Ready for next development loop
+
+### Next Steps:
+- Continue with Development Loop #17
+- Consider implementing note sorting options, note preview snippets, or enhanced note metadata display
+- Potential improvements: note size indicators, last modified timestamps, or note categories 

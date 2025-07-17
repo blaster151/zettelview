@@ -279,4 +279,24 @@ describe('NoteSidebar', () => {
     expect(screen.getByText('test, example')).toBeInTheDocument();
     expect(screen.getByText('programming, javascript')).toBeInTheDocument();
   });
+
+  it('shows note count indicator with correct counts', () => {
+    render(<NoteSidebar />);
+    
+    // Should show total count when no filters applied
+    expect(screen.getByText('3 notes')).toBeInTheDocument();
+    
+    // Apply search filter
+    const searchInput = screen.getByPlaceholderText('Search notes...');
+    fireEvent.change(searchInput, { target: { value: 'test' } });
+    
+    // Should show filtered count
+    expect(screen.getByText('1 of 3 notes')).toBeInTheDocument();
+    
+    // Clear search
+    fireEvent.change(searchInput, { target: { value: '' } });
+    
+    // Should show total count again
+    expect(screen.getByText('3 notes')).toBeInTheDocument();
+  });
 }); 
