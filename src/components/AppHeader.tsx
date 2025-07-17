@@ -8,6 +8,7 @@ interface AppHeaderProps {
   onExportImportClick: () => void;
   onViewModeToggle: () => void;
   onHelpClick: () => void;
+  onStatsClick: () => void;
   viewMode: 'editor' | 'graph';
 }
 
@@ -17,6 +18,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   onExportImportClick,
   onViewModeToggle,
   onHelpClick,
+  onStatsClick,
   viewMode
 }) => {
   const { colors } = useThemeStore();
@@ -104,6 +106,30 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           }}
         >
           ❓ Help
+        </button>
+
+        {/* Stats Button */}
+        <button
+          onClick={onStatsClick}
+          title="Note Statistics & Analytics"
+          style={{
+            background: 'transparent',
+            border: `1px solid ${colors.border}`,
+            color: colors.text,
+            padding: '6px 12px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = colors.surfaceHover;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+          }}
+        >
+          📊 Stats
         </button>
 
         {/* AI Analysis Button */}

@@ -133,6 +133,48 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
         toggleTheme();
       },
       category: 'System'
+    },
+    {
+      key: 'Ctrl+T',
+      description: 'Create note from template',
+      action: () => {
+        const templateButton = document.querySelector('button[title*="Create note from template"]') as HTMLButtonElement;
+        if (templateButton) {
+          templateButton.click();
+        }
+      },
+      category: 'Notes'
+    },
+    {
+      key: 'Ctrl+Shift+S',
+      description: 'Save note as template',
+      action: () => {
+        const saveTemplateButton = document.querySelector('button[title*="Save current note as template"]') as HTMLButtonElement;
+        if (saveTemplateButton) {
+          saveTemplateButton.click();
+        }
+      },
+      category: 'Notes'
+    },
+    {
+      key: 'Ctrl+Shift+C',
+      description: 'Toggle collaboration',
+      action: () => {
+        const collaborationButton = document.querySelector('button[title*="collaboration"]') as HTMLButtonElement;
+        if (collaborationButton) {
+          collaborationButton.click();
+        }
+      },
+      category: 'Collaboration'
+    },
+    {
+      key: 'Ctrl+Shift+P',
+      description: 'Open plugin manager',
+      action: () => {
+        // This would trigger plugin manager open
+        console.log('Opening plugin manager...');
+      },
+      category: 'Plugins'
     }
   ];
 
@@ -272,6 +314,13 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
           toggleTheme();
           break;
       }
+    }
+
+    // Plugin management shortcuts
+    if (event.ctrlKey && event.shiftKey && event.key === 'P') {
+      event.preventDefault();
+      // This would trigger plugin manager open
+      console.log('Opening plugin manager...');
     }
   }, [notes, selectedId, selectNote, addNote, showCommandPalette, commandPaletteQuery, filteredCommands, selectedCommandIndex, currentNoteIndex, hasNotes, toggleTheme]);
 

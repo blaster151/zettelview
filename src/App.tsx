@@ -8,16 +8,26 @@ import {
   MainContent,
   ErrorBoundary,
   WelcomeOnboarding,
-  HelpPanel
+  HelpPanel,
+  NoteStats,
+  TemplateSelector,
+  SaveAsTemplate,
+  CollaborationPanel,
+  PluginManager,
+  PluginStore
 } from './components';
 import { useNoteStore } from './store/noteStore';
 import { useThemeStore } from './store/themeStore';
+import { useTemplates } from './hooks/useTemplates';
+import { useCollaboration } from './hooks/useCollaboration';
 import { AppStateProvider, useAppState } from './context/AppStateContext';
+import { NoteTemplate } from './types/templates';
 
 // Inner App component that uses the context
 const AppContent: React.FC = () => {
-  const { selectedId, getNote, initialize } = useNoteStore();
+  const { selectedId, getNote, initialize, notes, addNote } = useNoteStore();
   const { colors } = useThemeStore();
+  const { createNoteFromTemplate, saveNoteAsTemplate } = useTemplates();
   const { 
     state: { viewMode, showAISummaryPanel, showExportImport, selectedNoteId },
     setViewMode,
@@ -31,6 +41,20 @@ const AppContent: React.FC = () => {
   // Onboarding and help state
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+
+  // Template state
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
+
+  // Collaboration state
+  const [showCollaborationPanel, setShowCollaborationPanel] = useState(false);
+  const {
+    state: collaborationState,
+    isCollaborating,
+    onlineUsersCount,
+    hasRemoteCursors
+  } = useCollaboration(selectedId);
 
   useEffect(() => {
     initialize();
@@ -60,93 +84,228 @@ const AppContent: React.FC = () => {
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
+    localStorage.setItem('zettelview_onboarding_completed', 'true');
   };
 
-  const handleOnboardingSkip = () => {
-    setShowOnboarding(false);
+  const handleTemplateSelect = (template: NoteTemplate) => {
+    try {
+      const newNote = createNoteFromTemplate({
+        templateId: template.id,
+        title: `New ${template.name}`,
+        customTags: []
+      });
+      
+      const addedNote = addNote(newNote.title, newNote.body, newNote.tags);
+      setSelectedNoteId(addedNote.id);
+      setViewMode('editor');
+    } catch (error) {
+      console.error('Failed to create note from template:', error);
+    }
   };
 
-  const handleShowHelp = () => {
-    setShowHelp(true);
-  };
-
-  const handleCloseHelp = () => {
-    setShowHelp(false);
+  const handleSaveAsTemplate = (templateName: string, templateDescription: string, templateCategory: string) => {
+    if (selectedNote) {
+      try {
+        const template = saveNoteAsTemplate({
+          title: selectedNote.title,
+          body: selectedNote.body,
+          tags: selectedNote.tags
+        });
+        
+        // Update the template with user-provided name and description
+        // Note: This would require updating the useTemplates hook to support this
+        console.log('Template saved:', template);
+      } catch (error) {
+        console.error('Failed to save template:', error);
+      }
+    }
   };
 
   return (
-    <ErrorBoundary
-      onError={(error, errorInfo) => {
-        console.error('App-level error:', error, errorInfo);
-      }}
-    >
-      <KeyboardShortcuts>
-        <div 
-          className="app-container" 
-          style={{ 
-            display: 'flex', 
-            height: '100vh', 
-            flexDirection: 'column',
-            background: colors.background,
-            color: colors.text,
-            transition: 'all 0.2s ease'
-          }}
-        >
-          <ErrorBoundary>
-            <StoragePermission />
-          </ErrorBoundary>
-          
-          <div style={{ display: 'flex', flex: 1 }}>
-            <ErrorBoundary>
-              <NoteSidebar />
-            </ErrorBoundary>
-            
-            <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <AppHeader
-                title={title}
-                onAISummaryClick={showAI}
-                onExportImportClick={showExport}
-                onViewModeToggle={handleViewModeToggle}
-                onHelpClick={handleShowHelp}
-                viewMode={viewMode}
-              />
-
-              <MainContent
-                viewMode={viewMode}
-                selectedNoteId={selectedNoteId}
-                showAISummaryPanel={showAISummaryPanel}
-                showExportImport={showExportImport}
-                onAISummaryClose={hideAI}
-                onExportImportClose={hideExport}
-                onNodeClick={handleNodeClick}
-              />
-            </main>
-          </div>
-        </div>
-      </KeyboardShortcuts>
-
-      {/* Onboarding Modal */}
+    <div className="App" style={{ background: colors.background, color: colors.text }}>
+      <KeyboardShortcuts />
+      
       {showOnboarding && (
-        <WelcomeOnboarding
-          onComplete={handleOnboardingComplete}
-          onSkip={handleOnboardingSkip}
+        <WelcomeOnboarding onComplete={handleOnboardingComplete} />
+      )}
+      
+      {showHelp && (
+        <HelpPanel onClose={() => setShowHelp(false)} />
+      )}
+      
+      {showTemplateSelector && (
+        <TemplateSelector
+          isOpen={showTemplateSelector}
+          onClose={() => setShowTemplateSelector(false)}
+          onSelectTemplate={handleTemplateSelect}
+        />
+      )}
+      
+      {showSaveAsTemplate && selectedNote && (
+        <SaveAsTemplate
+          isOpen={showSaveAsTemplate}
+          onClose={() => setShowSaveAsTemplate(false)}
+          onSave={handleSaveAsTemplate}
+          currentNote={{
+            title: selectedNote.title,
+            body: selectedNote.body,
+            tags: selectedNote.tags
+          }}
         />
       )}
 
-      {/* Help Panel */}
-      <HelpPanel
-        isOpen={showHelp}
-        onClose={handleCloseHelp}
+      {showCollaborationPanel && (
+        <CollaborationPanel
+          noteId={selectedId}
+          isOpen={showCollaborationPanel}
+          onClose={() => setShowCollaborationPanel(false)}
+        />
+      )}
+
+      <AppHeader
+        title={title}
+        onViewModeToggle={handleViewModeToggle}
+        viewMode={viewMode}
+        onShowAI={showAI}
+        onShowExport={showExport}
+        onShowHelp={() => setShowHelp(true)}
+        onShowStats={() => setShowStats(true)}
+        onShowTemplates={() => setShowTemplateSelector(true)}
+        onSaveAsTemplate={() => setShowSaveAsTemplate(true)}
+        onShowCollaboration={() => setShowCollaborationPanel(true)}
+        hasSelectedNote={!!selectedNote}
+        isCollaborating={isCollaborating}
+        onlineUsersCount={onlineUsersCount}
+        hasRemoteCursors={hasRemoteCursors}
       />
-    </ErrorBoundary>
+
+      <div className="main-container">
+        <ErrorBoundary>
+          <NoteSidebar />
+        </ErrorBoundary>
+        
+        <ErrorBoundary>
+          <MainContent
+            viewMode={viewMode}
+            onNodeClick={handleNodeClick}
+            showAISummaryPanel={showAISummaryPanel}
+            showExportImport={showExportImport}
+            showStats={showStats}
+            onHideAI={hideAI}
+            onHideExport={hideExport}
+            onHideStats={() => setShowStats(false)}
+            collaborationState={collaborationState}
+          />
+        </ErrorBoundary>
+      </div>
+    </div>
   );
 };
 
 // Main App component that provides the context
 function App() {
+  const [isPluginManagerOpen, setIsPluginManagerOpen] = useState(false);
+  const [isPluginStoreOpen, setIsPluginStoreOpen] = useState(false);
+
+  const handleInstallPlugin = (plugin: any) => {
+    // Mock plugin installation
+    console.log('Installing plugin:', plugin.name);
+    // In a real implementation, this would download and register the plugin
+    setIsPluginStoreOpen(false);
+  };
+
   return (
     <AppStateProvider>
-      <AppContent />
+      <div className="App" style={{ background: colors.background, color: colors.text }}>
+        <KeyboardShortcuts />
+        
+        {showOnboarding && (
+          <WelcomeOnboarding onComplete={handleOnboardingComplete} />
+        )}
+        
+        {showHelp && (
+          <HelpPanel onClose={() => setShowHelp(false)} />
+        )}
+        
+        {showTemplateSelector && (
+          <TemplateSelector
+            isOpen={showTemplateSelector}
+            onClose={() => setShowTemplateSelector(false)}
+            onSelectTemplate={handleTemplateSelect}
+          />
+        )}
+        
+        {showSaveAsTemplate && selectedNote && (
+          <SaveAsTemplate
+            isOpen={showSaveAsTemplate}
+            onClose={() => setShowSaveAsTemplate(false)}
+            onSave={handleSaveAsTemplate}
+            currentNote={{
+              title: selectedNote.title,
+              body: selectedNote.body,
+              tags: selectedNote.tags
+            }}
+          />
+        )}
+
+        {showCollaborationPanel && (
+          <CollaborationPanel
+            noteId={selectedId}
+            isOpen={showCollaborationPanel}
+            onClose={() => setShowCollaborationPanel(false)}
+          />
+        )}
+
+        <AppHeader
+          title={title}
+          onViewModeToggle={handleViewModeToggle}
+          viewMode={viewMode}
+          onShowAI={showAI}
+          onShowExport={showExport}
+          onShowHelp={() => setShowHelp(true)}
+          onShowStats={() => setShowStats(true)}
+          onShowTemplates={() => setShowTemplateSelector(true)}
+          onSaveAsTemplate={() => setShowSaveAsTemplate(true)}
+          onShowCollaboration={() => setShowCollaborationPanel(true)}
+          hasSelectedNote={!!selectedNote}
+          isCollaborating={isCollaborating}
+          onlineUsersCount={onlineUsersCount}
+          hasRemoteCursors={hasRemoteCursors}
+          onOpenPluginManager={() => setIsPluginManagerOpen(true)}
+          onOpenPluginStore={() => setIsPluginStoreOpen(true)}
+        />
+
+        <div className="main-container">
+          <ErrorBoundary>
+            <NoteSidebar />
+          </ErrorBoundary>
+          
+          <ErrorBoundary>
+            <MainContent
+              viewMode={viewMode}
+              onNodeClick={handleNodeClick}
+              showAISummaryPanel={showAISummaryPanel}
+              showExportImport={showExportImport}
+              showStats={showStats}
+              onHideAI={hideAI}
+              onHideExport={hideExport}
+              onHideStats={() => setShowStats(false)}
+              collaborationState={collaborationState}
+            />
+          </ErrorBoundary>
+        </div>
+
+        <PluginManager
+          isOpen={isPluginManagerOpen}
+          onClose={() => setIsPluginManagerOpen(false)}
+        />
+
+        <PluginStore
+          isOpen={isPluginStoreOpen}
+          onClose={() => setIsPluginStoreOpen(false)}
+          onInstall={handleInstallPlugin}
+        />
+      </div>
     </AppStateProvider>
   );
 }

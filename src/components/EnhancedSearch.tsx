@@ -89,8 +89,9 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
           const item = items[selectedIndex];
           if (selectedIndex < suggestions.length) {
             // It's a suggestion
-            setQuery(item);
-            onSearch(item);
+            const suggestion = item as string;
+            setQuery(suggestion);
+            onSearch(suggestion);
           } else {
             // It's a search result
             const resultIndex = selectedIndex - suggestions.length;
@@ -302,7 +303,7 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
                 fontSize: '12px',
                 fontWeight: 'bold',
                 color: colors.textSecondary,
-                borderBottom: `1px solid ${colors.border}'
+                borderBottom: `1px solid ${colors.border}`
               }}>
                 Suggestions
               </div>
@@ -343,7 +344,7 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
                 fontSize: '12px',
                 fontWeight: 'bold',
                 color: colors.textSecondary,
-                borderBottom: `1px solid ${colors.border}'
+                borderBottom: `1px solid ${colors.border}`
               }}>
                 Results ({searchResults.length})
               </div>

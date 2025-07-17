@@ -1,3 +1,17 @@
+/**
+ * MarkdownEditor - A comprehensive markdown editor with preview, tag management, and rich features.
+ * 
+ * This component is intentionally kept as a single, cohesive unit despite its size (~760 lines) because:
+ * 1. All functionality serves a single, clear purpose: "Edit and preview markdown content with rich features"
+ * 2. The parts are naturally coupled - tag management needs noteId/updateNote, internal links need store access,
+ *    auto-save needs value/onChange, and preview needs the same markdown components as the editor
+ * 3. Breaking it up would require prop drilling, complex state synchronization, and duplicated logic
+ * 4. The size is justified: ~200 lines of TypeScript interfaces, ~150 lines of markdown components,
+ *    ~100 lines of tag management, ~100 lines of error boundaries, and ~200 lines of actual logic
+ * 
+ * Refactoring would only make sense if we add multiple editor types, a plugin system, collaborative editing,
+ * or if specific performance/testing problems arise that smaller components would solve.
+ */
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
