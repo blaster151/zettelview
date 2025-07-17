@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { fuzzySearch, SearchHistory, highlightSearchTerms, getSearchSuggestions, SearchResult } from '../utils/searchUtils';
+import React, { useState, useEffect, useRef } from 'react';
+import { SearchHistory, highlightSearchTerms } from '../utils/searchUtils';
 import { useThemeStore } from '../store/themeStore';
 import VirtualizedSearchResults from './VirtualizedSearchResults';
+import { useSearchWithFeedback } from '../hooks/useSearchWithFeedback';
+import SearchLoadingSpinner from './SearchLoadingSpinner';
+import { SearchResult } from '../services/searchService';
 
 interface EnhancedSearchProps {
   notes: Array<{ id: string; title: string; body: string; tags: string[] }>;
@@ -19,29 +22,29 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
   className = ""
 }) => {
   const { colors } = useThemeStore();
-  const [query, setQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Search results with fuzzy matching
-  const searchResults = useMemo(() => {
-    if (!query.trim()) return [];
-    return fuzzySearch(notes, query, { maxResults: 50 }); // Increased max results for virtualization
-  }, [notes, query]);
-
-  // Search suggestions
-  const suggestions = useMemo(() => {
-    if (!query.trim()) return [];
-    return getSearchSuggestions(notes, query).slice(0, 5);
-  }, [notes, query]);
+  // Use the new search hook with loading feedback
+  const {
+    query,
+    setQuery,
+    results: searchResults,
+    isLoading,
+    isSearching,
+    searchSuggestions: suggestions,
+    clearSearch
+  } = useSearchWithFeedback({
+    loadingDelay: 100,
+    maxResults: 50,
+    includeBody: true
+  });
 
   // Search history
-  const recentQueries = useMemo(() => {
-    return SearchHistory.getRecentQueries(5);
-  }, []);
+  const recentQueries = SearchHistory.getRecentQueries(5);
 
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,27 +160,43 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
 
   return (
     <div ref={containerRef} style={{ position: 'relative' }}>
-      <input
-        ref={inputRef}
-        type="text"
-        value={query}
-        onChange={handleInputChange}
-        onFocus={handleInputFocus}
-        onBlur={handleInputBlur}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        className={className}
-        style={{
-          width: '100%',
-          padding: '8px 12px',
-          border: `1px solid ${colors.border}`,
-          borderRadius: '4px',
-          fontSize: '14px',
-          background: colors.background,
-          color: colors.text,
-          transition: 'all 0.2s ease'
-        }}
-      />
+      <div style={{ position: 'relative' }}>
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className={className}
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            paddingRight: isLoading ? '40px' : '12px', // Make room for spinner
+            border: `1px solid ${colors.border}`,
+            borderRadius: '4px',
+            fontSize: '14px',
+            background: colors.background,
+            color: colors.text,
+            transition: 'all 0.2s ease'
+          }}
+        />
+        
+        {/* Loading spinner */}
+        {isLoading && (
+          <div style={{
+            position: 'absolute',
+            right: '8px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            pointerEvents: 'none'
+          }}>
+            <SearchLoadingSpinner size="small" showText={false} />
+          </div>
+        )}
+      </div>
 
       {/* Dropdown with Virtualized Results */}
       {(showSuggestions || showHistory) && (
@@ -291,8 +310,20 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
             </div>
           )}
 
+          {/* Loading indicator for search results */}
+          {isSearching && !isLoading && (
+            <div style={{
+              padding: '12px',
+              textAlign: 'center',
+              color: colors.textSecondary,
+              fontSize: '14px'
+            }}>
+              <SearchLoadingSpinner size="small" showText={true} />
+            </div>
+          )}
+
           {/* Virtualized Search Results */}
-          {showSuggestions && searchResults.length > 0 && (
+          {showSuggestions && searchResults.length > 0 && !isSearching && (
             <div>
               <div style={{
                 padding: '8px 12px',
@@ -316,7 +347,7 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
           )}
 
           {/* No results */}
-          {showSuggestions && query.trim() && suggestions.length === 0 && searchResults.length === 0 && (
+          {showSuggestions && query.trim() && suggestions.length === 0 && searchResults.length === 0 && !isSearching && (
             <div style={{
               padding: '12px',
               textAlign: 'center',
