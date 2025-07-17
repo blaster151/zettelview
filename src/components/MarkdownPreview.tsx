@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
 import EnhancedCodeBlock from './EnhancedCodeBlock';
 import GistEmbed from './GistEmbed';
+import { useDebouncedPreview } from '../hooks/useDebouncedPreview';
 
 // Error boundary for markdown preview
 class MarkdownErrorBoundary extends React.Component<
@@ -99,9 +100,21 @@ const parseInternalLinks = (text: string): Array<{ type: 'text' | 'link'; conten
 interface MarkdownPreviewProps {
   markdown: string;
   onInternalLinkClick?: (noteTitle: string) => void;
+  debounceMs?: number;
 }
 
-const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ markdown, onInternalLinkClick }) => {
+const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ 
+  markdown, 
+  onInternalLinkClick,
+  debounceMs = 500
+}) => {
+  // Use the debounced preview hook
+  const { debouncedValue, isUpdating } = useDebouncedPreview(markdown, {
+    debounceMs,
+    immediateForShortContent: true,
+    shortContentThreshold: 200 // Render short content immediately
+  });
+
   // Custom component for internal links
   const InternalLink: React.FC<{ children: string; noteTitle: string }> = React.memo(({ children, noteTitle }) => {
     const handleClick = useCallback(() => {
@@ -192,18 +205,265 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ markdown, onInternalL
         </a>
       );
     },
-    // ...other components as in MarkdownEditor
+    // Enhanced table support
+    table: ({ children }) => (
+      <div style={{ overflowX: 'auto', margin: '16px 0' }}>
+        <table style={{
+          borderCollapse: 'collapse',
+          width: '100%',
+          border: '1px solid #e1e4e8',
+          borderRadius: '6px',
+          overflow: 'hidden'
+        }}>
+          {children}
+        </table>
+      </div>
+    ),
+    thead: ({ children }) => (
+      <thead style={{ backgroundColor: '#f6f8fa' }}>
+        {children}
+      </thead>
+    ),
+    tbody: ({ children }) => (
+      <tbody>
+        {children}
+      </tbody>
+    ),
+    tr: ({ children }) => (
+      <tr style={{ borderBottom: '1px solid #e1e4e8' }}>
+        {children}
+      </tr>
+    ),
+    th: ({ children }) => (
+      <th style={{
+        padding: '12px 16px',
+        textAlign: 'left',
+        fontWeight: '600',
+        fontSize: '14px',
+        color: '#24292e',
+        borderBottom: '2px solid #e1e4e8'
+      }}>
+        {children}
+      </th>
+    ),
+    td: ({ children }) => (
+      <td style={{
+        padding: '12px 16px',
+        fontSize: '14px',
+        color: '#24292e',
+        borderBottom: '1px solid #e1e4e8'
+      }}>
+        {children}
+      </td>
+    ),
+    // Enhanced image support
+    img: ({ src, alt, title }) => (
+      <div style={{ margin: '16px 0', textAlign: 'center' }}>
+        <img
+          src={src}
+          alt={alt || 'Image'}
+          title={title}
+          style={{
+            maxWidth: '100%',
+            height: 'auto',
+            borderRadius: '6px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #e1e4e8'
+          }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = `
+              padding: 16px;
+              background: #f6f8fa;
+              border: 1px solid #e1e4e8;
+              border-radius: 6px;
+              color: #586069;
+              text-align: center;
+              font-size: 14px;
+            `;
+            errorDiv.textContent = `Failed to load image: ${alt || src}`;
+            e.currentTarget.parentNode?.appendChild(errorDiv);
+          }}
+        />
+        {alt && (
+          <div style={{
+            marginTop: '8px',
+            fontSize: '12px',
+            color: '#586069',
+            fontStyle: 'italic'
+          }}>
+            {alt}
+          </div>
+        )}
+      </div>
+    ),
+    // Enhanced heading support
+    h1: ({ children }) => (
+      <h1 style={{
+        fontSize: '2em',
+        fontWeight: '600',
+        margin: '24px 0 16px 0',
+        paddingBottom: '8px',
+        borderBottom: '1px solid #e1e4e8',
+        color: '#24292e'
+      }}>
+        {children}
+      </h1>
+    ),
+    h2: ({ children }) => (
+      <h2 style={{
+        fontSize: '1.5em',
+        fontWeight: '600',
+        margin: '20px 0 12px 0',
+        paddingBottom: '6px',
+        borderBottom: '1px solid #e1e4e8',
+        color: '#24292e'
+      }}>
+        {children}
+      </h2>
+    ),
+    h3: ({ children }) => (
+      <h3 style={{
+        fontSize: '1.25em',
+        fontWeight: '600',
+        margin: '16px 0 8px 0',
+        color: '#24292e'
+      }}>
+        {children}
+      </h3>
+    ),
+    h4: ({ children }) => (
+      <h4 style={{
+        fontSize: '1em',
+        fontWeight: '600',
+        margin: '12px 0 6px 0',
+        color: '#24292e'
+      }}>
+        {children}
+      </h4>
+    ),
+    h5: ({ children }) => (
+      <h5 style={{
+        fontSize: '0.875em',
+        fontWeight: '600',
+        margin: '10px 0 4px 0',
+        color: '#24292e'
+      }}>
+        {children}
+      </h5>
+    ),
+    h6: ({ children }) => (
+      <h6 style={{
+        fontSize: '0.85em',
+        fontWeight: '600',
+        margin: '8px 0 4px 0',
+        color: '#24292e'
+      }}>
+        {children}
+      </h6>
+    ),
+    // Enhanced list support
+    ul: ({ children }) => (
+      <ul style={{
+        paddingLeft: '24px',
+        margin: '12px 0',
+        lineHeight: '1.6'
+      }}>
+        {children}
+      </ul>
+    ),
+    ol: ({ children }) => (
+      <ol style={{
+        paddingLeft: '24px',
+        margin: '12px 0',
+        lineHeight: '1.6'
+      }}>
+        {children}
+      </ol>
+    ),
+    li: ({ children }) => (
+      <li style={{
+        margin: '4px 0',
+        lineHeight: '1.6'
+      }}>
+        {children}
+      </li>
+    ),
+    // Enhanced blockquote support
+    blockquote: ({ children }) => (
+      <blockquote style={{
+        margin: '16px 0',
+        padding: '12px 16px',
+        borderLeft: '4px solid #007bff',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '4px',
+        fontStyle: 'italic',
+        color: '#495057'
+      }}>
+        {children}
+      </blockquote>
+    ),
+    // Enhanced text formatting
+    strong: ({ children }) => (
+      <strong style={{ fontWeight: '600', color: '#24292e' }}>
+        {children}
+      </strong>
+    ),
+    em: ({ children }) => (
+      <em style={{ fontStyle: 'italic', color: '#24292e' }}>
+        {children}
+      </em>
+    ),
   }), [onInternalLinkClick]);
 
   return (
-    <MarkdownErrorBoundary>
-      <ReactMarkdown
-        components={markdownComponents}
-        remarkPlugins={[remarkGfm]}
-      >
-        {markdown}
-      </ReactMarkdown>
-    </MarkdownErrorBoundary>
+    <div style={{ position: 'relative' }}>
+      {/* Loading indicator during debounce */}
+      {isUpdating && (
+        <div style={{
+          position: 'absolute',
+          top: '8px',
+          right: '8px',
+          background: 'rgba(0, 123, 255, 0.9)',
+          color: 'white',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px'
+        }}>
+          <div style={{
+            width: '12px',
+            height: '12px',
+            border: '2px solid transparent',
+            borderTop: '2px solid white',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+          Updating...
+        </div>
+      )}
+      
+      <MarkdownErrorBoundary>
+        <ReactMarkdown
+          components={markdownComponents}
+          remarkPlugins={[remarkGfm]}
+        >
+          {debouncedValue}
+        </ReactMarkdown>
+      </MarkdownErrorBoundary>
+
+      {/* CSS for spinner animation */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
   );
 };
 

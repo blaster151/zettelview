@@ -620,7 +620,11 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             role="tabpanel"
             aria-label="Markdown preview"
           >
-            <MarkdownPreview markdown={value} onInternalLinkClick={handleInternalLink} />
+            <MarkdownPreview 
+              markdown={value} 
+              onInternalLinkClick={handleInternalLink}
+              debounceMs={300} // Match the editor debounce for consistency
+            />
           </div>
         ) : (
           <textarea
