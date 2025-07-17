@@ -1,6 +1,9 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { useNoteStore } from '../store/noteStore';
-import { Note, GraphNode, GraphLink } from '../types/domain';
+import { Note } from '../types/domain';
+import { GraphNode, GraphLink, GraphRenderMode } from '../types/graph';
+import { GraphLinkService } from '../services/graphLinkService';
+import RenderModeSelector from './graph/RenderModeSelector';
 
 interface GraphViewProps {
   onNodeClick?: (nodeId: string) => void;
@@ -91,13 +94,24 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
   const [searchQuery, setSearchQuery] = useState('');
   const [showMinimap, setShowMinimap] = useState(true);
   
+  // Render mode state with localStorage persistence
+  const [renderMode, setRenderMode] = useState<GraphRenderMode>(() => {
+    const saved = localStorage.getItem('zettelview_graph_render_mode');
+    return (saved as GraphRenderMode) || 'internal-links';
+  });
+  
   // Persistent node positions (in a real app, this would be in the store)
   const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
 
-  // Memoized graph data generation
+  // Handle render mode change with persistence
+  const handleRenderModeChange = useCallback((mode: GraphRenderMode) => {
+    setRenderMode(mode);
+    localStorage.setItem('zettelview_graph_render_mode', mode);
+  }, []);
+
+  // Memoized graph data generation with render mode support
   const { nodes, links, filteredNodes } = useMemo(() => {
     const graphNodes: GraphNode[] = [];
-    const graphLinks: GraphLink[] = [];
     const linkCounts: Record<string, number> = {};
 
     // Create nodes from notes with memoized calculations
@@ -150,41 +164,8 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
       });
     });
 
-    // Create links based on internal references (memoized)
-    const internalLinkPattern = /\[\[([^[\]]+)\]\]/g;
-    
-    notes.forEach(note => {
-      let match;
-      while ((match = internalLinkPattern.exec(note.body)) !== null) {
-        const linkTitle = match[1].trim();
-        const targetNote = notes.find(n => 
-          n.title.toLowerCase() === linkTitle.toLowerCase()
-        );
-        
-        if (targetNote && targetNote.id !== note.id) {
-          const linkKey = `${note.id}-${targetNote.id}`;
-          const reverseKey = `${targetNote.id}-${note.id}`;
-          
-          if (!linkCounts[linkKey] && !linkCounts[reverseKey]) {
-            graphLinks.push({
-              source: note.id,
-              target: targetNote.id,
-              strength: 1
-            });
-            linkCounts[linkKey] = 1;
-          } else {
-            // Strengthen existing link
-            const existingLink = graphLinks.find(l => 
-              (l.source === note.id && l.target === targetNote.id) ||
-              (l.source === targetNote.id && l.target === note.id)
-            );
-            if (existingLink) {
-              existingLink.strength += 0.5;
-            }
-          }
-        }
-      }
-    });
+    // Generate links based on selected render mode
+    const graphLinks = GraphLinkService.generateLinks(notes, renderMode);
 
     // Filter nodes based on search query
     const filtered = searchQuery.trim() === '' 
@@ -195,7 +176,7 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
         );
 
     return { nodes: graphNodes, links: graphLinks, filteredNodes: filtered };
-  }, [notes, nodePositions, selectedNodeId, hoveredNode, searchQuery]);
+  }, [notes, nodePositions, selectedNodeId, hoveredNode, searchQuery, renderMode]);
 
   // Debounced canvas drawing with requestAnimationFrame
   const drawGraph = useCallback(() => {
@@ -223,7 +204,7 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
         ctx.translate(pan.x + canvas.width / 2, pan.y + canvas.height / 2);
         ctx.scale(zoom, zoom);
 
-        // Draw links
+        // Draw links with different styles based on type
         links.forEach(link => {
           const sourceNode = nodes.find(n => n.id === link.source);
           const targetNode = nodes.find(n => n.id === link.target);
@@ -232,8 +213,35 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
             ctx.beginPath();
             ctx.moveTo(sourceNode.x, sourceNode.y);
             ctx.lineTo(targetNode.x, targetNode.y);
-            ctx.strokeStyle = `rgba(100, 100, 100, ${0.3 + link.strength * 0.2})`;
-            ctx.lineWidth = 1 + link.strength;
+            
+            // Different link styles based on type
+            let strokeStyle: string;
+            let lineWidth: number;
+            
+            switch (link.type) {
+              case 'internal':
+                strokeStyle = `rgba(0, 123, 255, ${0.4 + link.strength * 0.3})`;
+                lineWidth = 1 + link.strength;
+                break;
+              case 'tag':
+                strokeStyle = `rgba(40, 167, 69, ${0.4 + link.strength * 0.3})`;
+                lineWidth = 1 + link.strength * 0.5;
+                break;
+              case 'similarity':
+                strokeStyle = `rgba(255, 193, 7, ${0.4 + link.strength * 0.3})`;
+                lineWidth = 1 + link.strength * 0.5;
+                break;
+              case 'hierarchical':
+                strokeStyle = `rgba(220, 53, 69, ${0.4 + link.strength * 0.3})`;
+                lineWidth = 1 + link.strength;
+                break;
+              default:
+                strokeStyle = `rgba(100, 100, 100, ${0.3 + link.strength * 0.2})`;
+                lineWidth = 1 + link.strength;
+            }
+            
+            ctx.strokeStyle = strokeStyle;
+            ctx.lineWidth = lineWidth;
             ctx.stroke();
           }
         });
@@ -348,16 +356,16 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     const deltaX = e.clientX - lastMousePos.x;
     const deltaY = e.clientY - lastMousePos.y;
 
-          if (dragNode) {
-        // Move specific node with persistent storage
-        setNodePositions(prev => ({
-          ...prev,
-          [dragNode]: {
-            x: (prev[dragNode]?.x || 0) + deltaX / zoom,
-            y: (prev[dragNode]?.y || 0) + deltaY / zoom
-          }
-        }));
-      } else {
+    if (dragNode) {
+      // Move specific node with persistent storage
+      setNodePositions(prev => ({
+        ...prev,
+        [dragNode]: {
+          x: (prev[dragNode]?.x || 0) + deltaX / zoom,
+          y: (prev[dragNode]?.y || 0) + deltaY / zoom
+        }
+      }));
+    } else {
       // Pan the view
       setPan(prev => ({
         x: prev.x + deltaX * GRAPH_CONSTANTS.PAN_SENSITIVITY,
@@ -393,7 +401,7 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     };
   }, []);
 
-  // Memoized statistics
+  // Memoized statistics with render mode info
   const stats = useMemo(() => ({
     totalNotes: nodes.length,
     totalLinks: links.length,
@@ -402,7 +410,11 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
       const connections = links.filter(l => l.source === node.id || l.target === node.id).length;
       return connections > max.connections ? { node, connections } : max;
     }, { node: null as GraphNode | null, connections: 0 }),
-    filteredCount: filteredNodes.length
+    filteredCount: filteredNodes.length,
+    linkTypeBreakdown: links.reduce((acc, link) => {
+      acc[link.type] = (acc[link.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>)
   }), [nodes, links, filteredNodes]);
 
   // Search functionality
@@ -491,7 +503,7 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
         </div>
 
         {/* Canvas Container */}
-        <div style={{ 
+        <div style={{
           flex: 1, 
           position: 'relative',
           cursor: isDragging ? 'grabbing' : 'grab'
@@ -510,8 +522,12 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
             onWheel={handleWheel}
           />
           
+          {/* Render Mode Selector */}
+          <RenderModeSelector
+            currentMode={renderMode}
+            onModeChange={handleRenderModeChange}
+          />
 
-          
           {/* Zoom Controls */}
           <div style={{
             position: 'absolute',
@@ -647,6 +663,13 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
             <div>• Line thickness = connection strength</div>
             <div>• Colors = based on primary tag</div>
             <div>• Hover for details</div>
+            <div style={{ marginTop: '8px', borderTop: '1px solid #e1e4e8', paddingTop: '8px' }}>
+              <div style={{ fontWeight: '600' }}>Link Types:</div>
+              <div style={{ color: '#007bff' }}>• Blue = Internal links</div>
+              <div style={{ color: '#28a745' }}>• Green = Tag connections</div>
+              <div style={{ color: '#ffc107' }}>• Yellow = Content similarity</div>
+              <div style={{ color: '#dc3545' }}>• Red = Hierarchical</div>
+            </div>
             <div style={{ marginTop: '8px' }}>
               <strong>Tip:</strong> Drag nodes to rearrange, scroll to zoom
             </div>

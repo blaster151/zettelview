@@ -380,3 +380,68 @@
 - Continue with Development Loop #17
 - Consider implementing note sorting options, note preview snippets, or enhanced note metadata display
 - Potential improvements: note size indicators, last modified timestamps, or note categories 
+
+## Development Loop #17: Multiple Graph Render Modes
+
+### Actions Taken:
+
+1. **Analyzed Current State**
+   - Reviewed the existing graph view implementation
+   - Identified that only internal links (`[[Note Title]]`) were supported
+   - Recognized opportunity to add multiple analytical perspectives
+
+2. **Implementation**
+   - Created comprehensive graph types system (`src/types/graph.ts`):
+     - Defined 5 render modes: internal-links, tag-based, content-similarity, hybrid, hierarchical
+     - Added GraphRenderModeConfig with descriptions and icons
+     - Enhanced GraphLink interface with type classification
+   - Built GraphLinkService (`src/services/graphLinkService.ts`):
+     - Internal links: `[[Note Title]]` references (existing functionality)
+     - Tag-based: Connect notes sharing tags with strength based on shared tag count
+     - Content similarity: Jaccard similarity using keyword extraction and stop word filtering
+     - Hybrid: Combine internal and tag links with strengthened connections
+     - Hierarchical: Parent-child relationships based on title patterns (/, -, :, >, numbered)
+   - Created RenderModeSelector component (`src/components/graph/RenderModeSelector.tsx`):
+     - Dropdown interface with mode descriptions and icons
+     - Positioned in top-left of graph view
+     - localStorage persistence for user preference
+   - Enhanced GraphView component:
+     - Integrated GraphLinkService for dynamic link generation
+     - Added render mode state with persistence
+     - Updated link rendering with type-specific colors and styles
+     - Enhanced legend with link type explanations
+     - Added link type breakdown in statistics
+
+3. **Testing**
+   - Created comprehensive test suite for GraphLinkService:
+     - Tests for all 5 render modes with mock data
+     - Link strength calculations and edge cases
+     - Malformed input handling and empty states
+     - 13 test cases covering all functionality
+   - All tests pass successfully
+
+4. **Documentation**
+   - Updated this `actionsteps.md` with development loop details
+   - Added inline code documentation for all new functionality
+   - Enhanced user interface with clear mode descriptions
+
+### Status: ✅ Complete
+- Multiple graph render modes fully implemented and functional
+- 5 different analytical perspectives on knowledge base structure
+- localStorage persistence for user preferences
+- Comprehensive test coverage for all link generation algorithms
+- Enhanced visual feedback with type-specific link colors
+- Significantly improved analytical value of the graph view
+- Ready for next development loop
+
+### Key Features:
+- **Internal Links**: Explicit `[[Note Title]]` references (blue)
+- **Tag Clusters**: Thematic relationships via shared tags (green)
+- **Content Similarity**: Implicit connections via keyword analysis (yellow)
+- **Hybrid View**: Complete picture combining multiple connection types
+- **Hierarchical**: Parent-child relationships via title patterns (red)
+
+### Next Steps:
+- Continue with Development Loop #18
+- Consider implementing force-directed layout algorithms
+- Potential improvements: link filtering, custom similarity thresholds, or advanced hierarchical detection 

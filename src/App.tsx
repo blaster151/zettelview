@@ -18,37 +18,55 @@ import {
 } from './components';
 import { useNoteStore } from './store/noteStore';
 import { useThemeStore } from './store/themeStore';
+import { useUIStore } from './store/uiStore';
 import { useTemplates } from './hooks/useTemplates';
 import { useCollaboration } from './hooks/useCollaboration';
-import { AppStateProvider, useAppState } from './context/AppStateContext';
 import { NoteTemplate } from './types/templates';
 
-// Inner App component that uses the context
-const AppContent: React.FC = () => {
+const App: React.FC = () => {
   const { selectedId, getNote, initialize, notes, addNote } = useNoteStore();
   const { colors } = useThemeStore();
   const { createNoteFromTemplate, saveNoteAsTemplate } = useTemplates();
-  const { 
-    state: { viewMode, showAISummaryPanel, showExportImport, selectedNoteId },
+  
+  // UI state from Zustand store
+  const {
+    viewMode,
+    showAISummaryPanel,
+    showExportImport,
+    showOnboarding,
+    showHelp,
+    showStats,
+    showTemplateSelector,
+    showSaveAsTemplate,
+    showCollaborationPanel,
+    showPluginManager,
+    showPluginStore,
+    selectedNoteId,
     setViewMode,
     showAISummaryPanel: showAI,
     hideAISummaryPanel: hideAI,
     showExportImport: showExport,
     hideExportImport: hideExport,
+    showOnboarding: showOnboardingUI,
+    hideOnboarding: hideOnboardingUI,
+    showHelp: showHelpUI,
+    hideHelp: hideHelpUI,
+    showStats: showStatsUI,
+    hideStats: hideStatsUI,
+    showTemplateSelector: showTemplateSelectorUI,
+    hideTemplateSelector: hideTemplateSelectorUI,
+    showSaveAsTemplate: showSaveAsTemplateUI,
+    hideSaveAsTemplate: hideSaveAsTemplateUI,
+    showCollaborationPanel: showCollaborationPanelUI,
+    hideCollaborationPanel: hideCollaborationPanelUI,
+    showPluginManager: showPluginManagerUI,
+    hidePluginManager: hidePluginManagerUI,
+    showPluginStore: showPluginStoreUI,
+    hidePluginStore: hidePluginStoreUI,
     setSelectedNoteId
-  } = useAppState();
-
-  // Onboarding and help state
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
-  const [showStats, setShowStats] = useState(false);
-
-  // Template state
-  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
-  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
+  } = useUIStore();
 
   // Collaboration state
-  const [showCollaborationPanel, setShowCollaborationPanel] = useState(false);
   const {
     state: collaborationState,
     isCollaborating,
@@ -62,9 +80,9 @@ const AppContent: React.FC = () => {
     // Check if user has completed onboarding
     const onboardingCompleted = localStorage.getItem('zettelview_onboarding_completed');
     if (!onboardingCompleted) {
-      setShowOnboarding(true);
+      showOnboardingUI();
     }
-  }, [initialize]);
+  }, [initialize, showOnboardingUI]);
 
   // Sync selectedNoteId with noteStore's selectedId
   useEffect(() => {
@@ -83,7 +101,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleOnboardingComplete = () => {
-    setShowOnboarding(false);
+    hideOnboardingUI();
     localStorage.setItem('zettelview_onboarding_completed', 'true');
   };
 
@@ -130,13 +148,13 @@ const AppContent: React.FC = () => {
       )}
       
       {showHelp && (
-        <HelpPanel onClose={() => setShowHelp(false)} />
+        <HelpPanel onClose={hideHelpUI} />
       )}
       
       {showTemplateSelector && (
         <TemplateSelector
           isOpen={showTemplateSelector}
-          onClose={() => setShowTemplateSelector(false)}
+          onClose={hideTemplateSelectorUI}
           onSelectTemplate={handleTemplateSelect}
         />
       )}
@@ -144,7 +162,7 @@ const AppContent: React.FC = () => {
       {showSaveAsTemplate && selectedNote && (
         <SaveAsTemplate
           isOpen={showSaveAsTemplate}
-          onClose={() => setShowSaveAsTemplate(false)}
+          onClose={hideSaveAsTemplateUI}
           onSave={handleSaveAsTemplate}
           currentNote={{
             title: selectedNote.title,
@@ -158,7 +176,21 @@ const AppContent: React.FC = () => {
         <CollaborationPanel
           noteId={selectedId}
           isOpen={showCollaborationPanel}
-          onClose={() => setShowCollaborationPanel(false)}
+          onClose={hideCollaborationPanelUI}
+        />
+      )}
+
+      {showPluginManager && (
+        <PluginManager
+          isOpen={showPluginManager}
+          onClose={hidePluginManagerUI}
+        />
+      )}
+
+      {showPluginStore && (
+        <PluginStore
+          isOpen={showPluginStore}
+          onClose={hidePluginStoreUI}
         />
       )}
 
@@ -168,11 +200,13 @@ const AppContent: React.FC = () => {
         viewMode={viewMode}
         onShowAI={showAI}
         onShowExport={showExport}
-        onShowHelp={() => setShowHelp(true)}
-        onShowStats={() => setShowStats(true)}
-        onShowTemplates={() => setShowTemplateSelector(true)}
-        onSaveAsTemplate={() => setShowSaveAsTemplate(true)}
-        onShowCollaboration={() => setShowCollaborationPanel(true)}
+        onShowHelp={showHelpUI}
+        onShowStats={showStatsUI}
+        onShowTemplates={showTemplateSelectorUI}
+        onSaveAsTemplate={showSaveAsTemplateUI}
+        onShowCollaboration={showCollaborationPanelUI}
+        onShowPluginManager={showPluginManagerUI}
+        onShowPluginStore={showPluginStoreUI}
         hasSelectedNote={!!selectedNote}
         isCollaborating={isCollaborating}
         onlineUsersCount={onlineUsersCount}
@@ -193,7 +227,7 @@ const AppContent: React.FC = () => {
             showStats={showStats}
             onHideAI={hideAI}
             onHideExport={hideExport}
-            onHideStats={() => setShowStats(false)}
+            onHideStats={hideStatsUI}
             collaborationState={collaborationState}
           />
         </ErrorBoundary>
@@ -201,113 +235,5 @@ const AppContent: React.FC = () => {
     </div>
   );
 };
-
-// Main App component that provides the context
-function App() {
-  const [isPluginManagerOpen, setIsPluginManagerOpen] = useState(false);
-  const [isPluginStoreOpen, setIsPluginStoreOpen] = useState(false);
-
-  const handleInstallPlugin = (plugin: any) => {
-    // Mock plugin installation
-    console.log('Installing plugin:', plugin.name);
-    // In a real implementation, this would download and register the plugin
-    setIsPluginStoreOpen(false);
-  };
-
-  return (
-    <AppStateProvider>
-      <div className="App" style={{ background: colors.background, color: colors.text }}>
-        <KeyboardShortcuts />
-        
-        {showOnboarding && (
-          <WelcomeOnboarding onComplete={handleOnboardingComplete} />
-        )}
-        
-        {showHelp && (
-          <HelpPanel onClose={() => setShowHelp(false)} />
-        )}
-        
-        {showTemplateSelector && (
-          <TemplateSelector
-            isOpen={showTemplateSelector}
-            onClose={() => setShowTemplateSelector(false)}
-            onSelectTemplate={handleTemplateSelect}
-          />
-        )}
-        
-        {showSaveAsTemplate && selectedNote && (
-          <SaveAsTemplate
-            isOpen={showSaveAsTemplate}
-            onClose={() => setShowSaveAsTemplate(false)}
-            onSave={handleSaveAsTemplate}
-            currentNote={{
-              title: selectedNote.title,
-              body: selectedNote.body,
-              tags: selectedNote.tags
-            }}
-          />
-        )}
-
-        {showCollaborationPanel && (
-          <CollaborationPanel
-            noteId={selectedId}
-            isOpen={showCollaborationPanel}
-            onClose={() => setShowCollaborationPanel(false)}
-          />
-        )}
-
-        <AppHeader
-          title={title}
-          onViewModeToggle={handleViewModeToggle}
-          viewMode={viewMode}
-          onShowAI={showAI}
-          onShowExport={showExport}
-          onShowHelp={() => setShowHelp(true)}
-          onShowStats={() => setShowStats(true)}
-          onShowTemplates={() => setShowTemplateSelector(true)}
-          onSaveAsTemplate={() => setShowSaveAsTemplate(true)}
-          onShowCollaboration={() => setShowCollaborationPanel(true)}
-          hasSelectedNote={!!selectedNote}
-          isCollaborating={isCollaborating}
-          onlineUsersCount={onlineUsersCount}
-          hasRemoteCursors={hasRemoteCursors}
-          onOpenPluginManager={() => setIsPluginManagerOpen(true)}
-          onOpenPluginStore={() => setIsPluginStoreOpen(true)}
-        />
-
-        <div className="main-container">
-          <ErrorBoundary>
-            <NoteSidebar />
-          </ErrorBoundary>
-          
-          <ErrorBoundary>
-            <MainContent
-              viewMode={viewMode}
-              onNodeClick={handleNodeClick}
-              showAISummaryPanel={showAISummaryPanel}
-              showExportImport={showExportImport}
-              showStats={showStats}
-              onHideAI={hideAI}
-              onHideExport={hideExport}
-              onHideStats={() => setShowStats(false)}
-              collaborationState={collaborationState}
-            />
-          </ErrorBoundary>
-        </div>
-
-        <PluginManager
-          isOpen={isPluginManagerOpen}
-          onClose={() => setIsPluginManagerOpen(false)}
-        />
-
-        <PluginStore
-          isOpen={isPluginStoreOpen}
-          onClose={() => setIsPluginStoreOpen(false)}
-          onInstall={handleInstallPlugin}
-        />
-      </div>
-    </AppStateProvider>
-  );
-}
 
 export default App;
