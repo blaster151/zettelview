@@ -16,6 +16,7 @@ import {
   PluginManager,
   PluginStore
 } from './components';
+import NotificationToast from './components/NotificationToast';
 import { useNoteStore } from './store/noteStore';
 import { useThemeStore } from './store/themeStore';
 import { useUIStore } from './store/uiStore';
@@ -232,6 +233,7 @@ const App: React.FC = () => {
           />
         </ErrorBoundary>
       </div>
+      <NotificationToast />
     </div>
   );
 };

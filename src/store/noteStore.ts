@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { fileStorageService } from '../services/fileStorage';
+import { searchService, SearchResult, SearchHistory } from '../services/searchService';
 import { Note } from '../types/domain';
 
 interface NoteStore {
@@ -7,6 +8,8 @@ interface NoteStore {
   selectedId: string | null;
   isInitialized: boolean;
   storagePermission: boolean;
+  searchResults: SearchResult[];
+  isSearching: boolean;
   
   // Actions
   initialize: () => Promise<void>;
@@ -18,6 +21,13 @@ interface NoteStore {
   findOrCreateNote: (title: string) => Promise<string>; // returns note id
   deleteNote: (id: string) => Promise<void>;
   loadNotesFromStorage: () => Promise<void>;
+  
+  // Search actions
+  searchNotes: (query: string, options?: { maxResults?: number; includeBody?: boolean }) => Promise<void>;
+  quickSearch: (query: string, maxResults?: number) => Promise<void>;
+  searchByTags: (tags: string[]) => Promise<void>;
+  clearSearch: () => void;
+  getSearchSuggestions: (partialQuery: string, maxSuggestions?: number) => string[];
 }
 
 export const useNoteStore = create<NoteStore>((set, get) => ({
@@ -51,6 +61,8 @@ Try switching to Preview mode to see the rendered Markdown!`,
   selectedId: 'welcome',
   isInitialized: false,
   storagePermission: false,
+  searchResults: [],
+  isSearching: false,
 
   initialize: async () => {
     try {
@@ -90,6 +102,8 @@ Try switching to Preview mode to see the rendered Markdown!`,
       const storedNotes = await fileStorageService.loadAllNotes();
       if (storedNotes.length > 0) {
         set({ notes: storedNotes, selectedId: storedNotes[0].id });
+        // Initialize search service with loaded notes
+        searchService.initialize(storedNotes);
       }
     } catch (error) {
       console.error('Failed to load notes from storage:', error);
@@ -112,6 +126,9 @@ Try switching to Preview mode to see the rendered Markdown!`,
       selectedId: id,
     }));
 
+    // Update search service with new note
+    searchService.initialize([...get().notes, newNote]);
+
     // Save to file storage if available
     if (get().storagePermission) {
       try {
@@ -132,6 +149,9 @@ Try switching to Preview mode to see the rendered Markdown!`,
           : note
       ),
     }));
+
+    // Update search service with updated notes
+    searchService.initialize(get().notes);
 
     // Save to file storage if available
     if (get().storagePermission) {
@@ -175,6 +195,9 @@ Try switching to Preview mode to see the rendered Markdown!`,
       selectedId: state.selectedId === id ? (state.notes[0]?.id || null) : state.selectedId,
     }));
 
+    // Update search service with remaining notes
+    searchService.initialize(get().notes);
+
     // Delete from file storage if available
     if (get().storagePermission) {
       try {
@@ -183,5 +206,53 @@ Try switching to Preview mode to see the rendered Markdown!`,
         console.error('Failed to delete note from storage:', error);
       }
     }
+  },
+
+  // Search actions
+  searchNotes: async (query: string, options?: { maxResults?: number; includeBody?: boolean }) => {
+    set({ isSearching: true });
+    
+    try {
+      const results = searchService.search(query, options);
+      set({ searchResults: results, isSearching: false });
+      
+      // Add to search history
+      SearchHistory.addToHistory(query, results.length);
+    } catch (error) {
+      console.error('Search failed:', error);
+      set({ searchResults: [], isSearching: false });
+    }
+  },
+
+  quickSearch: async (query: string, maxResults: number = 20) => {
+    set({ isSearching: true });
+    
+    try {
+      const results = searchService.quickSearch(query, maxResults);
+      set({ searchResults: results, isSearching: false });
+    } catch (error) {
+      console.error('Quick search failed:', error);
+      set({ searchResults: [], isSearching: false });
+    }
+  },
+
+  searchByTags: async (tags: string[]) => {
+    set({ isSearching: true });
+    
+    try {
+      const results = searchService.searchByTags(tags);
+      set({ searchResults: results, isSearching: false });
+    } catch (error) {
+      console.error('Tag search failed:', error);
+      set({ searchResults: [], isSearching: false });
+    }
+  },
+
+  clearSearch: () => {
+    set({ searchResults: [], isSearching: false });
+  },
+
+  getSearchSuggestions: (partialQuery: string, maxSuggestions: number = 5) => {
+    return searchService.getSuggestions(partialQuery, maxSuggestions);
   },
 })); 
