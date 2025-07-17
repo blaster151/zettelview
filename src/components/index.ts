@@ -21,6 +21,9 @@ export { default as VirtualizedNoteList } from './VirtualizedNoteList';
 export { default as VirtualizedSearchResults } from './VirtualizedSearchResults';
 export { default as VirtualizedBacklinksList } from './VirtualizedBacklinksList';
 
+// View components
+export { default as CalendarView } from './CalendarView';
+
 // Onboarding and Help components
 export { default as WelcomeOnboarding } from './WelcomeOnboarding';
 export { default as HelpPanel } from './HelpPanel';

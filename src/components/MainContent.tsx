@@ -6,9 +6,10 @@ import {
   GraphView, 
   ErrorBoundary 
 } from './index';
+import CalendarView from './CalendarView';
 
 interface MainContentProps {
-  viewMode: 'editor' | 'graph';
+  viewMode: 'editor' | 'graph' | 'calendar';
   selectedNoteId: string | null;
   showAISummaryPanel: boolean;
   showExportImport: boolean;
@@ -45,14 +46,21 @@ const MainContent: React.FC<MainContentProps> = ({
             Select a note to start editing
           </div>
         )
-      ) : (
+      ) : viewMode === 'graph' ? (
         <ErrorBoundary>
           <GraphView 
             selectedNodeId={selectedNoteId || undefined}
             onNodeClick={onNodeClick}
           />
         </ErrorBoundary>
-      )}
+      ) : viewMode === 'calendar' ? (
+        <ErrorBoundary>
+          <CalendarView 
+            selectedNoteId={selectedNoteId || undefined}
+            onNoteClick={onNodeClick}
+          />
+        </ErrorBoundary>
+      ) : null}
     </ErrorBoundary>
   );
 };

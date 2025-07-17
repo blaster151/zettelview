@@ -91,10 +91,15 @@ const App: React.FC = () => {
   }, [selectedId, setSelectedNoteId]);
 
   const selectedNote = selectedId ? getNote(selectedId) : null;
-  const title = viewMode === 'editor' ? selectedNote?.title || 'ZettelView' : 'Knowledge Graph';
+  const title = viewMode === 'editor' ? selectedNote?.title || 'ZettelView' : 
+                viewMode === 'graph' ? 'Knowledge Graph' : 
+                viewMode === 'calendar' ? 'Calendar View' : 'ZettelView';
 
   const handleViewModeToggle = () => {
-    setViewMode(viewMode === 'editor' ? 'graph' : 'editor');
+    const modes: Array<'editor' | 'graph' | 'calendar'> = ['editor', 'graph', 'calendar'];
+    const currentIndex = modes.indexOf(viewMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    setViewMode(modes[nextIndex]);
   };
 
   const handleNodeClick = (nodeId: string) => {

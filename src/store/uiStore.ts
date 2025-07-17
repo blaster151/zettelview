@@ -1,8 +1,8 @@
-import { create } fromzustand';
-import[object Object] devtools } from 'zustand/middleware;
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 
 // State types
-export type ViewMode =editor' | 'graph';
+export type ViewMode = 'editor' | 'graph' | 'calendar';
 
 interface UIState {
   // View mode
@@ -61,7 +61,8 @@ type UIStore = UIState & UIActions;
 
 // Initial state
 const initialState: UIState = {
-  viewMode:editor,showAISummaryPanel: false,
+  viewMode: 'editor',
+  showAISummaryPanel: false,
   showExportImport: false,
   showOnboarding: false,
   showHelp: false,
@@ -76,14 +77,18 @@ const initialState: UIState = {
 
 export const useUIStore = create<UIStore>()(
   devtools(
-    (set, get) => ([object Object]   ...initialState,
+    (set, get) => ({
+      ...initialState,
       
       // View mode actions
       setViewMode: (viewMode: ViewMode) => set({ viewMode }),
       
-      toggleViewMode: () => set((state) => ({ 
-        viewMode: state.viewMode === editor' ? graph' : editor' 
-      })),
+      toggleViewMode: () => set((state) => {
+        const modes: ViewMode[] = ['editor', 'graph', 'calendar'];
+        const currentIndex = modes.indexOf(state.viewMode);
+        const nextIndex = (currentIndex + 1) % modes.length;
+        return { viewMode: modes[nextIndex] };
+      }),
       
       // Modal actions
       showAISummaryPanel: () => set((state) => ({
@@ -108,7 +113,7 @@ export const useUIStore = create<UIStore>()(
         showPluginStore: false,
       })),
       
-      hideExportImport: () => set([object Object] showExportImport: false }),
+      hideExportImport: () => set({ showExportImport: false }),
       
       showOnboarding: () => set({ showOnboarding: true }),
       hideOnboarding: () => set({ showOnboarding: false }),
@@ -131,7 +136,8 @@ export const useUIStore = create<UIStore>()(
       
       hideTemplateSelector: () => set({ showTemplateSelector: false }),
       
-      showSaveAsTemplate: () => set((state) => ([object Object]        showSaveAsTemplate: true,
+      showSaveAsTemplate: () => set((state) => ({
+        showSaveAsTemplate: true,
         showAISummaryPanel: false, // Close other modals
         showExportImport: false,
         showTemplateSelector: false,
@@ -203,8 +209,6 @@ export const useUIStore = create<UIStore>()(
         showPluginManager: false,
         showPluginStore: false,
       }),
-    }),
-   [object Object]   name: ui-store',
-    }
+    })
   )
 ); 

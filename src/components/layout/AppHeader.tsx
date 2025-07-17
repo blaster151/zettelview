@@ -3,7 +3,7 @@ import { useThemeStore } from '../../store/themeStore';
 
 interface AppHeaderProps {
   title: string;
-  viewMode: 'editor' | 'graph';
+  viewMode: 'editor' | 'graph' | 'calendar';
   onViewModeToggle: () => void;
   onShowAI: () => void;
   onShowExport: () => void;
@@ -39,6 +39,34 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   onOpenPluginStore
 }) => {
   const { colors } = useThemeStore();
+
+  // Get the next view mode for the toggle button
+  const getNextViewMode = () => {
+    const modes: Array<'editor' | 'graph' | 'calendar'> = ['editor', 'graph', 'calendar'];
+    const currentIndex = modes.indexOf(viewMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    return modes[nextIndex];
+  };
+
+  const getViewModeIcon = (mode: 'editor' | 'graph' | 'calendar') => {
+    switch (mode) {
+      case 'editor': return '✏️';
+      case 'graph': return '📊';
+      case 'calendar': return '📅';
+      default: return '✏️';
+    }
+  };
+
+  const getViewModeName = (mode: 'editor' | 'graph' | 'calendar') => {
+    switch (mode) {
+      case 'editor': return 'Editor';
+      case 'graph': return 'Graph';
+      case 'calendar': return 'Calendar';
+      default: return 'Editor';
+    }
+  };
+
+  const nextViewMode = getNextViewMode();
 
   return (
     <header style={{
@@ -85,9 +113,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           onMouseLeave={(e) => {
             e.currentTarget.style.background = colors.primary;
           }}
-          title={`Switch to ${viewMode === 'editor' ? 'Graph' : 'Editor'} View`}
+          title={`Switch to ${getViewModeName(nextViewMode)} View`}
         >
-          {viewMode === 'editor' ? '📊 Graph' : '✏️ Editor'}
+          {getViewModeIcon(nextViewMode)} {getViewModeName(nextViewMode)}
         </button>
 
         {/* Collaboration indicator */}

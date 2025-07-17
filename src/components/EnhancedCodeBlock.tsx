@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { detectLanguage, getLanguageDisplayName } from '../utils/languageDetection';
@@ -14,6 +14,17 @@ interface GistResponse {
   id: string;
 }
 
+// Performance constants
+const PERFORMANCE_CONSTANTS = {
+  LARGE_BLOCK_THRESHOLD: 1000, // Lines threshold for large blocks
+  CHAR_THRESHOLD: 5000, // Character threshold for optimization
+  DEBOUNCE_DELAY: 300, // Debounce delay for highlighting
+  MAX_HIGHLIGHT_LINES: 500, // Maximum lines to highlight at once
+} as const;
+
+// Memoized syntax highlighter component
+const MemoizedSyntaxHighlighter = React.memo(SyntaxHighlighter);
+
 const EnhancedCodeBlock: React.FC<EnhancedCodeBlockProps> = ({ 
   children, 
   className = '', 
@@ -24,19 +35,166 @@ const EnhancedCodeBlock: React.FC<EnhancedCodeBlockProps> = ({
   const [copySuccess, setCopySuccess] = useState(false);
   const [exportSuccess, setExportSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [shouldHighlight, setShouldHighlight] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [highlightingProgress, setHighlightingProgress] = useState(0);
+  
+  const containerRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   // Extract language from className (format: language-{lang})
   const specifiedLanguage = (className.replace('language-', '') || language).toLowerCase();
   
   // Use automatic detection if no language is specified or if it's 'text'
-  const detectedLanguage = specifiedLanguage === 'text' || specifiedLanguage === '' 
-    ? detectLanguage(children)
-    : specifiedLanguage;
+  const detectedLanguage = useMemo(() => {
+    return specifiedLanguage === 'text' || specifiedLanguage === '' 
+      ? detectLanguage(children)
+      : specifiedLanguage;
+  }, [specifiedLanguage, children]);
   
   // Get display name for the language
-  const languageDisplayName = getLanguageDisplayName(detectedLanguage);
+  const languageDisplayName = useMemo(() => {
+    return getLanguageDisplayName(detectedLanguage);
+  }, [detectedLanguage]);
 
-  const handleCopy = async () => {
+  // Performance optimizations
+  const isLargeBlock = useMemo(() => {
+    const lines = children.split('\n').length;
+    const chars = children.length;
+    return lines > PERFORMANCE_CONSTANTS.LARGE_BLOCK_THRESHOLD || 
+           chars > PERFORMANCE_CONSTANTS.CHAR_THRESHOLD;
+  }, [children]);
+
+  const shouldOptimize = useMemo(() => {
+    return isLargeBlock && detectedLanguage !== 'text';
+  }, [isLargeBlock, detectedLanguage]);
+
+  // Intersection Observer for lazy highlighting
+  useEffect(() => {
+    if (!shouldOptimize || !containerRef.current) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            // Delay highlighting to prevent blocking the UI
+            setTimeout(() => setShouldHighlight(true), PERFORMANCE_CONSTANTS.DEBOUNCE_DELAY);
+            observerRef.current?.disconnect();
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    observerRef.current.observe(containerRef.current);
+
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, [shouldOptimize]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, []);
+
+  // Simulate highlighting progress for large blocks
+  useEffect(() => {
+    if (shouldHighlight && isLargeBlock) {
+      const interval = setInterval(() => {
+        setHighlightingProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 50);
+
+      return () => clearInterval(interval);
+    }
+  }, [shouldHighlight, isLargeBlock]);
+
+  // Optimized content rendering
+  const renderContent = useMemo(() => {
+    if (!shouldOptimize || !shouldHighlight) {
+      // Show plain text for large blocks that haven't been highlighted yet
+      return (
+        <pre style={{
+          margin: 0,
+          padding: '16px',
+          backgroundColor: '#2d3748',
+          color: '#e2e8f0',
+          borderRadius: '0 0 4px 4px',
+          fontSize: '14px',
+          lineHeight: '1.4',
+          fontFamily: 'monospace',
+          overflow: 'auto',
+          maxHeight: '400px'
+        }}>
+          <code>{children}</code>
+        </pre>
+      );
+    }
+
+    // Show progress indicator for large blocks
+    if (isLargeBlock && highlightingProgress < 100) {
+      return (
+        <div style={{
+          margin: 0,
+          padding: '16px',
+          backgroundColor: '#2d3748',
+          color: '#e2e8f0',
+          borderRadius: '0 0 4px 4px',
+          fontSize: '14px',
+          lineHeight: '1.4',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <div style={{
+            width: '16px',
+            height: '16px',
+            border: '2px solid transparent',
+            borderTop: '2px solid #e2e8f0',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <span>Highlighting... {highlightingProgress}%</span>
+        </div>
+      );
+    }
+
+    // Render syntax highlighted content
+    return (
+      <MemoizedSyntaxHighlighter
+        language={detectedLanguage}
+        style={tomorrow}
+        customStyle={{
+          margin: 0,
+          borderRadius: '0 0 4px 4px',
+          fontSize: '14px',
+          lineHeight: '1.4'
+        }}
+        showLineNumbers={isLargeBlock}
+        wrapLines={true}
+        lineNumberStyle={{
+          minWidth: '3em',
+          paddingRight: '1em',
+          textAlign: 'right',
+          userSelect: 'none',
+          color: '#718096'
+        }}
+      >
+        {children}
+      </MemoizedSyntaxHighlighter>
+    );
+  }, [children, detectedLanguage, shouldOptimize, shouldHighlight, isLargeBlock, highlightingProgress]);
+
+  const handleCopy = useCallback(async () => {
     setIsCopying(true);
     setError(null);
     
@@ -49,10 +207,10 @@ const EnhancedCodeBlock: React.FC<EnhancedCodeBlockProps> = ({
     } finally {
       setIsCopying(false);
     }
-  };
+  }, [children]);
 
   // TODO: Integrate with GitHub Gist API for real export functionality.
-  const handleExportToGist = async () => {
+  const handleExportToGist = useCallback(async () => {
     setIsExporting(true);
     setError(null);
     setExportSuccess(null);
@@ -86,10 +244,33 @@ const EnhancedCodeBlock: React.FC<EnhancedCodeBlockProps> = ({
     } finally {
       setIsExporting(false);
     }
-  };
+  }, [children, detectedLanguage, languageDisplayName]);
+
+  // Performance indicator
+  const performanceIndicator = useMemo(() => {
+    if (!shouldOptimize) return null;
+    
+    return (
+      <div style={{
+        position: 'absolute',
+        top: '8px',
+        right: '8px',
+        background: 'rgba(255, 193, 7, 0.9)',
+        color: '#000',
+        padding: '2px 6px',
+        borderRadius: '4px',
+        fontSize: '10px',
+        fontWeight: 'bold'
+      }}>
+        {isLargeBlock ? 'LARGE' : 'OPT'}
+      </div>
+    );
+  }, [shouldOptimize, isLargeBlock]);
 
   return (
-    <div className="enhanced-code-block">
+    <div className="enhanced-code-block" ref={containerRef}>
+      {performanceIndicator}
+      
       <div className="code-block-header">
         <span className="language-label">{languageDisplayName}</span>
         <div className="code-block-actions">
@@ -113,18 +294,7 @@ const EnhancedCodeBlock: React.FC<EnhancedCodeBlockProps> = ({
         </div>
       </div>
       
-      <SyntaxHighlighter
-        language={detectedLanguage}
-        style={tomorrow}
-        customStyle={{
-          margin: 0,
-          borderRadius: '0 0 4px 4px',
-          fontSize: '14px',
-          lineHeight: '1.4'
-        }}
-      >
-        {children}
-      </SyntaxHighlighter>
+      {renderContent}
       
       {error && (
         <div className="error-message">
@@ -220,9 +390,14 @@ const EnhancedCodeBlock: React.FC<EnhancedCodeBlockProps> = ({
         .success-message a:hover {
           text-decoration: underline;
         }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
       `}</style>
     </div>
   );
 };
 
-export default EnhancedCodeBlock; 
+export default React.memo(EnhancedCodeBlock); 
