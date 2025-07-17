@@ -7,6 +7,11 @@ import {
   PluginRegistry,
   PluginManager 
 } from '../types/plugins';
+import { pluginAPI } from './pluginAPI';
+import { pluginPermissionsService } from './pluginPermissions';
+import { useNoteStore } from '../store/noteStore';
+import { useThemeStore } from '../store/themeStore';
+import { useNotificationStore } from '../store/notificationStore';
 
 class PluginManagerService implements PluginManager {
   private registry: PluginRegistry = {
@@ -17,10 +22,31 @@ class PluginManagerService implements PluginManager {
   };
 
   private context: PluginContext;
+  private isInitialized = false;
 
   constructor() {
     this.context = this.createContext();
     this.loadBuiltInPlugins();
+  }
+
+  /**
+   * Initialize the plugin manager with store references
+   */
+  initialize(): void {
+    if (this.isInitialized) return;
+
+    const noteStore = useNoteStore.getState();
+    const themeStore = useThemeStore.getState();
+    const notificationStore = useNotificationStore.getState();
+
+    // Initialize the plugin API with store references
+    pluginAPI.initialize(noteStore, themeStore, notificationStore);
+
+    // Update context with actual store references
+    this.context = this.createContext();
+    this.isInitialized = true;
+
+    console.log('Plugin manager initialized with stores');
   }
 
   private createContext(): PluginContext {

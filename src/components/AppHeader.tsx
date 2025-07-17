@@ -1,187 +1,265 @@
-import React from 'react';
-import { ThemeToggle, ErrorBoundary } from './index';
+import React, { useState } from 'react';
+import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
+import { Button } from './ui/Button';
+import { Icon } from './ui/Icon';
+import { PluginManager } from './plugins/PluginManager';
+import { PluginStore } from './plugins/PluginStore';
+import { ExportImport } from './ExportImport';
+import { CollaborationPanel } from './CollaborationPanel';
+import { AISummaryPanel } from './AISummaryPanel';
+import { GraphView } from './GraphView';
+import { CalendarView } from './CalendarView';
+import { EnhancedSearch } from './EnhancedSearch';
+import { NotificationToast } from './NotificationToast';
+import SecurityTestPanel from './SecurityTestPanel';
 
 interface AppHeaderProps {
-  title: string;
-  onAISummaryClick: () => void;
-  onExportImportClick: () => void;
-  onViewModeToggle: () => void;
-  onHelpClick: () => void;
-  onStatsClick: () => void;
-  viewMode: 'editor' | 'graph';
+  onViewChange: (view: string) => void;
+  currentView: string;
 }
 
-const AppHeader: React.FC<AppHeaderProps> = ({
-  title,
-  onAISummaryClick,
-  onExportImportClick,
-  onViewModeToggle,
-  onHelpClick,
-  onStatsClick,
-  viewMode
-}) => {
-  const { colors } = useThemeStore();
+export const AppHeader: React.FC<AppHeaderProps> = ({ onViewChange, currentView }) => {
+  const { addNote } = useNoteStore();
+  const { colors, toggleTheme } = useThemeStore();
+  const [showPluginManager, setShowPluginManager] = useState(false);
+  const [showPluginStore, setShowPluginStore] = useState(false);
+  const [showExportImport, setShowExportImport] = useState(false);
+  const [showCollaboration, setShowCollaboration] = useState(false);
+  const [showAISummary, setShowAISummary] = useState(false);
+  const [showGraphView, setShowGraphView] = useState(false);
+  const [showCalendarView, setShowCalendarView] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showSecurityTest, setShowSecurityTest] = useState(false);
+
+  const handleCreateNote = async () => {
+    const title = prompt('Enter note title:');
+    if (title?.trim()) {
+      await addNote(title.trim());
+    }
+  };
 
   return (
     <header style={{
-      padding: '12px 16px',
-      borderBottom: `1px solid ${colors.border}`,
       background: colors.surface,
+      borderBottom: `1px solid ${colors.border}`,
+      padding: '12px 16px',
       display: 'flex',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      transition: 'all 0.2s ease'
+      justifyContent: 'space-between',
+      gap: '12px'
     }}>
-      <h1 style={{
-        margin: 0,
-        fontSize: '18px',
-        fontWeight: 'bold',
-        color: colors.text
-      }}>
-        {title}
-      </h1>
-
-      <div style={{
-        display: 'flex',
-        gap: '8px',
-        alignItems: 'center'
-      }}>
-        {/* View Mode Toggle */}
-        <div style={{
-          display: 'flex',
-          border: `1px solid ${colors.border}`,
-          borderRadius: '4px',
-          overflow: 'hidden'
+      {/* Left side - App title and navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <h1 style={{
+          margin: 0,
+          fontSize: '20px',
+          fontWeight: '600',
+          color: colors.text
         }}>
-          <button
-            onClick={onViewModeToggle}
-            style={{
-              background: viewMode === 'editor' ? colors.primary : 'transparent',
-              color: viewMode === 'editor' ? 'white' : colors.text,
-              border: 'none',
-              padding: '6px 12px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              transition: 'all 0.2s ease'
-            }}
+          ZettelView
+        </h1>
+
+        {/* View mode buttons */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button
+            onClick={() => onViewChange('editor')}
+            variant={currentView === 'editor' ? 'primary' : 'outline'}
+            size="small"
           >
+            <Icon name="edit" size={14} />
             Editor
-          </button>
-          <button
-            onClick={onViewModeToggle}
-            style={{
-              background: viewMode === 'graph' ? colors.primary : 'transparent',
-              color: viewMode === 'graph' ? 'white' : colors.text,
-              border: 'none',
-              padding: '6px 12px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              transition: 'all 0.2s ease'
-            }}
+          </Button>
+          <Button
+            onClick={() => onViewChange('preview')}
+            variant={currentView === 'preview' ? 'primary' : 'outline'}
+            size="small"
           >
-            Graph View
-          </button>
+            <Icon name="eye" size={14} />
+            Preview
+          </Button>
+          <Button
+            onClick={() => onViewChange('split')}
+            variant={currentView === 'split' ? 'primary' : 'outline'}
+            size="small"
+          >
+            <Icon name="columns" size={14} />
+            Split
+          </Button>
         </div>
-
-        {/* Help Button */}
-        <button
-          onClick={onHelpClick}
-          title="Help & Keyboard Shortcuts"
-          style={{
-            background: 'transparent',
-            border: `1px solid ${colors.border}`,
-            color: colors.text,
-            padding: '6px 12px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = colors.surfaceHover;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-          }}
-        >
-          ❓ Help
-        </button>
-
-        {/* Stats Button */}
-        <button
-          onClick={onStatsClick}
-          title="Note Statistics & Analytics"
-          style={{
-            background: 'transparent',
-            border: `1px solid ${colors.border}`,
-            color: colors.text,
-            padding: '6px 12px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = colors.surfaceHover;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-          }}
-        >
-          📊 Stats
-        </button>
-
-        {/* AI Analysis Button */}
-        <button
-          onClick={onAISummaryClick}
-          title="AI Analysis"
-          style={{
-            background: 'transparent',
-            border: `1px solid ${colors.border}`,
-            color: colors.text,
-            padding: '6px 12px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = colors.surfaceHover;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-          }}
-        >
-          🤖 AI
-        </button>
-
-        {/* Export/Import Button */}
-        <button
-          onClick={onExportImportClick}
-          title="Export/Import Notes"
-          style={{
-            background: 'transparent',
-            border: `1px solid ${colors.border}`,
-            color: colors.text,
-            padding: '6px 12px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = colors.surfaceHover;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-          }}
-        >
-          📤 Export
-        </button>
       </div>
+
+      {/* Right side - Actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Create note button */}
+        <Button
+          onClick={handleCreateNote}
+          variant="primary"
+          size="small"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Icon name="plus" size={14} />
+          New Note
+        </Button>
+
+        {/* Search button */}
+        <Button
+          onClick={() => setShowSearch(true)}
+          variant="outline"
+          size="small"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Icon name="search" size={14} />
+          Search
+        </Button>
+
+        {/* Graph view button */}
+        <Button
+          onClick={() => setShowGraphView(true)}
+          variant="outline"
+          size="small"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Icon name="share" size={14} />
+          Graph
+        </Button>
+
+        {/* Calendar view button */}
+        <Button
+          onClick={() => setShowCalendarView(true)}
+          variant="outline"
+          size="small"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Icon name="calendar" size={14} />
+          Calendar
+        </Button>
+
+        {/* Security test button */}
+        <Button
+          onClick={() => setShowSecurityTest(true)}
+          variant="outline"
+          size="small"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Icon name="shield" size={14} />
+          Security
+        </Button>
+
+        {/* Plugin manager button */}
+        <Button
+          onClick={() => setShowPluginManager(true)}
+          variant="outline"
+          size="small"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Icon name="puzzle" size={14} />
+          Plugins
+        </Button>
+
+        {/* Plugin store button */}
+        <Button
+          onClick={() => setShowPluginStore(true)}
+          variant="outline"
+          size="small"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Icon name="store" size={14} />
+          Store
+        </Button>
+
+        {/* Export/Import button */}
+        <Button
+          onClick={() => setShowExportImport(true)}
+          variant="outline"
+          size="small"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Icon name="download" size={14} />
+          Export
+        </Button>
+
+        {/* Collaboration button */}
+        <Button
+          onClick={() => setShowCollaboration(true)}
+          variant="outline"
+          size="small"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Icon name="users" size={14} />
+          Collaborate
+        </Button>
+
+        {/* AI Summary button */}
+        <Button
+          onClick={() => setShowAISummary(true)}
+          variant="outline"
+          size="small"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Icon name="brain" size={14} />
+          AI
+        </Button>
+
+        {/* Theme toggle */}
+        <Button
+          onClick={toggleTheme}
+          variant="outline"
+          size="small"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Icon name="moon" size={14} />
+          Theme
+        </Button>
+      </div>
+
+      {/* Modals */}
+      <PluginManager
+        isOpen={showPluginManager}
+        onClose={() => setShowPluginManager(false)}
+      />
+
+      <PluginStore
+        isOpen={showPluginStore}
+        onClose={() => setShowPluginStore(false)}
+      />
+
+      <ExportImport
+        isOpen={showExportImport}
+        onClose={() => setShowExportImport(false)}
+      />
+
+      <CollaborationPanel
+        isOpen={showCollaboration}
+        onClose={() => setShowCollaboration(false)}
+      />
+
+      <AISummaryPanel
+        isOpen={showAISummary}
+        onClose={() => setShowAISummary(false)}
+      />
+
+      <GraphView
+        isOpen={showGraphView}
+        onClose={() => setShowGraphView(false)}
+      />
+
+      <CalendarView
+        isOpen={showCalendarView}
+        onClose={() => setShowCalendarView(false)}
+      />
+
+      <EnhancedSearch
+        isOpen={showSearch}
+        onClose={() => setShowSearch(false)}
+      />
+
+      <SecurityTestPanel
+        isOpen={showSecurityTest}
+        onClose={() => setShowSecurityTest(false)}
+      />
+
+      <NotificationToast />
     </header>
   );
-};
-
-export default AppHeader; 
+}; 

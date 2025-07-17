@@ -3,73 +3,67 @@
 // This makes hybrid/SSR/desktop support easier to maintain.
 
 import { Note } from '../types/domain';
+import { SecurityValidator, SecurityError, SecurityMonitor } from '../utils/securityUtils';
 
 export interface FileStorageService {
   initialize(): Promise<void>;
+  hasPermission(): Promise<boolean>;
+  requestPermission(): Promise<boolean>;
   saveNote(note: Note): Promise<void>;
   loadNote(id: string): Promise<Note | null>;
   loadAllNotes(): Promise<Note[]>;
   deleteNote(id: string): Promise<void>;
-  hasPermission(): Promise<boolean>;
-  requestPermission(): Promise<boolean>;
+  exportNotes(): Promise<string>;
+  importNotes(data: string): Promise<void>;
 }
 
 class FileSystemStorageService implements FileStorageService {
-  private rootHandle: FileSystemDirectoryHandle | null = null;
   private notesHandle: FileSystemDirectoryHandle | null = null;
+  private securityValidator: SecurityValidator;
+  private securityMonitor: SecurityMonitor;
+
+  constructor() {
+    this.securityValidator = new SecurityValidator();
+    this.securityMonitor = SecurityMonitor.getInstance();
+  }
 
   async initialize(): Promise<void> {
     try {
       // Check if we already have permission
-      if (await this.hasPermission()) {
-        await this.openNotesDirectory();
+      const hasPermission = await this.hasPermission();
+      if (hasPermission) {
+        // Try to get the existing directory handle
+        this.notesHandle = await navigator.storage.getDirectory();
+        const notesDir = await this.notesHandle.getDirectoryHandle('notes', { create: true });
+        this.notesHandle = notesDir;
       }
     } catch (error) {
-      console.warn('File system access not available:', error);
+      console.error('Failed to initialize file storage:', error);
+      this.securityMonitor.logViolation('INITIALIZATION_FAILED', { error }, 'medium');
     }
   }
 
   async hasPermission(): Promise<boolean> {
-    if (!this.rootHandle) {
-      return false;
-    }
-    
     try {
-      const permission = await this.rootHandle.queryPermission({ mode: 'readwrite' });
-      return permission === 'granted';
-    } catch {
+      const permission = await navigator.permissions.query({ name: 'persistent-storage' as PermissionName });
+      return permission.state === 'granted';
+    } catch (error) {
+      console.warn('Permission check failed:', error);
       return false;
     }
   }
 
   async requestPermission(): Promise<boolean> {
     try {
-      // Request permission to access the file system
-      this.rootHandle = await window.showDirectoryPicker({
-        mode: 'readwrite',
-        startIn: 'documents'
-      });
-      
-      // Create or get the notes directory
-      await this.openNotesDirectory();
-      
-      return true;
+      const permission = await navigator.storage.persist();
+      if (permission) {
+        await this.initialize();
+      }
+      return permission;
     } catch (error) {
-      console.error('Failed to get file system permission:', error);
+      console.error('Failed to request storage permission:', error);
+      this.securityMonitor.logViolation('PERMISSION_REQUEST_FAILED', { error }, 'medium');
       return false;
-    }
-  }
-
-  private async openNotesDirectory(): Promise<void> {
-    if (!this.rootHandle) {
-      throw new Error('No root directory handle');
-    }
-
-    try {
-      this.notesHandle = await this.rootHandle.getDirectoryHandle('zettelview-notes', { create: true });
-    } catch (error) {
-      console.error('Failed to create/open notes directory:', error);
-      throw error;
     }
   }
 
@@ -79,23 +73,45 @@ class FileSystemStorageService implements FileStorageService {
     }
 
     try {
+      // Validate note before saving
+      this.securityValidator.validateNote(note);
+      
       const filename = `${note.id}.md`;
       const fileHandle = await this.notesHandle.getFileHandle(filename, { create: true });
       const writable = await fileHandle.createWritable();
       
       // Create frontmatter for metadata
       const frontmatter = `---
-title: "${note.title}"
+title: "${this.escapeYamlString(note.title)}"
 created: "${note.createdAt.toISOString()}"
 updated: "${note.updatedAt.toISOString()}"
+tags: ${JSON.stringify(note.tags)}
 ---
 
 `;
       
-      await writable.write(frontmatter + note.body);
+      const content = frontmatter + note.body;
+      
+      // Validate file size before writing
+      const contentSize = new Blob([content]).size;
+      this.securityValidator.validateFileSize(contentSize);
+      
+      await writable.write(content);
       await writable.close();
+      
+      console.log(`Note ${note.id} saved successfully`);
     } catch (error) {
+      if (error instanceof SecurityError) {
+        this.securityMonitor.logViolation('SECURITY_VIOLATION', { 
+          noteId: note.id, 
+          error: error.code, 
+          details: error.details 
+        }, 'high');
+        throw new Error(`Security violation: ${error.message}`);
+      }
+      
       console.error('Failed to save note:', error);
+      this.securityMonitor.logViolation('SAVE_FAILED', { noteId: note.id, error }, 'medium');
       throw error;
     }
   }
@@ -109,11 +125,35 @@ updated: "${note.updatedAt.toISOString()}"
       const filename = `${id}.md`;
       const fileHandle = await this.notesHandle.getFileHandle(filename);
       const file = await fileHandle.getFile();
+      
+      // Validate file size before reading
+      this.securityValidator.validateFileSize(file.size);
+      
       const content = await file.text();
+      
+      // Additional validation for content length
+      if (content.length > this.securityValidator['config'].maxBodyLength) {
+        throw new SecurityError(
+          `Content length (${content.length}) exceeds maximum allowed length`,
+          'CONTENT_TOO_LONG',
+          { length: content.length }
+        );
+      }
       
       return this.parseNoteFromFile(content, id);
     } catch (error) {
+      if (error instanceof SecurityError) {
+        this.securityMonitor.logViolation('SECURITY_VIOLATION', { 
+          noteId: id, 
+          error: error.code, 
+          details: error.details 
+        }, 'high');
+        console.warn(`Security violation loading note ${id}:`, error.message);
+        return null;
+      }
+      
       console.warn(`Failed to load note ${id}:`, error);
+      this.securityMonitor.logViolation('LOAD_FAILED', { noteId: id, error }, 'low');
       return null;
     }
   }
@@ -125,27 +165,71 @@ updated: "${note.updatedAt.toISOString()}"
 
     try {
       const notes: Note[] = [];
+      let processedCount = 0;
+      const maxNotesToProcess = 1000; // Prevent infinite loops
       
       for await (const entry of this.notesHandle.values()) {
+        if (processedCount >= maxNotesToProcess) {
+          console.warn(`Stopped processing notes after ${maxNotesToProcess} files`);
+          this.securityMonitor.logViolation('TOO_MANY_FILES', { 
+            processed: processedCount, 
+            max: maxNotesToProcess 
+          }, 'medium');
+          break;
+        }
+        
         if (entry.kind === 'file' && entry.name.endsWith('.md')) {
           try {
             const file = await entry.getFile();
+            
+            // Validate file size
+            this.securityValidator.validateFileSize(file.size);
+            
             const content = await file.text();
             const id = entry.name.replace('.md', '');
+            
+            // Additional validation for content length
+            if (content.length > this.securityValidator['config'].maxBodyLength) {
+              console.warn(`Skipping note ${id}: content too long (${content.length} chars)`);
+              this.securityMonitor.logViolation('CONTENT_TOO_LONG', { 
+                noteId: id, 
+                length: content.length 
+              }, 'medium');
+              continue;
+            }
+            
             const note = this.parseNoteFromFile(content, id);
             
             if (note) {
-              notes.push(note);
+              // Validate parsed note
+              try {
+                this.securityValidator.validateNote(note);
+                notes.push(note);
+              } catch (validationError) {
+                console.warn(`Skipping note ${id}: validation failed:`, validationError);
+                this.securityMonitor.logViolation('VALIDATION_FAILED', { 
+                  noteId: id, 
+                  error: validationError 
+                }, 'medium');
+              }
             }
+            
+            processedCount++;
           } catch (error) {
             console.warn(`Failed to load note ${entry.name}:`, error);
+            this.securityMonitor.logViolation('LOAD_FAILED', { 
+              filename: entry.name, 
+              error 
+            }, 'low');
           }
         }
       }
       
+      console.log(`Successfully loaded ${notes.length} notes`);
       return notes;
     } catch (error) {
       console.error('Failed to load notes:', error);
+      this.securityMonitor.logViolation('BULK_LOAD_FAILED', { error }, 'high');
       return [];
     }
   }
@@ -158,30 +242,105 @@ updated: "${note.updatedAt.toISOString()}"
     try {
       const filename = `${id}.md`;
       await this.notesHandle.removeEntry(filename);
+      console.log(`Note ${id} deleted successfully`);
     } catch (error) {
       console.error('Failed to delete note:', error);
+      this.securityMonitor.logViolation('DELETE_FAILED', { noteId: id, error }, 'medium');
+      throw error;
+    }
+  }
+
+  async exportNotes(): Promise<string> {
+    try {
+      const notes = await this.loadAllNotes();
+      const exportData = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        notes: notes.map(note => ({
+          id: note.id,
+          title: note.title,
+          body: note.body,
+          tags: note.tags,
+          createdAt: note.createdAt.toISOString(),
+          updatedAt: note.updatedAt.toISOString()
+        }))
+      };
+      
+      return JSON.stringify(exportData, null, 2);
+    } catch (error) {
+      console.error('Failed to export notes:', error);
+      this.securityMonitor.logViolation('EXPORT_FAILED', { error }, 'medium');
+      throw error;
+    }
+  }
+
+  async importNotes(data: string): Promise<void> {
+    try {
+      // Validate import data size
+      const dataSize = new Blob([data]).size;
+      this.securityValidator.validateFileSize(dataSize);
+      
+      const importData = JSON.parse(data);
+      
+      if (!importData.notes || !Array.isArray(importData.notes)) {
+        throw new Error('Invalid import data format');
+      }
+      
+      // Validate each note before importing
+      for (const noteData of importData.notes) {
+        try {
+          this.securityValidator.validateNote(noteData);
+        } catch (validationError) {
+          console.warn(`Skipping invalid note during import:`, validationError);
+          this.securityMonitor.logViolation('IMPORT_VALIDATION_FAILED', { 
+            noteData, 
+            error: validationError 
+          }, 'medium');
+          continue;
+        }
+        
+        const note: Note = {
+          id: noteData.id,
+          title: noteData.title,
+          body: noteData.body,
+          tags: noteData.tags || [],
+          createdAt: new Date(noteData.createdAt),
+          updatedAt: new Date(noteData.updatedAt)
+        };
+        
+        await this.saveNote(note);
+      }
+      
+      console.log(`Successfully imported ${importData.notes.length} notes`);
+    } catch (error) {
+      console.error('Failed to import notes:', error);
+      this.securityMonitor.logViolation('IMPORT_FAILED', { error }, 'high');
       throw error;
     }
   }
 
   private parseNoteFromFile(content: string, id: string): Note | null {
     try {
-      // Parse frontmatter
-      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+      // Validate content length
+      if (content.length > this.securityValidator['config'].maxBodyLength) {
+        throw new SecurityError(
+          `Content length (${content.length}) exceeds maximum allowed length`,
+          'CONTENT_TOO_LONG',
+          { length: content.length }
+        );
+      }
+      
+      // Parse frontmatter with timeout protection
+      const frontmatterMatch = this.parseWithTimeout(() => 
+        content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/), 
+        5000
+      );
       
       if (frontmatterMatch) {
         const [, frontmatter, body] = frontmatterMatch;
-        const lines = frontmatter.split('\n');
-        const metadata: Record<string, string> = {};
+        const metadata = this.parseFrontmatter(frontmatter);
         
-        for (const line of lines) {
-          const [key, ...valueParts] = line.split(': ');
-          if (key && valueParts.length > 0) {
-            metadata[key.trim()] = valueParts.join(': ').replace(/^"|"$/g, '');
-          }
-        }
-        
-        return {
+        const note: Note = {
           id,
           title: metadata.title || id,
           body: body.trim(),
@@ -189,9 +348,13 @@ updated: "${note.updatedAt.toISOString()}"
           createdAt: new Date(metadata.created || Date.now()),
           updatedAt: new Date(metadata.updated || Date.now()),
         };
+        
+        // Validate the parsed note
+        this.securityValidator.validateNote(note);
+        return note;
       } else {
         // No frontmatter, treat entire content as body
-        return {
+        const note: Note = {
           id,
           title: id,
           body: content.trim(),
@@ -199,55 +362,73 @@ updated: "${note.updatedAt.toISOString()}"
           createdAt: new Date(),
           updatedAt: new Date(),
         };
+        
+        // Validate the parsed note
+        this.securityValidator.validateNote(note);
+        return note;
       }
     } catch (error) {
+      if (error instanceof SecurityError) {
+        this.securityMonitor.logViolation('PARSE_SECURITY_VIOLATION', { 
+          noteId: id, 
+          error: error.code, 
+          details: error.details 
+        }, 'high');
+        throw error;
+      }
+      
       console.error('Failed to parse note from file:', error);
+      this.securityMonitor.logViolation('PARSE_FAILED', { noteId: id, error }, 'medium');
       return null;
     }
   }
+
+  private parseFrontmatter(frontmatter: string): Record<string, any> {
+    const metadata: Record<string, any> = {};
+    const lines = frontmatter.split('\n');
+    
+    for (const line of lines) {
+      const [key, ...valueParts] = line.split(': ');
+      if (key && valueParts.length > 0) {
+        const value = valueParts.join(': ').replace(/^"|"$/g, '');
+        
+        // Validate key and value lengths
+        if (key.length > 100 || value.length > 10000) {
+          throw new SecurityError(
+            'Frontmatter key or value too long',
+            'FRONTMATTER_TOO_LONG',
+            { key: key.length, value: value.length }
+          );
+        }
+        
+        metadata[key.trim()] = value;
+      }
+    }
+    
+    return metadata;
+  }
+
+  private parseWithTimeout<T>(fn: () => T, timeoutMs: number): T {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Parse operation timed out'));
+      }, timeoutMs);
+
+      try {
+        const result = fn();
+        clearTimeout(timeout);
+        resolve(result);
+      } catch (error) {
+        clearTimeout(timeout);
+        reject(error);
+      }
+    }) as T;
+  }
+
+  private escapeYamlString(str: string): string {
+    // Escape special characters in YAML strings
+    return str.replace(/"/g, '\\"').replace(/\n/g, '\\n');
+  }
 }
 
-// Fallback service for when File System Access API is not available
-class MemoryStorageService implements FileStorageService {
-  private notes: Map<string, Note> = new Map();
-
-  async initialize(): Promise<void> {
-    // Nothing to initialize for memory storage
-  }
-
-  async hasPermission(): Promise<boolean> {
-    return true; // Always available
-  }
-
-  async requestPermission(): Promise<boolean> {
-    return true; // Always available
-  }
-
-  async saveNote(note: Note): Promise<void> {
-    this.notes.set(note.id, { ...note });
-  }
-
-  async loadNote(id: string): Promise<Note | null> {
-    return this.notes.get(id) || null;
-  }
-
-  async loadAllNotes(): Promise<Note[]> {
-    return Array.from(this.notes.values());
-  }
-
-  async deleteNote(id: string): Promise<void> {
-    this.notes.delete(id);
-  }
-}
-
-// Factory function to create the appropriate storage service
-export function createFileStorageService(): FileStorageService {
-  if ('showDirectoryPicker' in window) {
-    return new FileSystemStorageService();
-  } else {
-    console.warn('File System Access API not available, using memory storage');
-    return new MemoryStorageService();
-  }
-}
-
-export const fileStorageService = createFileStorageService(); 
+export const fileStorageService = new FileSystemStorageService(); 

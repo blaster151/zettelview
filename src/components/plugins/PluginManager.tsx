@@ -11,6 +11,7 @@ import { Select } from '../ui/Select';
 import { ColorPicker } from '../ui/ColorPicker';
 import { Badge } from '../ui/Badge';
 import { Icon } from '../ui/Icon';
+import PluginAPIDocumentation from '../PluginAPIDocumentation';
 
 interface PluginManagerProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export function PluginManager({ isOpen, onClose }: PluginManagerProps) {
 
   const [selectedPlugin, setSelectedPlugin] = useState<Plugin | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'enabled' | 'themes' | 'features' | 'utilities'>('all');
+  const [showAPIDocs, setShowAPIDocs] = useState(false);
 
   const handleTogglePlugin = async (plugin: Plugin) => {
     try {
@@ -93,33 +95,53 @@ export function PluginManager({ isOpen, onClose }: PluginManagerProps) {
     }
   };
 
-  if (loading) {
-    return (
-      <Modal isOpen={isOpen} onClose={onClose} title="Plugin Manager">
-        <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <span className="ml-3">Loading plugins...</span>
-        </div>
-      </Modal>
-    );
-  }
-
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title="Plugin Manager" size="large">
-        <div className="space-y-6">
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          {/* Header with API Docs button */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: '16px',
+            paddingBottom: '12px',
+            borderBottom: '1px solid var(--border-color)'
+          }}>
+            <div>
+              <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: '600' }}>
+                Manage Plugins
+              </h3>
+              <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>
+                {plugins.length} total plugins, {enabledPlugins.length} enabled
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowAPIDocs(true)}
+              variant="outline"
+              size="small"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Icon name="book" size={14} />
+              API Docs
+            </Button>
+          </div>
+
+          {/* Error display */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex">
-                <Icon name="alert-circle" className="text-red-400" />
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">Error</h3>
-                  <p className="text-sm text-red-700 mt-1">{error}</p>
-                </div>
-              </div>
+            <div style={{
+              padding: '12px',
+              marginBottom: '16px',
+              background: 'var(--error-bg)',
+              border: '1px solid var(--error-border)',
+              borderRadius: '6px',
+              color: 'var(--error-text)'
+            }}>
+              {error}
             </div>
           )}
 
+          {/* Tabs */}
           <Tabs value={activeTab} onChange={setActiveTab}>
             <Tab value="all" label="All Plugins" />
             <Tab value="enabled" label="Enabled" />
@@ -128,75 +150,87 @@ export function PluginManager({ isOpen, onClose }: PluginManagerProps) {
             <Tab value="utilities" label="Utilities" />
           </Tabs>
 
-          <div className="grid gap-4">
-            {getFilteredPlugins().map((plugin) => (
-              <div
-                key={plugin.id}
-                className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{getCategoryIcon(plugin.category)}</span>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <h3 className="text-lg font-medium text-gray-900">{plugin.name}</h3>
+          {/* Plugin list */}
+          <div style={{ flex: 1, overflow: 'auto', marginTop: '16px' }}>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                Loading plugins...
+              </div>
+            ) : getFilteredPlugins().length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                No plugins found
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {getFilteredPlugins().map(plugin => (
+                  <div
+                    key={plugin.id}
+                    style={{
+                      padding: '16px',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      background: 'var(--surface-color)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                      <div style={{ fontSize: '24px' }}>
+                        {getCategoryIcon(plugin.category)}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>
+                            {plugin.name}
+                          </h4>
                           <Badge color={getCategoryColor(plugin.category)}>
                             {plugin.category}
                           </Badge>
                           {plugin.isBuiltIn && (
                             <Badge color="gray">Built-in</Badge>
                           )}
+                          {plugin.isEnabled && (
+                            <Badge color="green">Active</Badge>
+                          )}
                         </div>
-                        <p className="text-sm text-gray-600 mt-1">{plugin.description}</p>
-                        <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                        <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                          {plugin.description}
+                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
                           <span>v{plugin.version}</span>
                           <span>by {plugin.author}</span>
-                          <span>⭐ {plugin.metadata.rating}</span>
                           <span>📥 {plugin.metadata.downloadCount}</span>
+                          <span>⭐ {plugin.metadata.rating}</span>
                         </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    {plugin.settings && plugin.settings.length > 0 && (
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {!plugin.isBuiltIn && (
+                        <Switch
+                          checked={plugin.isEnabled}
+                          onChange={() => handleTogglePlugin(plugin)}
+                          disabled={loading}
+                        />
+                      )}
                       <Button
-                        variant="outline"
-                        size="sm"
                         onClick={() => handleOpenSettings(plugin)}
+                        variant="outline"
+                        size="small"
                       >
-                        <Icon name="settings" className="w-4 h-4" />
                         Settings
                       </Button>
-                    )}
-                    
-                    <Switch
-                      checked={plugin.isEnabled}
-                      onChange={() => handleTogglePlugin(plugin)}
-                      disabled={plugin.isBuiltIn}
-                    />
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-
-          {getFilteredPlugins().length === 0 && (
-            <div className="text-center py-8">
-              <Icon name="package" className="w-12 h-12 text-gray-400 mx-auto" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No plugins found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {activeTab === 'enabled' 
-                  ? 'No plugins are currently enabled.'
-                  : 'No plugins match the current filter.'
-                }
-              </p>
-            </div>
-          )}
         </div>
       </Modal>
 
+      {/* Plugin Settings Modal */}
       {selectedPlugin && (
         <PluginSettings
           plugin={selectedPlugin}
@@ -208,6 +242,12 @@ export function PluginManager({ isOpen, onClose }: PluginManagerProps) {
           }}
         />
       )}
+
+      {/* API Documentation Modal */}
+      <PluginAPIDocumentation
+        isOpen={showAPIDocs}
+        onClose={() => setShowAPIDocs(false)}
+      />
     </>
   );
 }
