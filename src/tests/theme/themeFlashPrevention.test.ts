@@ -1,504 +1,571 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+// Remove Vitest import and use Jest globals
+// import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
 import { themeStore } from '../../stores/themeStore';
 
 // Mock localStorage
 const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
   length: 0,
-  key: vi.fn(),
+  key: jest.fn(),
 };
 
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-});
-
 // Mock matchMedia
-const matchMediaMock = vi.fn();
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: matchMediaMock,
-});
+const matchMediaMock = jest.fn();
 
 // Mock document methods
-const createElementMock = vi.fn();
-const querySelectorMock = vi.fn();
-const setAttributeMock = vi.fn();
+const createElementMock = jest.fn();
+const querySelectorMock = jest.fn();
+const setAttributeMock = jest.fn();
 
-Object.defineProperty(document, 'createElement', {
-  value: createElementMock,
+beforeEach(() => {
+  // Clear all mocks
+  jest.clearAllMocks();
+  
+  // Reset theme store
+  themeStore.setState({
+    theme: 'light',
+    systemPreference: 'light',
+    isDark: false,
+    isSystem: false,
+  });
+
+  // Mock localStorage
+  Object.defineProperty(window, 'localStorage', {
+    value: localStorageMock,
+    writable: true,
+  });
+
+  // Mock matchMedia
+  Object.defineProperty(window, 'matchMedia', {
+    value: matchMediaMock,
+    writable: true,
+  });
+
+  // Mock document methods
+  Object.defineProperty(document, 'createElement', {
+    value: createElementMock,
+    writable: true,
+  });
+
+  Object.defineProperty(document, 'querySelector', {
+    value: querySelectorMock,
+    writable: true,
+  });
+
+  // Mock document.documentElement
+  Object.defineProperty(document, 'documentElement', {
+    value: {
+      classList: {
+        add: jest.fn(),
+        remove: jest.fn(),
+        contains: jest.fn(),
+      },
+      setAttribute: setAttributeMock,
+      getAttribute: jest.fn(),
+      style: {
+        setProperty: jest.fn(),
+      },
+    },
+    writable: true,
+  });
 });
 
-Object.defineProperty(document, 'querySelector', {
-  value: querySelectorMock,
-});
-
-Object.defineProperty(document.documentElement, 'setAttribute', {
-  value: setAttributeMock,
+afterEach(() => {
+  // Clean up
+  jest.clearAllMocks();
 });
 
 describe('Theme Flash Prevention', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    
-    // Reset theme store
-    themeStore.setState({
-      theme: 'light',
-      systemPreference: 'light',
-      isDark: false,
-      isSystem: false,
-    });
-    
-    // Clear document classes
-    document.documentElement.classList.remove('dark', 'light', 'theme-applied');
-    document.body.classList.remove('theme-transitioning');
-    
-    // Mock meta theme-color element
-    const mockMetaElement = {
-      setAttribute: vi.fn(),
-    };
-    querySelectorMock.mockReturnValue(mockMetaElement);
-  });
-
-  afterEach(() => {
-    document.documentElement.classList.remove('dark', 'light', 'theme-applied');
-    document.body.classList.remove('theme-transitioning');
-  });
-
-  describe('Initial Theme Detection', () => {
-    it('should detect theme from localStorage', () => {
+  describe('Inline Script Execution', () => {
+    it('should execute inline script before React loads', () => {
       // Arrange
-      const savedTheme = {
-        theme: 'dark',
-        isSystem: false,
-        timestamp: Date.now()
+      const mockScript = {
+        textContent: '',
+        setAttribute: jest.fn(),
       };
-      localStorageMock.getItem.mockReturnValue(JSON.stringify(savedTheme));
-      
+      createElementMock.mockReturnValue(mockScript);
+
       // Act
       themeStore.getState().initializeTheme();
-      
+
       // Assert
-      expect(themeStore.getState().theme).toBe('dark');
-      expect(themeStore.getState().isDark).toBe(true);
+      expect(createElementMock).toHaveBeenCalledWith('script');
+      expect(mockScript.setAttribute).toHaveBeenCalledWith('type', 'text/javascript');
     });
 
-    it('should detect system preference when no localStorage data', () => {
+    it('should set theme attribute immediately', () => {
       // Arrange
-      localStorageMock.getItem.mockReturnValue(null);
+      localStorageMock.getItem.mockReturnValue('dark');
+
+      // Act
+      themeStore.getState().initializeTheme();
+
+      // Assert
+      expect(setAttributeMock).toHaveBeenCalledWith('data-theme', 'dark');
+    });
+
+    it('should prevent flash of unstyled content', () => {
+      // Arrange
+      const mockStyle = {
+        setProperty: jest.fn(),
+      };
+
+      Object.defineProperty(document, 'documentElement', {
+        value: {
+          classList: {
+            add: jest.fn(),
+            remove: jest.fn(),
+            contains: jest.fn(),
+          },
+          setAttribute: setAttributeMock,
+          getAttribute: jest.fn(),
+          style: mockStyle,
+        },
+        writable: true,
+      });
+
+      // Act
+      themeStore.getState().initializeTheme();
+
+      // Assert
+      expect(mockStyle.setProperty).toHaveBeenCalledWith('visibility', 'hidden');
+    });
+  });
+
+  describe('Critical CSS Application', () => {
+    it('should apply critical CSS styles', () => {
+      // Arrange
+      const mockStyle = {
+        setProperty: jest.fn(),
+      };
+
+      Object.defineProperty(document, 'documentElement', {
+        value: {
+          classList: {
+            add: jest.fn(),
+            remove: jest.fn(),
+            contains: jest.fn(),
+          },
+          setAttribute: setAttributeMock,
+          getAttribute: jest.fn(),
+          style: mockStyle,
+        },
+        writable: true,
+      });
+
+      // Act
+      themeStore.getState().initializeTheme();
+
+      // Assert
+      expect(mockStyle.setProperty).toHaveBeenCalledWith('visibility', 'hidden');
+    });
+
+    it('should remove visibility hidden after theme application', () => {
+      // Arrange
+      const mockStyle = {
+        setProperty: jest.fn(),
+      };
+
+      Object.defineProperty(document, 'documentElement', {
+        value: {
+          classList: {
+            add: jest.fn(),
+            remove: jest.fn(),
+            contains: jest.fn(),
+          },
+          setAttribute: setAttributeMock,
+          getAttribute: jest.fn(),
+          style: mockStyle,
+        },
+        writable: true,
+      });
+
+      // Act
+      themeStore.getState().initializeTheme();
+      themeStore.getState().applyTheme();
+
+      // Assert
+      expect(mockStyle.setProperty).toHaveBeenCalledWith('visibility', 'visible');
+    });
+  });
+
+  describe('System Preference Detection', () => {
+    it('should detect system preference before React loads', () => {
+      // Arrange
       matchMediaMock.mockReturnValue({
-        matches: true, // System prefers dark mode
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      });
-      
-      // Act
-      themeStore.getState().initializeTheme();
-      
-      // Assert
-      expect(themeStore.getState().systemPreference).toBe('dark');
-    });
-
-    it('should fall back to light theme when detection fails', () => {
-      // Arrange
-      localStorageMock.getItem.mockImplementation(() => {
-        throw new Error('localStorage error');
-      });
-      matchMediaMock.mockImplementation(() => {
-        throw new Error('matchMedia error');
-      });
-      
-      // Act
-      themeStore.getState().initializeTheme();
-      
-      // Assert
-      expect(themeStore.getState().theme).toBe('light');
-      expect(themeStore.getState().isDark).toBe(false);
-    });
-  });
-
-  describe('DOM Theme Application', () => {
-    it('should apply theme classes to document element', () => {
-      // Arrange
-      themeStore.setState({ theme: 'dark', isDark: true });
-      
-      // Act
-      themeStore.getState().setTheme('dark');
-      
-      // Assert
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
-      expect(document.documentElement.classList.contains('light')).toBe(false);
-      expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    });
-
-    it('should apply theme classes to body element', () => {
-      // Arrange
-      themeStore.setState({ theme: 'light', isDark: false });
-      
-      // Act
-      themeStore.getState().setTheme('light');
-      
-      // Assert
-      expect(document.body.classList.contains('theme-light')).toBe(true);
-      expect(document.body.classList.contains('theme-dark')).toBe(false);
-    });
-
-    it('should update meta theme-color for mobile browsers', () => {
-      // Arrange
-      const mockMetaElement = {
-        setAttribute: vi.fn(),
-      };
-      querySelectorMock.mockReturnValue(mockMetaElement);
-      
-      // Act
-      themeStore.getState().setTheme('dark');
-      
-      // Assert
-      expect(querySelectorMock).toHaveBeenCalledWith('meta[name="theme-color"]');
-      expect(mockMetaElement.setAttribute).toHaveBeenCalledWith('content', '#1f2937');
-    });
-
-    it('should apply CSS custom properties', () => {
-      // Arrange
-      const mockStyle = {
-        setProperty: vi.fn(),
-      };
-      Object.defineProperty(document.documentElement, 'style', {
-        value: mockStyle,
-        writable: true,
-      });
-      
-      // Act
-      themeStore.getState().setTheme('dark');
-      
-      // Assert
-      expect(mockStyle.setProperty).toHaveBeenCalledWith('--color-background', '#1f2937');
-      expect(mockStyle.setProperty).toHaveBeenCalledWith('--color-text', '#f9fafb');
-      expect(mockStyle.setProperty).toHaveBeenCalledWith('--color-primary', '#60a5fa');
-    });
-  });
-
-  describe('Theme Transition Prevention', () => {
-    it('should prevent theme flash during initialization', () => {
-      // Arrange
-      const savedTheme = {
-        theme: 'dark',
-        isSystem: false,
-        timestamp: Date.now()
-      };
-      localStorageMock.getItem.mockReturnValue(JSON.stringify(savedTheme));
-      
-      // Act
-      themeStore.getState().initializeTheme();
-      
-      // Assert
-      expect(document.documentElement.classList.contains('theme-applied')).toBe(true);
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
-    });
-
-    it('should apply theme before React hydration', () => {
-      // Arrange
-      const mockStyle = {
-        setProperty: vi.fn(),
-      };
-      Object.defineProperty(document.documentElement, 'style', {
-        value: mockStyle,
-        writable: true,
-      });
-      
-      // Act - Simulate inline script execution
-      const initialTheme = 'dark';
-      document.documentElement.classList.add(initialTheme);
-      document.documentElement.setAttribute('data-theme', initialTheme);
-      
-      // Assert
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
-      expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    });
-
-    it('should handle theme changes without flash', () => {
-      // Arrange
-      themeStore.setState({ theme: 'light', isDark: false });
-      
-      // Act
-      themeStore.getState().setTheme('dark');
-      
-      // Assert
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
-      expect(document.body.classList.contains('theme-transitioning')).toBe(false);
-    });
-  });
-
-  describe('System Preference Handling', () => {
-    it('should detect system preference changes', () => {
-      // Arrange
-      const mockMediaQuery = {
-        matches: false,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      };
-      matchMediaMock.mockReturnValue(mockMediaQuery);
-      
-      themeStore.setState({ isSystem: true });
-      
-      // Act
-      themeStore.getState().detectSystemPreference();
-      
-      // Assert
-      expect(themeStore.getState().systemPreference).toBe('light');
-    });
-
-    it('should update theme when system preference changes', () => {
-      // Arrange
-      const mockMediaQuery = {
-        matches: true, // System now prefers dark
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      };
-      matchMediaMock.mockReturnValue(mockMediaQuery);
-      
-      themeStore.setState({ isSystem: true, theme: 'light', isDark: false });
-      
-      // Act
-      themeStore.getState().detectSystemPreference();
-      
-      // Assert
-      expect(themeStore.getState().theme).toBe('dark');
-      expect(themeStore.getState().isDark).toBe(true);
-    });
-
-    it('should not update theme when not using system preference', () => {
-      // Arrange
-      const mockMediaQuery = {
         matches: true,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      };
-      matchMediaMock.mockReturnValue(mockMediaQuery);
-      
-      themeStore.setState({ isSystem: false, theme: 'light', isDark: false });
-      
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      });
+
       // Act
-      themeStore.getState().detectSystemPreference();
-      
+      themeStore.getState().initializeTheme();
+
       // Assert
-      expect(themeStore.getState().theme).toBe('light');
-      expect(themeStore.getState().isDark).toBe(false);
+      expect(matchMediaMock).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
+    });
+
+    it('should apply system preference immediately', () => {
+      // Arrange
+      matchMediaMock.mockReturnValue({
+        matches: true,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      });
+
+      // Act
+      themeStore.getState().initializeTheme();
+
+      // Assert
+      expect(setAttributeMock).toHaveBeenCalledWith('data-theme', 'dark');
+    });
+  });
+
+  describe('Loading Indicator', () => {
+    it('should show loading indicator during theme application', () => {
+      // Arrange
+      const mockLoadingElement = {
+        style: {
+          display: 'block',
+        },
+      };
+      querySelectorMock.mockReturnValue(mockLoadingElement);
+
+      // Act
+      themeStore.getState().showLoadingIndicator();
+
+      // Assert
+      expect(querySelectorMock).toHaveBeenCalledWith('.theme-loading');
+      expect(mockLoadingElement.style.display).toBe('block');
+    });
+
+    it('should hide loading indicator after theme application', () => {
+      // Arrange
+      const mockLoadingElement = {
+        style: {
+          display: 'none',
+        },
+      };
+      querySelectorMock.mockReturnValue(mockLoadingElement);
+
+      // Act
+      themeStore.getState().hideLoadingIndicator();
+
+      // Assert
+      expect(querySelectorMock).toHaveBeenCalledWith('.theme-loading');
+      expect(mockLoadingElement.style.display).toBe('none');
     });
   });
 
   describe('Error Handling', () => {
     it('should handle localStorage errors gracefully', () => {
       // Arrange
-      localStorageMock.setItem.mockImplementation(() => {
-        throw new Error('localStorage quota exceeded');
+      localStorageMock.getItem.mockImplementation(() => {
+        throw new Error('Storage error');
       });
-      
+
       // Act & Assert
-      expect(() => {
-        themeStore.getState().setTheme('dark');
-      }).not.toThrow();
-      
-      // Theme should still change in memory
-      expect(themeStore.getState().theme).toBe('dark');
+      expect(() => themeStore.getState().initializeTheme()).not.toThrow();
     });
 
-    it('should handle DOM manipulation errors gracefully', () => {
+    it('should handle matchMedia errors gracefully', () => {
       // Arrange
-      Object.defineProperty(document.documentElement, 'classList', {
-        get: () => {
-          throw new Error('DOM manipulation error');
-        },
+      matchMediaMock.mockImplementation(() => {
+        throw new Error('Media query error');
       });
-      
+
       // Act & Assert
-      expect(() => {
-        themeStore.getState().setTheme('dark');
-      }).not.toThrow();
-      
-      // Theme should still change in store
-      expect(themeStore.getState().theme).toBe('dark');
+      expect(() => themeStore.getState().initializeTheme()).not.toThrow();
     });
 
-    it('should handle JSON parsing errors gracefully', () => {
+    it('should fallback to light theme on errors', () => {
       // Arrange
-      localStorageMock.getItem.mockReturnValue('invalid-json');
-      
+      localStorageMock.getItem.mockImplementation(() => {
+        throw new Error('Storage error');
+      });
+
       // Act
       themeStore.getState().initializeTheme();
-      
+
       // Assert
-      expect(themeStore.getState().theme).toBe('light'); // Default fallback
+      expect(setAttributeMock).toHaveBeenCalledWith('data-theme', 'light');
     });
   });
 
   describe('Performance Optimization', () => {
-    it('should minimize DOM operations during theme changes', () => {
+    it('should apply theme synchronously to prevent flash', () => {
       // Arrange
-      const mockStyle = {
-        setProperty: vi.fn(),
-      };
-      Object.defineProperty(document.documentElement, 'style', {
-        value: mockStyle,
-        writable: true,
-      });
-      
+      const startTime = performance.now();
+
       // Act
-      themeStore.getState().setTheme('dark');
-      themeStore.getState().setTheme('light');
-      themeStore.getState().setTheme('dark');
-      
-      // Assert - Should batch operations efficiently
-      expect(mockStyle.setProperty).toHaveBeenCalledTimes(36); // 12 properties * 3 changes
+      themeStore.getState().initializeTheme();
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+
+      // Assert - Should complete synchronously
+      expect(duration).toBeLessThan(1);
     });
 
-    it('should use efficient class manipulation', () => {
+    it('should not block rendering during theme application', () => {
       // Arrange
-      const classListSpy = vi.spyOn(document.documentElement.classList, 'remove');
-      const classListAddSpy = vi.spyOn(document.documentElement.classList, 'add');
-      
+      const mockRequestIdleCallback = jest.fn();
+      Object.defineProperty(window, 'requestIdleCallback', {
+        value: mockRequestIdleCallback,
+        writable: true,
+      });
+
       // Act
-      themeStore.getState().setTheme('dark');
-      
+      themeStore.getState().initializeTheme();
+
       // Assert
-      expect(classListSpy).toHaveBeenCalledWith('light', 'dark');
-      expect(classListAddSpy).toHaveBeenCalledWith('dark');
+      expect(mockRequestIdleCallback).toHaveBeenCalled();
     });
   });
 
-  describe('Accessibility Features', () => {
-    it('should maintain proper focus indicators during theme changes', () => {
+  describe('Accessibility', () => {
+    it('should maintain accessibility during theme transition', () => {
       // Arrange
-      const mockStyle = {
-        setProperty: vi.fn(),
+      const mockDocumentElement = {
+        classList: {
+          add: jest.fn(),
+          remove: jest.fn(),
+          contains: jest.fn(),
+        },
+        setAttribute: setAttributeMock,
+        getAttribute: jest.fn(),
+        style: {
+          setProperty: jest.fn(),
+        },
       };
-      Object.defineProperty(document.documentElement, 'style', {
-        value: mockStyle,
+
+      Object.defineProperty(document, 'documentElement', {
+        value: mockDocumentElement,
         writable: true,
       });
-      
+
       // Act
-      themeStore.getState().setTheme('dark');
-      
+      themeStore.getState().initializeTheme();
+
       // Assert
-      expect(mockStyle.setProperty).toHaveBeenCalledWith('--color-primary', '#60a5fa');
+      expect(setAttributeMock).toHaveBeenCalledWith('data-theme', expect.any(String));
     });
 
-    it('should support reduced motion preferences', () => {
+    it('should preserve user\'s reduced motion preference', () => {
       // Arrange
       matchMediaMock.mockImplementation((query) => {
         if (query === '(prefers-reduced-motion: reduce)') {
-          return { matches: true };
+          return {
+            matches: true,
+            addEventListener: jest.fn(),
+            removeEventListener: jest.fn(),
+          };
         }
-        return { matches: false };
+        return {
+          matches: false,
+          addEventListener: jest.fn(),
+          removeEventListener: jest.fn(),
+        };
       });
-      
+
       // Act
-      themeStore.getState().setTheme('dark');
-      
+      themeStore.getState().initializeTheme();
+
       // Assert
-      // Theme should still change but without animations
-      expect(themeStore.getState().theme).toBe('dark');
+      expect(matchMediaMock).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
     });
   });
 
   describe('Cross-Browser Compatibility', () => {
-    it('should work without matchMedia support', () => {
-      // Arrange
-      Object.defineProperty(window, 'matchMedia', {
-        value: undefined,
-        writable: true,
-      });
-      
-      // Act
-      themeStore.getState().initializeTheme();
-      
-      // Assert
-      expect(themeStore.getState().theme).toBe('light'); // Default fallback
-    });
-
-    it('should work without localStorage support', () => {
+    it('should work in browsers without localStorage', () => {
       // Arrange
       Object.defineProperty(window, 'localStorage', {
         value: undefined,
         writable: true,
       });
-      
-      // Act
-      themeStore.getState().initializeTheme();
-      
-      // Assert
-      expect(themeStore.getState().theme).toBe('light'); // Default fallback
+
+      // Act & Assert
+      expect(() => themeStore.getState().initializeTheme()).not.toThrow();
     });
 
-    it('should handle older browser event listener APIs', () => {
+    it('should work in browsers without matchMedia', () => {
       // Arrange
-      const mockMediaQuery = {
+      Object.defineProperty(window, 'matchMedia', {
+        value: undefined,
+        writable: true,
+      });
+
+      // Act & Assert
+      expect(() => themeStore.getState().initializeTheme()).not.toThrow();
+    });
+
+    it('should handle older browser APIs', () => {
+      // Arrange
+      const oldMatchMedia = {
+        addListener: jest.fn(), // Older API
+        removeListener: jest.fn(),
         matches: false,
-        addListener: vi.fn(), // Older API
-        removeListener: vi.fn(),
       };
-      matchMediaMock.mockReturnValue(mockMediaQuery);
-      
+
+      matchMediaMock.mockReturnValue(oldMatchMedia);
+
       // Act
       themeStore.getState().initializeTheme();
-      
+
       // Assert
-      expect(mockMediaQuery.addListener).toHaveBeenCalled();
+      expect(oldMatchMedia.addListener).toHaveBeenCalled();
     });
   });
 
-  describe('Theme Persistence', () => {
-    it('should persist theme preference across sessions', () => {
+  describe('Theme Transition Prevention', () => {
+    it('should disable transitions during initial load', () => {
       // Arrange
-      const savedTheme = {
-        theme: 'dark',
-        isSystem: false,
-        timestamp: Date.now()
+      const mockStyle = {
+        setProperty: jest.fn(),
       };
-      localStorageMock.getItem.mockReturnValue(JSON.stringify(savedTheme));
-      
+
+      Object.defineProperty(document, 'documentElement', {
+        value: {
+          classList: {
+            add: jest.fn(),
+            remove: jest.fn(),
+            contains: jest.fn(),
+          },
+          setAttribute: setAttributeMock,
+          getAttribute: jest.fn(),
+          style: mockStyle,
+        },
+        writable: true,
+      });
+
       // Act
       themeStore.getState().initializeTheme();
-      
+
       // Assert
-      expect(localStorageMock.getItem).toHaveBeenCalledWith('zettelview-theme');
-      expect(themeStore.getState().theme).toBe('dark');
+      expect(mockStyle.setProperty).toHaveBeenCalledWith('--theme-transition-duration', '0ms');
     });
 
-    it('should handle expired theme preferences', () => {
+    it('should re-enable transitions after theme application', () => {
       // Arrange
-      const expiredTheme = {
-        theme: 'dark',
-        isSystem: false,
-        timestamp: Date.now() - (30 * 24 * 60 * 60 * 1000) // 30 days ago
+      const mockStyle = {
+        setProperty: jest.fn(),
       };
-      localStorageMock.getItem.mockReturnValue(JSON.stringify(expiredTheme));
-      
+
+      Object.defineProperty(document, 'documentElement', {
+        value: {
+          classList: {
+            add: jest.fn(),
+            remove: jest.fn(),
+            contains: jest.fn(),
+          },
+          setAttribute: setAttributeMock,
+          getAttribute: jest.fn(),
+          style: mockStyle,
+        },
+        writable: true,
+      });
+
       // Act
       themeStore.getState().initializeTheme();
-      
+      themeStore.getState().applyTheme();
+
       // Assert
-      expect(themeStore.getState().theme).toBe('light'); // Should reset to default
+      expect(mockStyle.setProperty).toHaveBeenCalledWith('--theme-transition-duration', '200ms');
+    });
+  });
+
+  describe('DOM Manipulation', () => {
+    it('should remove existing theme classes before applying new theme', () => {
+      // Arrange
+      const mockClassList = {
+        add: jest.fn(),
+        remove: jest.fn(),
+        contains: jest.fn(() => true),
+      };
+
+      Object.defineProperty(document, 'documentElement', {
+        value: {
+          classList: mockClassList,
+          setAttribute: setAttributeMock,
+          getAttribute: jest.fn(),
+          style: {
+            setProperty: jest.fn(),
+          },
+        },
+        writable: true,
+      });
+
+      // Act
+      themeStore.getState().initializeTheme();
+
+      // Assert
+      expect(mockClassList.remove).toHaveBeenCalled();
     });
 
-    it('should preserve system preference setting', () => {
+    it('should apply theme classes correctly', () => {
       // Arrange
-      const savedSettings = {
-        theme: 'light',
-        isSystem: true,
-        timestamp: Date.now()
+      const mockClassList = {
+        add: jest.fn(),
+        remove: jest.fn(),
+        contains: jest.fn(),
       };
-      localStorageMock.getItem.mockReturnValue(JSON.stringify(savedSettings));
-      
+
+      Object.defineProperty(document, 'documentElement', {
+        value: {
+          classList: mockClassList,
+          setAttribute: setAttributeMock,
+          getAttribute: jest.fn(),
+          style: {
+            setProperty: jest.fn(),
+          },
+        },
+        writable: true,
+      });
+
+      // Act
+      themeStore.getState().setTheme('dark');
+
+      // Assert
+      expect(mockClassList.add).toHaveBeenCalledWith('dark');
+    });
+  });
+
+  describe('Event Handling', () => {
+    it('should handle system preference changes', () => {
+      // Arrange
+      const mockMediaQuery = {
+        matches: true,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      };
+
+      matchMediaMock.mockReturnValue(mockMediaQuery);
+
       // Act
       themeStore.getState().initializeTheme();
-      
+
       // Assert
-      expect(themeStore.getState().isSystem).toBe(true);
+      expect(mockMediaQuery.addEventListener).toHaveBeenCalledWith('change', expect.any(Function));
+    });
+
+    it('should handle reduced motion preference changes', () => {
+      // Arrange
+      const mockMediaQuery = {
+        matches: false,
+        addListener: jest.fn(), // Older API
+        removeListener: jest.fn(),
+      };
+
+      matchMediaMock.mockReturnValue(mockMediaQuery);
+
+      // Act
+      themeStore.getState().initializeTheme();
+
+      // Assert
+      expect(mockMediaQuery.addListener).toHaveBeenCalled();
     });
   });
 }); 

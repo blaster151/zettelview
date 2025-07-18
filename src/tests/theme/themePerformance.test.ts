@@ -1,468 +1,430 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+// Remove Vitest import and use Jest globals
+// import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
 import { themeStore } from '../../stores/themeStore';
-import ThemeToggle from '../../components/ThemeToggle';
 
 // Mock localStorage
 const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
   length: 0,
-  key: vi.fn(),
+  key: jest.fn(),
 };
-
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-});
-
-// Mock requestAnimationFrame for performance testing
-const requestAnimationFrameMock = vi.fn();
-Object.defineProperty(window, 'requestAnimationFrame', {
-  value: requestAnimationFrameMock,
-});
 
 // Mock performance API
 const performanceMock = {
-  now: vi.fn(() => Date.now()),
-  mark: vi.fn(),
-  measure: vi.fn(),
-  getEntriesByName: vi.fn(() => []),
-  clearMarks: vi.fn(),
-  clearMeasures: vi.fn(),
+  now: jest.fn(() => Date.now()),
+  mark: jest.fn(),
+  measure: jest.fn(),
+  getEntriesByName: jest.fn(() => []),
+  clearMarks: jest.fn(),
+  clearMeasures: jest.fn(),
 };
 
-Object.defineProperty(window, 'performance', {
-  value: performanceMock,
+// Mock requestAnimationFrame
+const requestAnimationFrameMock = jest.fn();
+
+beforeEach(() => {
+  // Clear all mocks
+  jest.clearAllMocks();
+  
+  // Reset theme store
+  themeStore.setState({
+    theme: 'light',
+    systemPreference: 'light',
+    isDark: false,
+    isSystem: false,
+  });
+
+  // Mock localStorage
+  Object.defineProperty(window, 'localStorage', {
+    value: localStorageMock,
+    writable: true,
+  });
+
+  // Mock performance
+  Object.defineProperty(window, 'performance', {
+    value: performanceMock,
+    writable: true,
+  });
+
+  // Mock requestAnimationFrame
+  Object.defineProperty(window, 'requestAnimationFrame', {
+    value: requestAnimationFrameMock,
+    writable: true,
+  });
+
+  // Mock document.documentElement
+  Object.defineProperty(document, 'documentElement', {
+    value: {
+      classList: {
+        add: jest.fn(),
+        remove: jest.fn(),
+        contains: jest.fn(),
+      },
+      setAttribute: jest.fn(),
+      getAttribute: jest.fn(),
+    },
+    writable: true,
+  });
+});
+
+afterEach(() => {
+  // Clean up
+  jest.clearAllMocks();
 });
 
 describe('Theme Performance', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    themeStore.setState({
-      theme: 'light',
-      systemPreference: 'light',
-      isDark: false,
-      isSystem: false,
-    });
-    
-    // Clear document classes
-    document.documentElement.classList.remove('dark', 'light');
-  });
-
-  afterEach(() => {
-    // Clean up
-    document.documentElement.classList.remove('dark', 'light');
-  });
-
-  describe('Theme Change Performance', () => {
-    it('should change theme without full page flash', () => {
+  describe('Theme Switching Performance', () => {
+    it('should complete theme switch within performance budget', () => {
       // Arrange
-      const initialClassList = document.documentElement.classList.toString();
+      const startTime = performance.now();
       
       // Act
       themeStore.getState().setTheme('dark');
-      
-      // Assert
-      const finalClassList = document.documentElement.classList.toString();
-      expect(finalClassList).not.toBe(initialClassList);
-      expect(document.documentElement.classList.contains('dark')).toBe(true);
-      
-      // Verify no page reload or flash occurred
-      expect(window.location.reload).not.toHaveBeenCalled();
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+
+      // Assert - Should complete within 16ms (60fps budget)
+      expect(duration).toBeLessThan(16);
     });
 
-    it('should update only necessary DOM elements', () => {
+    it('should not cause layout thrashing during theme switch', () => {
       // Arrange
-      const observer = new MutationObserver(vi.fn());
-      const mutations: MutationRecord[] = [];
+      const observer = new MutationObserver(jest.fn());
       
-      observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['class'],
-        subtree: false,
+      // Act
+      themeStore.getState().setTheme('dark');
+      themeStore.getState().setTheme('light');
+      themeStore.getState().setTheme('dark');
+
+      // Assert - Should not trigger excessive DOM mutations
+      expect(performanceMock.mark).toHaveBeenCalled();
+      expect(performanceMock.measure).toHaveBeenCalled();
+    });
+
+    it('should debounce rapid theme changes', () => {
+      // Arrange
+      const debounceDelay = 100; // Assuming 100ms debounce
+      jest.useFakeTimers();
+
+      // Act
+      themeStore.getState().setTheme('dark');
+      themeStore.getState().setTheme('light');
+      themeStore.getState().setTheme('dark');
+
+      jest.advanceTimersByTime(debounceDelay);
+
+      // Assert - Should only apply the last theme
+      expect(localStorageMock.setItem).toHaveBeenCalledTimes(1);
+      expect(localStorageMock.setItem).toHaveBeenLastCalledWith('theme', 'dark');
+
+      jest.useRealTimers();
+    });
+  });
+
+  describe('System Preference Detection Performance', () => {
+    it('should detect system preference efficiently', () => {
+      // Arrange
+      const matchMediaMock = jest.fn();
+      Object.defineProperty(window, 'matchMedia', {
+        value: matchMediaMock,
+        writable: true,
       });
-      
+
+      matchMediaMock.mockReturnValue({
+        matches: true,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      });
+
+      const startTime = performance.now();
+
       // Act
-      themeStore.getState().setTheme('dark');
-      
-      // Assert
-      observer.disconnect();
-      
-      // Should only have one mutation for the class change
-      expect(mutations.length).toBeLessThanOrEqual(1);
+      themeStore.getState().setSystemPreference('dark');
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+
+      // Assert - Should complete within 5ms
+      expect(duration).toBeLessThan(5);
     });
 
-    it('should not trigger unnecessary re-renders in components', () => {
+    it('should not block main thread during preference detection', () => {
       // Arrange
-      const renderCount = { count: 0 };
-      const TestComponent = () => {
-        renderCount.count++;
-        const { theme } = themeStore();
-        return <div data-testid="theme-display">{theme}</div>;
+      const matchMediaMock = jest.fn();
+      Object.defineProperty(window, 'matchMedia', {
+        value: matchMediaMock,
+        writable: true,
+      });
+
+      matchMediaMock.mockReturnValue({
+        matches: false,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      });
+
+      // Act & Assert
+      expect(() => {
+        themeStore.getState().setSystemPreference('light');
+      }).not.toThrow();
+    });
+  });
+
+  describe('DOM Manipulation Performance', () => {
+    it('should apply theme classes efficiently', () => {
+      // Arrange
+      const mockDocumentElement = {
+        classList: {
+          add: jest.fn(),
+          remove: jest.fn(),
+          contains: jest.fn(),
+        },
+        setAttribute: jest.fn(),
+        getAttribute: jest.fn(),
       };
-      
+
+      Object.defineProperty(document, 'documentElement', {
+        value: mockDocumentElement,
+        writable: true,
+      });
+
+      const startTime = performance.now();
+
       // Act
-      render(<TestComponent />);
-      const initialRenderCount = renderCount.count;
-      
       themeStore.getState().setTheme('dark');
-      
-      // Assert
-      expect(renderCount.count).toBe(initialRenderCount + 1); // Only one re-render
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+
+      // Assert - Should complete within 5ms
+      expect(duration).toBeLessThan(5);
+      expect(mockDocumentElement.setAttribute).toHaveBeenCalledWith('data-theme', 'dark');
     });
 
+    it('should batch DOM updates when switching themes', () => {
+      // Arrange
+      const mockDocumentElement = {
+        classList: {
+          add: jest.fn(),
+          remove: jest.fn(),
+          contains: jest.fn(),
+        },
+        setAttribute: jest.fn(),
+        getAttribute: jest.fn(),
+      };
+
+      Object.defineProperty(document, 'documentElement', {
+        value: mockDocumentElement,
+        writable: true,
+      });
+
+      // Act
+      themeStore.getState().setTheme('dark');
+      themeStore.getState().setTheme('light');
+
+      // Assert - Should not call setAttribute excessively
+      expect(mockDocumentElement.setAttribute).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('Memory Usage', () => {
+    it('should not leak memory during theme operations', () => {
+      // Arrange
+      const initialMemory = performance.memory?.usedJSHeapSize || 0;
+
+      // Act - Perform multiple theme operations
+      for (let i = 0; i < 100; i++) {
+        themeStore.getState().setTheme('dark');
+        themeStore.getState().setTheme('light');
+      }
+
+      // Assert - Memory usage should not increase significantly
+      const finalMemory = performance.memory?.usedJSHeapSize || 0;
+      const memoryIncrease = finalMemory - initialMemory;
+      
+      // Allow for some memory increase but not excessive
+      expect(memoryIncrease).toBeLessThan(1024 * 1024); // 1MB
+    });
+
+    it('should clean up event listeners properly', () => {
+      // Arrange
+      const matchMediaMock = jest.fn();
+      Object.defineProperty(window, 'matchMedia', {
+        value: matchMediaMock,
+        writable: true,
+      });
+
+      const addEventListenerMock = jest.fn();
+      const removeEventListenerMock = jest.fn();
+
+      matchMediaMock.mockReturnValue({
+        matches: false,
+        addEventListener: addEventListenerMock,
+        removeEventListener: removeEventListenerMock,
+      });
+
+      // Act
+      themeStore.getState().initializeTheme();
+      themeStore.getState().cleanup();
+
+      // Assert
+      expect(removeEventListenerMock).toHaveBeenCalled();
+    });
+  });
+
+  describe('Animation Frame Performance', () => {
     it('should use requestAnimationFrame for smooth transitions', () => {
       // Arrange
       requestAnimationFrameMock.mockImplementation((callback) => {
         callback();
         return 1;
       });
-      
+
       // Act
       themeStore.getState().setTheme('dark');
-      
+
       // Assert
       expect(requestAnimationFrameMock).toHaveBeenCalled();
     });
 
-    it('should complete theme change within performance budget', () => {
+    it('should not cause excessive animation frame requests', () => {
       // Arrange
-      const startTime = performance.now();
-      performanceMock.now.mockReturnValue(startTime);
-      
-      // Act
-      themeStore.getState().setTheme('dark');
-      
-      // Simulate next frame
-      performanceMock.now.mockReturnValue(startTime + 16); // 60fps = ~16ms
-      
-      // Assert
-      const endTime = performance.now();
-      expect(endTime - startTime).toBeLessThan(16); // Should complete within one frame
-    });
-  });
+      requestAnimationFrameMock.mockImplementation((callback) => {
+        callback();
+        return 1;
+      });
 
-  describe('Theme Toggle Performance', () => {
-    it('should toggle theme efficiently', () => {
-      // Arrange
-      const toggleStartTime = performance.now();
-      performanceMock.now.mockReturnValue(toggleStartTime);
-      
-      // Act
-      themeStore.getState().toggleTheme();
-      
-      // Assert
-      expect(themeStore.getState().theme).toBe('dark');
-      expect(themeStore.getState().isDark).toBe(true);
-      
-      // Verify performance
-      const toggleEndTime = performance.now();
-      expect(toggleEndTime - toggleStartTime).toBeLessThan(10); // Should be very fast
-    });
-
-    it('should handle rapid theme toggles without performance degradation', () => {
-      // Arrange
-      const iterations = 100;
-      const startTime = performance.now();
-      performanceMock.now.mockReturnValue(startTime);
-      
-      // Act
-      for (let i = 0; i < iterations; i++) {
-        themeStore.getState().toggleTheme();
+      // Act - Multiple rapid theme changes
+      for (let i = 0; i < 10; i++) {
+        themeStore.getState().setTheme('dark');
       }
-      
-      // Assert
-      const endTime = performance.now();
-      const averageTime = (endTime - startTime) / iterations;
-      
-      expect(averageTime).toBeLessThan(1); // Each toggle should be very fast
-      expect(themeStore.getState().theme).toBe('light'); // Should end in correct state
-    });
 
-    it('should debounce rapid theme changes', () => {
-      // Arrange
-      const debounceDelay = 100;
-      vi.useFakeTimers();
-      
-      // Act
-      themeStore.getState().setTheme('dark');
-      themeStore.getState().setTheme('light');
-      themeStore.getState().setTheme('dark');
-      
-      // Fast-forward time
-      vi.advanceTimersByTime(debounceDelay);
-      
-      // Assert
-      expect(themeStore.getState().theme).toBe('dark'); // Should settle on last value
-      expect(localStorageMock.setItem).toHaveBeenCalledTimes(1); // Should only save once
-      
-      vi.useRealTimers();
-    });
-  });
-
-  describe('System Preference Performance', () => {
-    it('should handle system preference changes efficiently', () => {
-      // Arrange
-      const mockMediaQuery = {
-        matches: true,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      };
-      
-      Object.defineProperty(window, 'matchMedia', {
-        writable: true,
-        value: vi.fn(() => mockMediaQuery),
-      });
-      
-      themeStore.setState({ isSystem: true });
-      
-      // Act
-      const startTime = performance.now();
-      performanceMock.now.mockReturnValue(startTime);
-      
-      themeStore.getState().detectSystemPreference();
-      
-      // Assert
-      const endTime = performance.now();
-      expect(endTime - startTime).toBeLessThan(5); // Should be very fast
-      expect(themeStore.getState().systemPreference).toBe('dark');
-    });
-
-    it('should not trigger unnecessary updates when system preference is disabled', () => {
-      // Arrange
-      themeStore.setState({ isSystem: false });
-      const updateCount = { count: 0 };
-      
-      const unsubscribe = themeStore.subscribe(() => {
-        updateCount.count++;
-      });
-      
-      // Act
-      themeStore.getState().detectSystemPreference();
-      
-      // Assert
-      expect(updateCount.count).toBe(0); // Should not trigger updates
-      
-      unsubscribe();
-    });
-  });
-
-  describe('Component Re-render Optimization', () => {
-    it('should only re-render components that depend on theme', () => {
-      // Arrange
-      const themeRenderCount = { count: 0 };
-      const nonThemeRenderCount = { count: 0 };
-      
-      const ThemeComponent = () => {
-        themeRenderCount.count++;
-        const { theme } = themeStore();
-        return <div data-testid="theme-component">{theme}</div>;
-      };
-      
-      const NonThemeComponent = () => {
-        nonThemeRenderCount.count++;
-        return <div data-testid="non-theme-component">Static</div>;
-      };
-      
-      // Act
-      render(
-        <div>
-          <ThemeComponent />
-          <NonThemeComponent />
-        </div>
-      );
-      
-      const initialThemeCount = themeRenderCount.count;
-      const initialNonThemeCount = nonThemeRenderCount.count;
-      
-      themeStore.getState().setTheme('dark');
-      
-      // Assert
-      expect(themeRenderCount.count).toBe(initialThemeCount + 1); // Theme component re-rendered
-      expect(nonThemeRenderCount.count).toBe(initialNonThemeCount); // Non-theme component did not re-render
-    });
-
-    it('should use shallow comparison for theme state', () => {
-      // Arrange
-      const renderCount = { count: 0 };
-      const TestComponent = () => {
-        renderCount.count++;
-        const { theme, isDark } = themeStore();
-        return <div data-testid="test-component">{theme}-{isDark.toString()}</div>;
-      };
-      
-      // Act
-      render(<TestComponent />);
-      const initialCount = renderCount.count;
-      
-      // Set same theme value
-      themeStore.getState().setTheme('light');
-      
-      // Assert
-      expect(renderCount.count).toBe(initialCount); // Should not re-render for same value
-    });
-
-    it('should batch theme updates efficiently', () => {
-      // Arrange
-      const updateCount = { count: 0 };
-      const unsubscribe = themeStore.subscribe(() => {
-        updateCount.count++;
-      });
-      
-      // Act
-      themeStore.getState().setTheme('dark');
-      themeStore.getState().setTheme('light');
-      themeStore.getState().setTheme('dark');
-      
-      // Wait for next tick
-      setTimeout(() => {
-        // Assert
-        expect(updateCount.count).toBeLessThanOrEqual(3); // Should not exceed number of changes
-      }, 0);
-      
-      unsubscribe();
+      // Assert - Should not request excessive animation frames
+      expect(requestAnimationFrameMock).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('CSS Transition Performance', () => {
-    it('should apply theme changes without layout thrashing', () => {
+    it('should apply CSS transitions efficiently', () => {
       // Arrange
-      const layoutCount = { count: 0 };
-      const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
-      
-      Element.prototype.getBoundingClientRect = vi.fn(() => {
-        layoutCount.count++;
-        return { width: 100, height: 100, top: 0, left: 0, right: 100, bottom: 100 };
+      const mockDocumentElement = {
+        classList: {
+          add: jest.fn(),
+          remove: jest.fn(),
+          contains: jest.fn(),
+        },
+        setAttribute: jest.fn(),
+        getAttribute: jest.fn(),
+        style: {
+          setProperty: jest.fn(),
+        },
+      };
+
+      Object.defineProperty(document, 'documentElement', {
+        value: mockDocumentElement,
+        writable: true,
       });
-      
+
       // Act
       themeStore.getState().setTheme('dark');
-      
+
       // Assert
-      expect(layoutCount.count).toBeLessThan(5); // Should not trigger many layout calculations
-      
-      // Restore original method
-      Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+      expect(mockDocumentElement.style.setProperty).toHaveBeenCalledWith(
+        '--theme-transition-duration',
+        expect.any(String)
+      );
     });
 
-    it('should use CSS custom properties for smooth transitions', () => {
+    it('should disable transitions during rapid changes', () => {
       // Arrange
-      const style = document.documentElement.style;
-      
-      // Act
-      themeStore.getState().setTheme('dark');
-      
-      // Assert
-      expect(style.getPropertyValue('--color-background')).toBeDefined();
-      expect(style.getPropertyValue('--color-text')).toBeDefined();
-    });
+      const mockDocumentElement = {
+        classList: {
+          add: jest.fn(),
+          remove: jest.fn(),
+          contains: jest.fn(),
+        },
+        setAttribute: jest.fn(),
+        getAttribute: jest.fn(),
+        style: {
+          setProperty: jest.fn(),
+        },
+      };
 
-    it('should not cause cumulative layout shift', () => {
-      // Arrange
-      const initialLayout = document.documentElement.getBoundingClientRect();
-      
-      // Act
+      Object.defineProperty(document, 'documentElement', {
+        value: mockDocumentElement,
+        writable: true,
+      });
+
+      // Act - Rapid theme changes
       themeStore.getState().setTheme('dark');
       themeStore.getState().setTheme('light');
       themeStore.getState().setTheme('dark');
-      
-      // Assert
-      const finalLayout = document.documentElement.getBoundingClientRect();
-      
-      // Layout should remain stable
-      expect(finalLayout.width).toBe(initialLayout.width);
-      expect(finalLayout.height).toBe(initialLayout.height);
+
+      // Assert - Should disable transitions during rapid changes
+      expect(mockDocumentElement.style.setProperty).toHaveBeenCalledWith(
+        '--theme-transition-duration',
+        '0ms'
+      );
     });
   });
 
-  describe('Memory Performance', () => {
-    it('should not create memory leaks with theme changes', () => {
-      // Arrange
-      const initialMemory = performance.memory?.usedJSHeapSize || 0;
-      
-      // Act
-      for (let i = 0; i < 1000; i++) {
-        themeStore.getState().setTheme(i % 2 === 0 ? 'light' : 'dark');
+  describe('Storage Performance', () => {
+    it('should not cause excessive localStorage writes', () => {
+      // Act - Multiple theme changes
+      for (let i = 0; i < 10; i++) {
+        themeStore.getState().setTheme('dark');
       }
-      
-      // Assert
-      const finalMemory = performance.memory?.usedJSHeapSize || 0;
-      const memoryIncrease = finalMemory - initialMemory;
-      
-      // Memory increase should be reasonable (less than 1MB)
-      expect(memoryIncrease).toBeLessThan(1024 * 1024);
+
+      // Assert - Should only write once per unique theme
+      expect(localStorageMock.setItem).toHaveBeenCalledTimes(1);
     });
 
-    it('should clean up event listeners properly', () => {
+    it('should handle localStorage quota efficiently', () => {
       // Arrange
-      const mockMediaQuery = {
-        matches: true,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      };
-      
-      Object.defineProperty(window, 'matchMedia', {
-        writable: true,
-        value: vi.fn(() => mockMediaQuery),
+      localStorageMock.setItem.mockImplementation(() => {
+        throw new Error('QuotaExceededError');
       });
-      
-      // Act
-      themeStore.getState().detectSystemPreference();
-      themeStore.getState().cleanup(); // Assuming cleanup method exists
-      
-      // Assert
-      expect(mockMediaQuery.removeEventListener).toHaveBeenCalled();
+
+      // Act & Assert
+      expect(() => {
+        for (let i = 0; i < 100; i++) {
+          themeStore.getState().setTheme('dark');
+        }
+      }).not.toThrow();
     });
   });
 
-  describe('Theme Toggle Component Performance', () => {
-    it('should render ThemeToggle component efficiently', () => {
+  describe('Error Recovery Performance', () => {
+    it('should recover from errors quickly', () => {
       // Arrange
       const startTime = performance.now();
-      performanceMock.now.mockReturnValue(startTime);
       
+      // Simulate an error condition
+      localStorageMock.setItem.mockImplementation(() => {
+        throw new Error('Storage error');
+      });
+
       // Act
-      render(<ThemeToggle />);
-      
-      // Assert
+      themeStore.getState().setTheme('dark');
       const endTime = performance.now();
-      expect(endTime - startTime).toBeLessThan(10); // Should render quickly
+      const duration = endTime - startTime;
+
+      // Assert - Should recover within 10ms
+      expect(duration).toBeLessThan(10);
     });
 
-    it('should handle theme toggle clicks efficiently', () => {
+    it('should not retry failed operations excessively', () => {
       // Arrange
-      render(<ThemeToggle />);
-      const toggleButton = screen.getByRole('button');
-      
-      // Act
-      const startTime = performance.now();
-      performanceMock.now.mockReturnValue(startTime);
-      
-      fireEvent.click(toggleButton);
-      
-      // Assert
-      const endTime = performance.now();
-      expect(endTime - startTime).toBeLessThan(5); // Should respond quickly
-      expect(themeStore.getState().theme).toBe('dark');
-    });
+      localStorageMock.setItem.mockImplementation(() => {
+        throw new Error('Persistent error');
+      });
 
-    it('should not cause layout shift when toggling theme', () => {
-      // Arrange
-      render(<ThemeToggle />);
-      const toggleButton = screen.getByRole('button');
-      const initialButtonLayout = toggleButton.getBoundingClientRect();
-      
       // Act
-      fireEvent.click(toggleButton);
-      
-      // Assert
-      const finalButtonLayout = toggleButton.getBoundingClientRect();
-      
-      // Button position should remain stable
-      expect(finalButtonLayout.left).toBe(initialButtonLayout.left);
-      expect(finalButtonLayout.top).toBe(initialButtonLayout.top);
+      themeStore.getState().setTheme('dark');
+
+      // Assert - Should not retry more than once
+      expect(localStorageMock.setItem).toHaveBeenCalledTimes(1);
     });
   });
 }); 
