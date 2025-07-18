@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNoteStore } from '../../store/noteStore';
 import { useThemeStore } from '../../store/themeStore';
+import { useUIStore } from '../../store/uiStore';
 
 interface KeyboardShortcutsProps {
   children: React.ReactNode;
@@ -16,6 +17,17 @@ interface ShortcutAction {
 const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
   const { notes, selectedId, selectNote, addNote } = useNoteStore();
   const { toggleTheme } = useThemeStore();
+  const {
+    viewMode,
+    setViewMode,
+    openAISummaryPanel,
+    openExportImport,
+    openTemplateSelector,
+    openSaveAsTemplate,
+    openCollaborationPanel,
+    openPluginManager,
+    openPluginStore
+  } = useUIStore();
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [commandPaletteQuery, setCommandPaletteQuery] = useState('');
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
@@ -92,15 +104,10 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
       key: 'Ctrl+G',
       description: 'Toggle graph view',
       action: () => {
-        const graphButton = document.querySelector('button:contains("Graph View")') as HTMLButtonElement;
-        const editorButton = document.querySelector('button:contains("Editor")') as HTMLButtonElement;
-        if (graphButton && editorButton) {
-          if (graphButton.style.background === 'rgb(0, 123, 255)') {
-            editorButton.click();
-          } else {
-            graphButton.click();
-          }
-        }
+        const modes: Array<'editor' | 'graph' | 'calendar'> = ['editor', 'graph', 'calendar'];
+        const currentIndex = modes.indexOf(viewMode);
+        const nextIndex = (currentIndex + 1) % modes.length;
+        setViewMode(modes[nextIndex]);
       },
       category: 'View'
     },
@@ -108,10 +115,7 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
       key: 'Ctrl+Shift+A',
       description: 'Open AI analysis',
       action: () => {
-        const aiButton = document.querySelector('button[title*="AI Analysis"]') as HTMLButtonElement;
-        if (aiButton) {
-          aiButton.click();
-        }
+        openAISummaryPanel();
       },
       category: 'AI'
     },
@@ -119,10 +123,7 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
       key: 'Ctrl+Shift+E',
       description: 'Open export/import',
       action: () => {
-        const exportButton = document.querySelector('button[title*="Export/Import"]') as HTMLButtonElement;
-        if (exportButton) {
-          exportButton.click();
-        }
+        openExportImport();
       },
       category: 'System'
     },
@@ -138,10 +139,7 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
       key: 'Ctrl+T',
       description: 'Create note from template',
       action: () => {
-        const templateButton = document.querySelector('button[title*="Create note from template"]') as HTMLButtonElement;
-        if (templateButton) {
-          templateButton.click();
-        }
+        openTemplateSelector();
       },
       category: 'Notes'
     },
@@ -149,10 +147,7 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
       key: 'Ctrl+Shift+S',
       description: 'Save note as template',
       action: () => {
-        const saveTemplateButton = document.querySelector('button[title*="Save current note as template"]') as HTMLButtonElement;
-        if (saveTemplateButton) {
-          saveTemplateButton.click();
-        }
+        openSaveAsTemplate();
       },
       category: 'Notes'
     },
@@ -160,10 +155,7 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
       key: 'Ctrl+Shift+C',
       description: 'Toggle collaboration',
       action: () => {
-        const collaborationButton = document.querySelector('button[title*="collaboration"]') as HTMLButtonElement;
-        if (collaborationButton) {
-          collaborationButton.click();
-        }
+        openCollaborationPanel();
       },
       category: 'Collaboration'
     },
@@ -171,8 +163,7 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
       key: 'Ctrl+Shift+P',
       description: 'Open plugin manager',
       action: () => {
-        // This would trigger plugin manager open
-        console.log('Opening plugin manager...');
+        openPluginManager();
       },
       category: 'Plugins'
     }

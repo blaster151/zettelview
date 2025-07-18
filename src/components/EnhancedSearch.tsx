@@ -32,6 +32,8 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
   const [showAdvancedHelp, setShowAdvancedHelp] = useState(false);
   const [isAdvancedQuery, setIsAdvancedQuery] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
+  const [showSavedQueries, setShowSavedQueries] = useState(false);
+  const [savedQueries, setSavedQueries] = useState<Array<{ id: string; name: string; query: string; createdAt: Date }>>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +55,13 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
   // Initialize advanced search service
   useEffect(() => {
     if (enableAdvancedSearch) {
-      advancedSearchService.initialize(notes);
+      // Convert notes to the expected format
+      const formattedNotes = notes.map(note => ({
+        ...note,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }));
+      advancedSearchService.initialize(formattedNotes);
     }
   }, [notes, enableAdvancedSearch]);
 
@@ -78,6 +86,50 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
 
   // Search history
   const recentQueries = SearchHistory.getRecentQueries(5);
+
+  // Load saved queries from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('zettelview_saved_queries');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setSavedQueries(parsed.map((q: any) => ({
+          ...q,
+          createdAt: new Date(q.createdAt)
+        })));
+      } catch (error) {
+        console.error('Failed to parse saved queries:', error);
+      }
+    }
+  }, []);
+
+  // Save queries to localStorage
+  const saveQueriesToStorage = (queries: typeof savedQueries) => {
+    localStorage.setItem('zettelview_saved_queries', JSON.stringify(queries));
+  };
+
+  // Add saved query
+  const addSavedQuery = (name: string, query: string) => {
+    const newQuery = {
+      id: `saved-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      query,
+      createdAt: new Date()
+    };
+    const updatedQueries = [...savedQueries, newQuery];
+    setSavedQueries(updatedQueries);
+    saveQueriesToStorage(updatedQueries);
+  };
+
+  // Remove saved query
+  const removeSavedQuery = (id: string) => {
+    const updatedQueries = savedQueries.filter(q => q.id !== id);
+    setSavedQueries(updatedQueries);
+    saveQueriesToStorage(updatedQueries);
+  };
+
+  // Check if current query is saved
+  const isCurrentQuerySaved = savedQueries.some(q => q.query === query);
 
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -268,8 +320,7 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
         </div>
       )}
 
-      {/* Advanced search help button */}
-      {enableAdvancedSearch && (
+              {/* Search controls */}
         <div style={{
           marginTop: '4px',
           display: 'flex',
@@ -278,25 +329,77 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
           fontSize: '12px',
           color: colors.textSecondary
         }}>
-          <span>Press F1 for advanced search help</span>
-          <button
-            onClick={() => setShowAdvancedHelp(true)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: colors.primary,
-              cursor: 'pointer',
-              fontSize: '12px',
-              textDecoration: 'underline'
-            }}
-          >
-            Advanced Search
-          </button>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            {enableAdvancedSearch && (
+              <>
+                <span>Press F1 for advanced search help</span>
+                <button
+                  onClick={() => setShowAdvancedHelp(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: colors.primary,
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Advanced Search
+                </button>
+              </>
+            )}
+          </div>
+          
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {/* Save query button */}
+            {query.trim() && !isCurrentQuerySaved && (
+              <button
+                onClick={() => {
+                  const name = prompt('Enter a name for this saved query:');
+                  if (name?.trim()) {
+                    addSavedQuery(name.trim(), query);
+                  }
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: colors.primary,
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  textDecoration: 'underline'
+                }}
+                title="Save current query"
+              >
+                💾 Save
+              </button>
+            )}
+            
+            {/* Saved queries toggle */}
+            {savedQueries.length > 0 && (
+              <button
+                onClick={() => {
+                  setShowSavedQueries(!showSavedQueries);
+                  setShowSuggestions(false);
+                  setShowHistory(false);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: colors.primary,
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  textDecoration: 'underline'
+                }}
+                title="Show saved queries"
+              >
+                📚 Saved ({savedQueries.length})
+              </button>
+            )}
+          </div>
         </div>
-      )}
 
       {/* Dropdown with Virtualized Results */}
-      {(showSuggestions || showHistory) && (
+      {(showSuggestions || showHistory || showSavedQueries) && (
         <div style={{
           position: 'absolute',
           top: '100%',
@@ -362,6 +465,84 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
                 >
                   🔍 {historyQuery}
                 </button>
+              ))}
+            </div>
+          )}
+
+          {/* Saved Queries */}
+          {showSavedQueries && savedQueries.length > 0 && (
+            <div>
+              <div style={{
+                padding: '8px 12px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: colors.textSecondary,
+                borderBottom: `1px solid ${colors.border}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                Saved Queries
+                <button
+                  onClick={() => setShowSavedQueries(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: colors.textSecondary,
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+              {savedQueries.map((savedQuery) => (
+                <div
+                  key={savedQuery.id}
+                  style={{
+                    padding: '8px 12px',
+                    borderBottom: `1px solid ${colors.border}`,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      setQuery(savedQuery.query);
+                      onSearch(savedQuery.query);
+                      setShowSavedQueries(false);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      color: colors.text,
+                      fontSize: '14px',
+                      flex: 1
+                    }}
+                  >
+                    <div style={{ fontWeight: 'bold' }}>{savedQuery.name}</div>
+                    <div style={{ fontSize: '12px', color: colors.textSecondary }}>
+                      {savedQuery.query}
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => removeSavedQuery(savedQuery.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#e74c3c',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      padding: '4px'
+                    }}
+                    title="Remove saved query"
+                  >
+                    ×
+                  </button>
+                </div>
               ))}
             </div>
           )}

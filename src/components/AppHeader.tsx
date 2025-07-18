@@ -1,17 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
-import { Button } from './ui/Button';
-import { Icon } from './ui/Icon';
+import { useUIStore } from '../store/uiStore';
 import { PluginManager } from './plugins/PluginManager';
 import { PluginStore } from './plugins/PluginStore';
-import { ExportImport } from './features/ExportImport';
-import { CollaborationPanel } from './CollaborationPanel';
-import { AISummaryPanel } from './features/AISummarizer';
-import { GraphView } from './features/GraphView';
-import { CalendarView } from './CalendarView';
-import { EnhancedSearch } from './EnhancedSearch';
-import { NotificationToast } from './NotificationToast';
+import ExportImport from './features/ExportImport';
+import CollaborationPanel from './collaboration/CollaborationPanel';
+import AISummaryPanel from './features/AISummarizer';
+import GraphView from './features/GraphView';
+import CalendarView from './CalendarView';
+import EnhancedSearch from './EnhancedSearch';
+import NotificationToast from './NotificationToast';
 import SecurityTestPanel from './SecurityTestPanel';
 
 interface AppHeaderProps {
@@ -22,15 +21,15 @@ interface AppHeaderProps {
 export const AppHeader: React.FC<AppHeaderProps> = ({ onViewChange, currentView }) => {
   const { addNote } = useNoteStore();
   const { colors, toggleTheme } = useThemeStore();
-  const [showPluginManager, setShowPluginManager] = useState(false);
-  const [showPluginStore, setShowPluginStore] = useState(false);
-  const [showExportImport, setShowExportImport] = useState(false);
-  const [showCollaboration, setShowCollaboration] = useState(false);
-  const [showAISummary, setShowAISummary] = useState(false);
-  const [showGraphView, setShowGraphView] = useState(false);
-  const [showCalendarView, setShowCalendarView] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [showSecurityTest, setShowSecurityTest] = useState(false);
+  const {
+    openPluginManager,
+    openPluginStore,
+    openExportImport,
+    openCollaborationPanel,
+    openAISummaryPanel,
+    openTemplateSelector,
+    openSaveAsTemplate
+  } = useUIStore();
 
   const handleCreateNote = async () => {
     const title = prompt('Enter note title:');

@@ -1,17 +1,7 @@
 import React, { useState } from 'react';
 import { usePlugins, usePluginSettings } from '../../hooks/usePlugins';
 import { Plugin } from '../../types/plugins';
-import { Button } from '../ui/Button';
-import { Modal } from '../ui/Modal';
-import { Tabs, Tab } from '../ui/Tabs';
-import { Switch } from '../ui/Switch';
-import { Input } from '../ui/Input';
-import { Textarea } from '../ui/Textarea';
-import { Select } from '../ui/Select';
-import { ColorPicker } from '../ui/ColorPicker';
-import { Badge } from '../ui/Badge';
-import { Icon } from '../ui/Icon';
-import PluginAPIDocumentation from '../PluginAPIDocumentation';
+import { useThemeStore } from '../../store/themeStore';
 
 interface PluginManagerProps {
   isOpen: boolean;
@@ -19,6 +9,7 @@ interface PluginManagerProps {
 }
 
 export function PluginManager({ isOpen, onClose }: PluginManagerProps) {
+  const { colors } = useThemeStore();
   const {
     plugins,
     enabledPlugins,
@@ -95,60 +86,140 @@ export function PluginManager({ isOpen, onClose }: PluginManagerProps) {
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <>
-      <Modal isOpen={isOpen} onClose={onClose} title="Plugin Manager" size="large">
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          {/* Header with API Docs button */}
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            marginBottom: '16px',
-            paddingBottom: '12px',
-            borderBottom: '1px solid var(--border-color)'
-          }}>
-            <div>
-              <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: '600' }}>
-                Manage Plugins
-              </h3>
-              <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>
-                {plugins.length} total plugins, {enabledPlugins.length} enabled
-              </p>
-            </div>
-            <Button
-              onClick={() => setShowAPIDocs(true)}
-              variant="outline"
-              size="small"
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Icon name="book" size={14} />
-              API Docs
-            </Button>
-          </div>
-
-          {/* Error display */}
-          {error && (
-            <div style={{
-              padding: '12px',
-              marginBottom: '16px',
-              background: 'var(--error-bg)',
-              border: '1px solid var(--error-border)',
-              borderRadius: '6px',
-              color: 'var(--error-text)'
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0, 0, 0, 0.7)',
+      zIndex: 9999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      animation: 'fadeIn 0.3s ease-in-out'
+    }}>
+      <div style={{
+        background: colors.surface,
+        border: `1px solid ${colors.border}`,
+        borderRadius: '8px',
+        maxWidth: '800px',
+        width: '90%',
+        maxHeight: '90vh',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '20px 24px 0 24px',
+          borderBottom: `1px solid ${colors.border}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <div>
+            <h2 style={{
+              color: colors.text,
+              margin: '0 0 4px 0',
+              fontSize: '20px',
+              fontWeight: 'bold'
             }}>
-              {error}
-            </div>
-          )}
+              Plugin Manager
+            </h2>
+            <p style={{
+              margin: 0,
+              fontSize: '14px',
+              color: colors.textSecondary
+            }}>
+              {plugins.length} total plugins, {enabledPlugins.length} enabled
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: colors.textSecondary,
+              cursor: 'pointer',
+              fontSize: '20px',
+              padding: '4px',
+              borderRadius: '4px',
+              transition: 'background 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = colors.surfaceHover;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+            title="Close plugin manager"
+            tabIndex={0}
+          >
+            ×
+          </button>
+        </div>
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onChange={setActiveTab}>
-            <Tab value="all" label="All Plugins" />
-            <Tab value="enabled" label="Enabled" />
-            <Tab value="themes" label="Themes" />
-            <Tab value="features" label="Features" />
-            <Tab value="utilities" label="Utilities" />
-          </Tabs>
+        {/* Error display */}
+        {error && (
+          <div style={{
+            padding: '12px',
+            margin: '16px 24px',
+            background: '#fee',
+            border: '1px solid #fcc',
+            borderRadius: '6px',
+            color: '#c33'
+          }}>
+            {error}
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div style={{
+          padding: '0 24px',
+          borderBottom: `1px solid ${colors.border}`,
+          display: 'flex',
+          gap: '8px'
+        }}>
+          {[
+            { id: 'all', label: 'All Plugins' },
+            { id: 'enabled', label: 'Enabled' },
+            { id: 'themes', label: 'Themes' },
+            { id: 'features', label: 'Features' },
+            { id: 'utilities', label: 'Utilities' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              style={{
+                background: activeTab === tab.id ? colors.primary : 'transparent',
+                color: activeTab === tab.id ? 'white' : colors.text,
+                border: `1px solid ${activeTab === tab.id ? colors.primary : colors.border}`,
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== tab.id) {
+                  e.currentTarget.style.background = colors.surfaceHover;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== tab.id) {
+                  e.currentTarget.style.background = 'transparent';
+                }
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
           {/* Plugin list */}
           <div style={{ flex: 1, overflow: 'auto', marginTop: '16px' }}>

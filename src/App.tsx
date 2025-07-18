@@ -119,8 +119,10 @@ const App: React.FC = () => {
         customTags: []
       });
       
-      const addedNote = addNote(newNote.title, newNote.body, newNote.tags);
-      setSelectedNoteId(addedNote.id);
+      addNote(newNote.title, {
+        body: newNote.body,
+        tags: newNote.tags
+      });
       setViewMode('editor');
     } catch (error) {
       console.error('Failed to create note from template:', error);

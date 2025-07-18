@@ -21,6 +21,8 @@ import MarkdownPreview from './MarkdownPreview';
 import WYSIWYGMarkdownEditor from './WYSIWYGMarkdownEditor';
 import { useDebouncedCallback } from '../hooks/useDebounce';
 import { useMarkdownEditorShortcuts } from '../hooks/useMarkdownEditorShortcuts';
+import { useCollaboration } from '../hooks/useCollaboration';
+import UserCursors from './collaboration/UserCursors';
 
 // Constants
 const INTERNAL_LINK_PATTERN = /\[\[([^[\]]+)\]\]/g;
@@ -246,6 +248,9 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     setIsWYSIWYG 
   });
 
+  // Collaboration integration
+  const { state: collaborationState, config: collaborationConfig } = useCollaboration(noteId || null);
+
   return (
     <div 
       style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
@@ -362,26 +367,32 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             />
           </div>
         ) : (
-          <textarea
-            value={value}
-            onChange={(e) => debouncedOnChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              outline: 'none',
-              padding: '16px',
-              fontFamily: 'monospace',
-              fontSize: '14px',
-              resize: 'none'
-            }}
-            role="textbox"
-            aria-label="Markdown editor text area"
-            aria-multiline="true"
-            tabIndex={0}
-          />
+          <div style={{ position: 'relative', height: '100%' }}>
+            <textarea
+              value={value}
+              onChange={(e) => debouncedOnChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                outline: 'none',
+                padding: '16px',
+                fontFamily: 'monospace',
+                fontSize: '14px',
+                resize: 'none'
+              }}
+              role="textbox"
+              aria-label="Markdown editor text area"
+              aria-multiline="true"
+              tabIndex={0}
+            />
+            <UserCursors
+              cursors={collaborationState.remoteCursors}
+              isVisible={collaborationConfig.showUserCursors && collaborationState.connectionStatus === 'connected'}
+            />
+          </div>
         )}
       </div>
 

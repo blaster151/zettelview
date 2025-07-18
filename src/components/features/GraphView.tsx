@@ -97,6 +97,13 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
   const [showMinimap, setShowMinimap] = useState(true);
   const [performanceMode, setPerformanceMode] = useState<'quality' | 'performance' | 'auto'>('auto');
   
+  // Advanced filtering state
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month' | 'year'>('all');
+  const [contentFilter, setContentFilter] = useState<'all' | 'has-links' | 'has-tags' | 'has-content'>('all');
+  const [nodeSizeFilter, setNodeSizeFilter] = useState<'all' | 'small' | 'medium' | 'large'>('all');
+  
   // Render mode state with localStorage persistence
   const [renderMode, setRenderMode] = useState<GraphRenderMode>(() => {
     const saved = localStorage.getItem('zettelview_graph_render_mode');
@@ -170,13 +177,87 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     // Generate links based on selected render mode
     const graphLinks = GraphLinkService.generateLinks(notes, renderMode);
 
-    // Filter nodes based on search query
-    const filtered = searchQuery.trim() === '' 
-      ? graphNodes 
-      : graphNodes.filter(node => 
-          node.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          node.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
+    // Apply advanced filtering
+    let filtered = graphNodes;
+    
+    // Search query filter
+    if (searchQuery.trim() !== '') {
+      filtered = filtered.filter(node => 
+        node.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        node.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
+    
+    // Tag filter
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter(node => 
+        selectedTags.some(selectedTag => node.tags.includes(selectedTag))
+      );
+    }
+    
+    // Date filter
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      const getNoteDate = (noteId: string) => {
+        const note = notes.find(n => n.id === noteId);
+        return note ? new Date(note.createdAt) : new Date(0);
+      };
+      
+      filtered = filtered.filter(node => {
+        const noteDate = getNoteDate(node.id);
+        switch (dateFilter) {
+          case 'today':
+            return noteDate.toDateString() === now.toDateString();
+          case 'week':
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            return noteDate >= weekAgo;
+          case 'month':
+            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            return noteDate >= monthAgo;
+          case 'year':
+            const yearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+            return noteDate >= yearAgo;
+          default:
+            return true;
+        }
+      });
+    }
+    
+    // Content filter
+    if (contentFilter !== 'all') {
+      filtered = filtered.filter(node => {
+        const note = notes.find(n => n.id === node.id);
+        if (!note) return false;
+        
+        switch (contentFilter) {
+          case 'has-links':
+            return /\[\[([^[\]]+)\]\]/g.test(note.body);
+          case 'has-tags':
+            return note.tags.length > 0;
+          case 'has-content':
+            return note.body.length > 100; // More than just a title
+          default:
+            return true;
+        }
+      });
+    }
+    
+    // Node size filter
+    if (nodeSizeFilter !== 'all') {
+      filtered = filtered.filter(node => {
+        const size = node.size;
+        switch (nodeSizeFilter) {
+          case 'small':
+            return size <= 25;
+          case 'medium':
+            return size > 25 && size <= 40;
+          case 'large':
+            return size > 40;
+          default:
+            return true;
+        }
+      });
+    }
 
     return { nodes: graphNodes, links: graphLinks, filteredNodes: filtered };
   }, [notes, nodePositions, selectedNodeId, hoveredNode, searchQuery, renderMode]);
@@ -477,6 +558,171 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
           />
         </div>
 
+        {/* Filter Panel Toggle */}
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          zIndex: 1000
+        }}>
+          <button
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              background: showFilterPanel ? '#007bff' : 'white',
+              color: showFilterPanel ? 'white' : '#333',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            🔍 Filters
+          </button>
+        </div>
+
+        {/* Advanced Filter Panel */}
+        {showFilterPanel && (
+          <div style={{
+            position: 'absolute',
+            top: '50px',
+            right: '10px',
+            width: '250px',
+            background: 'white',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            padding: '16px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            zIndex: 1000
+          }}>
+            <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 'bold' }}>
+              Advanced Filters
+            </h4>
+            
+            {/* Tag Filter */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>
+                Tags
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {Array.from(new Set(notes.flatMap(note => note.tags))).slice(0, 8).map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => setSelectedTags(prev => 
+                      prev.includes(tag) 
+                        ? prev.filter(t => t !== tag)
+                        : [...prev, tag]
+                    )}
+                    style={{
+                      padding: '2px 6px',
+                      border: '1px solid #ddd',
+                      borderRadius: '12px',
+                      background: selectedTags.includes(tag) ? '#007bff' : 'white',
+                      color: selectedTags.includes(tag) ? 'white' : '#333',
+                      cursor: 'pointer',
+                      fontSize: '11px'
+                    }}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Date Filter */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>
+                Date Range
+              </label>
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value as any)}
+                style={{
+                  width: '100%',
+                  padding: '4px 8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '12px'
+                }}
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="year">This Year</option>
+              </select>
+            </div>
+
+            {/* Content Filter */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>
+                Content Type
+              </label>
+              <select
+                value={contentFilter}
+                onChange={(e) => setContentFilter(e.target.value as any)}
+                style={{
+                  width: '100%',
+                  padding: '4px 8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '12px'
+                }}
+              >
+                <option value="all">All Notes</option>
+                <option value="has-links">With Internal Links</option>
+                <option value="has-tags">With Tags</option>
+                <option value="has-content">With Content</option>
+              </select>
+            </div>
+
+            {/* Node Size Filter */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>
+                Node Size
+              </label>
+              <select
+                value={nodeSizeFilter}
+                onChange={(e) => setNodeSizeFilter(e.target.value as any)}
+                style={{
+                  width: '100%',
+                  padding: '4px 8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '12px'
+                }}
+              >
+                <option value="all">All Sizes</option>
+                <option value="small">Small</option>
+                <option value="medium">Medium</option>
+                <option value="large">Large</option>
+              </select>
+            </div>
+
+            {/* Clear Filters */}
+            <button
+              onClick={() => {
+                setSelectedTags([]);
+                setDateFilter('all');
+                setContentFilter('all');
+                setNodeSizeFilter('all');
+              }}
+              style={{
+                width: '100%',
+                padding: '6px 12px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                background: '#f8f9fa',
+                color: '#666',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              Clear All Filters
+            </button>
+          </div>
+        )}
+
         {/* Canvas */}
         <canvas
           ref={canvasRef}
@@ -493,13 +739,17 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
           onWheel={handleWheel}
         />
 
-        {/* Search Input */}
+        {/* Search Input and Filter Summary */}
         <div style={{
           position: 'absolute',
           top: '10px',
           left: '50%',
           transform: 'translateX(-50%)',
-          zIndex: 1000
+          zIndex: 1000,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '4px'
         }}>
           <input
             type="text"
@@ -514,6 +764,18 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
               width: '200px'
             }}
           />
+          {(selectedTags.length > 0 || dateFilter !== 'all' || contentFilter !== 'all' || nodeSizeFilter !== 'all') && (
+            <div style={{
+              padding: '4px 8px',
+              background: 'rgba(0, 123, 255, 0.1)',
+              border: '1px solid rgba(0, 123, 255, 0.3)',
+              borderRadius: '4px',
+              fontSize: '11px',
+              color: '#007bff'
+            }}>
+              Showing {filteredNodes.length} of {nodes.length} nodes
+            </div>
+          )}
         </div>
 
         {/* Zoom Controls */}
