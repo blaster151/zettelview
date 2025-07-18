@@ -69,11 +69,11 @@ describe('HelpPanel', () => {
   });
 
   test('should switch to features tab', async () => {
-    const user = userEvent.setup();
+    
     render(<HelpPanel {...defaultProps} />);
     
     const featuresTab = screen.getByText('📚 Features Guide');
-    await user.click(featuresTab);
+    await userEvent.click(featuresTab);
     
     expect(screen.getByText('📝 Markdown Editor')).toBeInTheDocument();
     expect(screen.getByText('🔍 Enhanced Search')).toBeInTheDocument();
@@ -81,11 +81,11 @@ describe('HelpPanel', () => {
   });
 
   test('should switch to tips tab', async () => {
-    const user = userEvent.setup();
+    
     render(<HelpPanel {...defaultProps} />);
     
     const tipsTab = screen.getByText('💡 Tips & Tricks');
-    await user.click(tipsTab);
+    await userEvent.click(tipsTab);
     
     expect(screen.getByText('💡 Pro Tips')).toBeInTheDocument();
     expect(screen.getByText('🔗 Internal Linking')).toBeInTheDocument();
@@ -93,11 +93,11 @@ describe('HelpPanel', () => {
   });
 
   test('should call onClose when close button is clicked', async () => {
-    const user = userEvent.setup();
+    
     render(<HelpPanel {...defaultProps} />);
     
     const closeButton = screen.getByTitle('Close help');
-    await user.click(closeButton);
+    await userEvent.click(closeButton);
     
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
@@ -138,11 +138,11 @@ describe('HelpPanel', () => {
   });
 
   test('should show features guide content', async () => {
-    const user = userEvent.setup();
+    
     render(<HelpPanel {...defaultProps} />);
     
     const featuresTab = screen.getByText('📚 Features Guide');
-    await user.click(featuresTab);
+    await userEvent.click(featuresTab);
     
     expect(screen.getByText(/Write notes using Markdown syntax/)).toBeInTheDocument();
     expect(screen.getByText(/Find notes with fuzzy matching/)).toBeInTheDocument();
@@ -152,11 +152,11 @@ describe('HelpPanel', () => {
   });
 
   test('should show tips and tricks content', async () => {
-    const user = userEvent.setup();
+    
     render(<HelpPanel {...defaultProps} />);
     
     const tipsTab = screen.getByText('💡 Tips & Tricks');
-    await user.click(tipsTab);
+    await userEvent.click(tipsTab);
     
     expect(screen.getByText(/Use tags consistently to organize related notes/)).toBeInTheDocument();
     expect(screen.getByText(/Use double brackets to create links/)).toBeInTheDocument();
@@ -165,11 +165,11 @@ describe('HelpPanel', () => {
   });
 
   test('should show internal linking example', async () => {
-    const user = userEvent.setup();
+    
     render(<HelpPanel {...defaultProps} />);
     
     const tipsTab = screen.getByText('💡 Tips & Tricks');
-    await user.click(tipsTab);
+    await userEvent.click(tipsTab);
     
     expect(screen.getByText('[[Note Title]]')).toBeInTheDocument();
   });
@@ -182,7 +182,7 @@ describe('HelpPanel', () => {
   });
 
   test('should handle tab switching correctly', async () => {
-    const user = userEvent.setup();
+    
     render(<HelpPanel {...defaultProps} />);
     
     // Start with shortcuts tab
@@ -190,29 +190,29 @@ describe('HelpPanel', () => {
     
     // Switch to features tab
     const featuresTab = screen.getByText('📚 Features Guide');
-    await user.click(featuresTab);
+    await userEvent.click(featuresTab);
     expect(screen.getByText('📝 Markdown Editor')).toBeInTheDocument();
     expect(screen.queryByText('Navigation')).not.toBeInTheDocument();
     
     // Switch to tips tab
     const tipsTab = screen.getByText('💡 Tips & Tricks');
-    await user.click(tipsTab);
+    await userEvent.click(tipsTab);
     expect(screen.getByText('💡 Pro Tips')).toBeInTheDocument();
     expect(screen.queryByText('📝 Markdown Editor')).not.toBeInTheDocument();
     
     // Switch back to shortcuts tab
     const shortcutsTab = screen.getByText('⌨️ Keyboard Shortcuts');
-    await user.click(shortcutsTab);
+    await userEvent.click(shortcutsTab);
     expect(screen.getByText('Navigation')).toBeInTheDocument();
     expect(screen.queryByText('💡 Pro Tips')).not.toBeInTheDocument();
   });
 
   test('should show workflow steps', async () => {
-    const user = userEvent.setup();
+    
     render(<HelpPanel {...defaultProps} />);
     
     const tipsTab = screen.getByText('💡 Tips & Tricks');
-    await user.click(tipsTab);
+    await userEvent.click(tipsTab);
     
     expect(screen.getByText(/1\. Create notes with clear titles/)).toBeInTheDocument();
     expect(screen.getByText(/2\. Add relevant tags for organization/)).toBeInTheDocument();

@@ -16,6 +16,7 @@ export interface InternalLinkHandlers {
   handleInternalLinkClick: (noteTitle: string) => Promise<void>;
   isValidInternalLink: (text: string) => boolean;
   extractInternalLinks: (text: string) => string[];
+  noteExists: (noteTitle: string) => boolean;
 }
 
 /**
@@ -26,9 +27,19 @@ export interface InternalLinkHandlers {
  * - Handling internal link clicks with navigation
  * - Validation of internal link format
  * - Extraction of all internal links from text
+ * - Checking if a note exists by title
  */
 export const useInternalLinks = (): InternalLinkHandlers => {
-  const { findOrCreateNote, selectNote } = useNoteStore();
+  const { findOrCreateNote, selectNote, notes } = useNoteStore();
+
+  /**
+   * Check if a note exists by title (case-insensitive)
+   */
+  const noteExists = useCallback((noteTitle: string): boolean => {
+    return notes.some(note => 
+      note.title.toLowerCase() === noteTitle.toLowerCase()
+    );
+  }, [notes]);
 
   /**
    * Parse internal links from text and return structured parts
@@ -109,6 +120,7 @@ export const useInternalLinks = (): InternalLinkHandlers => {
     parseInternalLinks,
     handleInternalLinkClick,
     isValidInternalLink,
-    extractInternalLinks
+    extractInternalLinks,
+    noteExists
   };
 }; 

@@ -152,6 +152,10 @@ export const useBacklinks = (): BacklinkHandlers => {
     linkMatch: RegExpMatchArray, 
     contextLength: number = 50
   ): string => {
+    if (linkMatch.index === undefined) {
+      return '';
+    }
+    
     const matchStart = Math.max(0, linkMatch.index - contextLength);
     const matchEnd = Math.min(noteBody.length, linkMatch.index + linkMatch[0].length + contextLength);
     

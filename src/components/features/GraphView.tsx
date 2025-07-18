@@ -1,11 +1,11 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { useNoteStore } from '../store/noteStore';
-import { Note } from '../types/domain';
-import { GraphNode, GraphLink, GraphRenderMode } from '../types/graph';
-import { GraphLinkService } from '../services/graphLinkService';
-import { GraphOptimizationService, OptimizedGraphData, Viewport } from '../services/graphOptimizationService';
-import RenderModeSelector from './graph/RenderModeSelector';
-import GraphPerformanceMonitor from './graph/GraphPerformanceMonitor';
+import { useNoteStore } from '../../store/noteStore';
+import { Note } from '../../types/domain';
+import { GraphNode, GraphLink, GraphRenderMode } from '../../types/graph';
+import { GraphLinkService } from '../../services/graphLinkService';
+import { GraphOptimizationService, OptimizedGraphData, Viewport } from '../../services/graphOptimizationService';
+import RenderModeSelector from '../graph/RenderModeSelector';
+import GraphPerformanceMonitor from '../graph/GraphPerformanceMonitor';
 
 interface GraphViewProps {
   onNodeClick?: (nodeId: string) => void;

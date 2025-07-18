@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import WelcomeOnboarding from './WelcomeOnboarding';
 
@@ -34,19 +34,21 @@ Object.defineProperty(window, 'localStorage', {
 
 describe('WelcomeOnboarding', () => {
   const defaultProps = {
+    isOpen: true,
     onComplete: jest.fn(),
     onSkip: jest.fn()
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorageMock.getItem.mockReturnValue(null);
   });
 
   test('should render welcome modal', () => {
     render(<WelcomeOnboarding {...defaultProps} />);
     
     expect(screen.getByText('Welcome to ZettelView!')).toBeInTheDocument();
-    expect(screen.getByText('Your visual knowledge base for creating and managing interconnected notes.')).toBeInTheDocument();
+    expect(screen.getByText(/Your visual knowledge base for creating and managing interconnected notes/)).toBeInTheDocument();
   });
 
   test('should show progress indicator', () => {
@@ -77,95 +79,87 @@ describe('WelcomeOnboarding', () => {
   });
 
   test('should show previous button on second step', async () => {
-    const user = userEvent.setup();
     render(<WelcomeOnboarding {...defaultProps} />);
     
     const nextButton = screen.getByText('Next →');
-    await user.click(nextButton);
+    await userEvent.click(nextButton);
     
     expect(screen.getByText('← Previous')).toBeInTheDocument();
   });
 
   test('should navigate to next step when next button is clicked', async () => {
-    const user = userEvent.setup();
     render(<WelcomeOnboarding {...defaultProps} />);
     
     const nextButton = screen.getByText('Next →');
-    await user.click(nextButton);
+    await userEvent.click(nextButton);
     
     expect(screen.getByText('Create Your First Note')).toBeInTheDocument();
     expect(screen.getByText('2 of 10')).toBeInTheDocument();
   });
 
   test('should navigate to previous step when previous button is clicked', async () => {
-    const user = userEvent.setup();
     render(<WelcomeOnboarding {...defaultProps} />);
     
     // Go to second step
     const nextButton = screen.getByText('Next →');
-    await user.click(nextButton);
+    await userEvent.click(nextButton);
     
     // Go back to first step
     const previousButton = screen.getByText('← Previous');
-    await user.click(previousButton);
+    await userEvent.click(previousButton);
     
     expect(screen.getByText('Welcome to ZettelView!')).toBeInTheDocument();
     expect(screen.getByText('1 of 10')).toBeInTheDocument();
   });
 
   test('should show action hints when available', async () => {
-    const user = userEvent.setup();
     render(<WelcomeOnboarding {...defaultProps} />);
     
     // Go to second step which has an action
     const nextButton = screen.getByText('Next →');
-    await user.click(nextButton);
+    await userEvent.click(nextButton);
     
     expect(screen.getByText('💡 Create a note to continue')).toBeInTheDocument();
   });
 
   test('should call onComplete when finishing tutorial', async () => {
-    const user = userEvent.setup();
     render(<WelcomeOnboarding {...defaultProps} />);
     
     // Navigate through all steps
     for (let i = 0; i < 9; i++) {
       const nextButton = screen.getByText('Next →');
-      await user.click(nextButton);
+      await userEvent.click(nextButton);
     }
     
     // Click "Get Started!" on last step
     const getStartedButton = screen.getByText('Get Started!');
-    await user.click(getStartedButton);
+    await userEvent.click(getStartedButton);
     
     expect(defaultProps.onComplete).toHaveBeenCalled();
     expect(localStorageMock.setItem).toHaveBeenCalledWith('zettelview_onboarding_completed', 'true');
   });
 
   test('should call onSkip when skip button is clicked', async () => {
-    const user = userEvent.setup();
     render(<WelcomeOnboarding {...defaultProps} />);
     
     const skipButton = screen.getByText('Skip Tutorial');
-    await user.click(skipButton);
+    await userEvent.click(skipButton);
     
     expect(defaultProps.onSkip).toHaveBeenCalled();
     expect(localStorageMock.setItem).toHaveBeenCalledWith('zettelview_onboarding_completed', 'true');
   });
 
   test('should call onSkip when close button is clicked', async () => {
-    const user = userEvent.setup();
     render(<WelcomeOnboarding {...defaultProps} />);
     
     const closeButton = screen.getByTitle('Close tutorial');
-    await user.click(closeButton);
+    await userEvent.click(closeButton);
     
     expect(defaultProps.onSkip).toHaveBeenCalled();
     expect(localStorageMock.setItem).toHaveBeenCalledWith('zettelview_onboarding_completed', 'true');
   });
 
   test('should show all tutorial steps', async () => {
-    const user = userEvent.setup();
     render(<WelcomeOnboarding {...defaultProps} />);
     
     const expectedSteps = [
@@ -186,13 +180,12 @@ describe('WelcomeOnboarding', () => {
       
       if (i < expectedSteps.length - 1) {
         const nextButton = screen.getByText('Next →');
-        await user.click(nextButton);
+        await userEvent.click(nextButton);
       }
     }
   });
 
   test('should show correct step descriptions', async () => {
-    const user = userEvent.setup();
     render(<WelcomeOnboarding {...defaultProps} />);
     
     // Check first step description
@@ -200,18 +193,17 @@ describe('WelcomeOnboarding', () => {
     
     // Go to second step
     const nextButton = screen.getByText('Next →');
-    await user.click(nextButton);
+    await userEvent.click(nextButton);
     
     // Check second step description
     expect(screen.getByText(/Type a title in the "New note title" field and click "Create Note"/)).toBeInTheDocument();
   });
 
   test('should handle keyboard navigation', async () => {
-    const user = userEvent.setup();
     render(<WelcomeOnboarding {...defaultProps} />);
     
     // Test escape key
-    await user.keyboard('{Escape}');
+    await userEvent.keyboard('{Escape}');
     
     expect(defaultProps.onSkip).toHaveBeenCalled();
   });
@@ -227,13 +219,12 @@ describe('WelcomeOnboarding', () => {
   });
 
   test('should show different button text on last step', async () => {
-    const user = userEvent.setup();
     render(<WelcomeOnboarding {...defaultProps} />);
     
     // Navigate to last step
     for (let i = 0; i < 9; i++) {
       const nextButton = screen.getByText('Next →');
-      await user.click(nextButton);
+      await userEvent.click(nextButton);
     }
     
     expect(screen.getByText('Get Started!')).toBeInTheDocument();

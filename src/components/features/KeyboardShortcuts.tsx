@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNoteStore } from '../store/noteStore';
-import { useThemeStore } from '../store/themeStore';
+import { useNoteStore } from '../../store/noteStore';
+import { useThemeStore } from '../../store/themeStore';
 
 interface KeyboardShortcutsProps {
   children: React.ReactNode;

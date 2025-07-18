@@ -1,13 +1,13 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import EditorView from './EditorView';
-import { useNoteStore } from '../../store/noteStore';
-import { useThemeStore } from '../../store/themeStore';
-import { MockNoteStore, MockThemeStore } from '../../types/test';
+import { useNoteStore } from '../store/noteStore';
+import { useThemeStore } from '../store/themeStore';
+import { MockNoteStore, MockThemeStore } from '../types/test';
 
 // Mock the stores
-jest.mock('../../store/noteStore');
-jest.mock('../../store/themeStore');
+jest.mock('../store/noteStore');
+jest.mock('../store/themeStore');
 
 const mockUseNoteStore = useNoteStore as jest.MockedFunction<typeof useNoteStore>;
 const mockUseThemeStore = useThemeStore as jest.MockedFunction<typeof useThemeStore>;
@@ -44,7 +44,7 @@ describe('EditorView', () => {
     
     mockGetNote.mockReturnValue(mockNote);
     
-    render(<EditorView selectedNoteId="note1" />);
+    render(<EditorView noteId="note1" />);
     
     expect(screen.getByText('Test content')).toBeInTheDocument();
   });
@@ -52,7 +52,7 @@ describe('EditorView', () => {
   test('renders placeholder when note does not exist', () => {
     mockGetNote.mockReturnValue(null);
     
-    render(<EditorView selectedNoteId="nonexistent" />);
+    render(<EditorView noteId="nonexistent" />);
     
     expect(screen.getByText('Select a note')).toBeInTheDocument();
   });
@@ -69,7 +69,7 @@ describe('EditorView', () => {
     
     mockGetNote.mockReturnValue(mockNote);
     
-    render(<EditorView selectedNoteId="note1" />);
+    render(<EditorView noteId="note1" />);
     
     // The MarkdownEditor should be rendered with the note content
     expect(screen.getByText('Test content')).toBeInTheDocument();

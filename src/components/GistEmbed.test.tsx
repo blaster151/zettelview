@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import GistEmbed from './GistEmbed';
+import GistEmbed from './features/GistEmbed';
 
 // Mock fetch
 global.fetch = jest.fn();

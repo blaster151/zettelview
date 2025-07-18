@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import GraphView from './GraphView';
+import GraphView from './features/GraphView';
 import { useNoteStore } from '../store/noteStore';
 
 // Mock the note store

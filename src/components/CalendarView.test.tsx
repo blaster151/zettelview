@@ -34,24 +34,24 @@ describe('CalendarView', () => {
       title: 'Test Note 1',
       body: 'Test content 1',
       tags: ['test', 'example'],
-      createdAt: new Date('2024-01-15'),
-      updatedAt: new Date('2024-01-15')
+      createdAt: new Date(2024, 0, 15, 12, 0, 0), // January 15, 2024 at noon
+      updatedAt: new Date(2024, 0, 15, 12, 0, 0)
     },
     {
       id: 'note2',
       title: 'Test Note 2',
       body: 'Test content 2',
       tags: ['test'],
-      createdAt: new Date('2024-01-20'),
-      updatedAt: new Date('2024-01-25')
+      createdAt: new Date(2024, 0, 20, 12, 0, 0), // January 20, 2024 at noon
+      updatedAt: new Date(2024, 0, 25, 12, 0, 0)  // January 25, 2024 at noon
     },
     {
       id: 'note3',
       title: 'Test Note 3',
       body: 'Test content 3',
       tags: ['example'],
-      createdAt: new Date('2024-01-10'),
-      updatedAt: new Date('2024-01-10')
+      createdAt: new Date(2024, 0, 10, 12, 0, 0), // January 10, 2024 at noon
+      updatedAt: new Date(2024, 0, 10, 12, 0, 0)
     }
   ];
 
@@ -148,8 +148,21 @@ describe('CalendarView', () => {
 
     // Note 1 was created on Jan 15, 2024
     // We need to navigate to January 2024 to see it
+    // Navigate to January 2024 by clicking previous month multiple times if needed
     const prevButton = screen.getByText('←');
-    fireEvent.click(prevButton);
+    
+    // Keep clicking until we reach January 2024
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+    
+    while (currentYear > 2024 || (currentYear === 2024 && currentMonth > 0)) {
+      fireEvent.click(prevButton);
+      currentMonth--;
+      if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+      }
+    }
 
     // Look for the note title in the calendar
     expect(screen.getByText('Test Note 1')).toBeInTheDocument();
@@ -243,8 +256,8 @@ describe('CalendarView', () => {
     const prevButton = screen.getByText('←');
     fireEvent.click(prevButton);
 
-    // Then click Today
-    const todayButton = screen.getByText('Today');
+    // Then click Today button (not the span)
+    const todayButton = screen.getByRole('button', { name: 'Today' });
     fireEvent.click(todayButton);
 
     const currentDate = new Date();
@@ -267,7 +280,19 @@ describe('CalendarView', () => {
 
     // Navigate to January 2024 to see the notes
     const prevButton = screen.getByText('←');
-    fireEvent.click(prevButton);
+    
+    // Keep clicking until we reach January 2024
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+    
+    while (currentYear > 2024 || (currentYear === 2024 && currentMonth > 0)) {
+      fireEvent.click(prevButton);
+      currentMonth--;
+      if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+      }
+    }
 
     // Find and click on a note
     const noteButton = screen.getByText('Test Note 1');
@@ -289,7 +314,19 @@ describe('CalendarView', () => {
 
     // Navigate to January 2024 to see the notes
     const prevButton = screen.getByText('←');
-    fireEvent.click(prevButton);
+    
+    // Keep clicking until we reach January 2024
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+    
+    while (currentYear > 2024 || (currentYear === 2024 && currentMonth > 0)) {
+      fireEvent.click(prevButton);
+      currentMonth--;
+      if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+      }
+    }
 
     // The selected note should have different styling
     const selectedNoteButton = screen.getByText('Test Note 1');
@@ -298,28 +335,69 @@ describe('CalendarView', () => {
 
   it('shows more notes indicator when there are more than 3 notes', () => {
     const manyNotes = [
-      ...mockNotes,
+      {
+        id: 'note1',
+        title: 'Test Note 1',
+        body: 'Test content 1',
+        tags: ['test', 'example'],
+        createdAt: new Date(2024, 0, 15, 12, 0, 0), // January 15, 2024 at noon
+        updatedAt: new Date(2024, 0, 15, 12, 0, 0)
+      },
+      {
+        id: 'note2',
+        title: 'Test Note 2',
+        body: 'Test content 2',
+        tags: ['test'],
+        createdAt: new Date(2024, 0, 15, 12, 0, 0), // January 15, 2024 at noon
+        updatedAt: new Date(2024, 0, 15, 12, 0, 0)
+      },
+      {
+        id: 'note3',
+        title: 'Test Note 3',
+        body: 'Test content 3',
+        tags: ['example'],
+        createdAt: new Date(2024, 0, 15, 12, 0, 0), // January 15, 2024 at noon
+        updatedAt: new Date(2024, 0, 15, 12, 0, 0)
+      },
       {
         id: 'note4',
         title: 'Test Note 4',
         body: 'Test content 4',
         tags: ['test'],
-        createdAt: new Date('2024-01-15'),
-        updatedAt: new Date('2024-01-15')
+        createdAt: new Date(2024, 0, 15, 12, 0, 0), // January 15, 2024 at noon
+        updatedAt: new Date(2024, 0, 15, 12, 0, 0)
       },
       {
         id: 'note5',
         title: 'Test Note 5',
         body: 'Test content 5',
         tags: ['test'],
-        createdAt: new Date('2024-01-15'),
-        updatedAt: new Date('2024-01-15')
+        createdAt: new Date(2024, 0, 15, 12, 0, 0), // January 15, 2024 at noon
+        updatedAt: new Date(2024, 0, 15, 12, 0, 0)
       }
     ];
 
     mockUseNoteStore.mockReturnValue({
-      ...mockUseNoteStore(),
-      notes: manyNotes
+      notes: manyNotes,
+      selectNote: mockSelectNote,
+      selectedId: null,
+      isInitialized: true,
+      storagePermission: true,
+      searchResults: [],
+      isSearching: false,
+      initialize: jest.fn(),
+      requestStoragePermission: jest.fn(),
+      addNote: jest.fn(),
+      updateNote: jest.fn(),
+      getNote: jest.fn(),
+      findOrCreateNote: jest.fn(),
+      deleteNote: jest.fn(),
+      loadNotesFromStorage: jest.fn(),
+      searchNotes: jest.fn(),
+      quickSearch: jest.fn(),
+      searchByTags: jest.fn(),
+      clearSearch: jest.fn(),
+      getSearchSuggestions: jest.fn()
     });
 
     render(
@@ -331,9 +409,21 @@ describe('CalendarView', () => {
 
     // Navigate to January 2024 to see the notes
     const prevButton = screen.getByText('←');
-    fireEvent.click(prevButton);
+    
+    // Keep clicking until we reach January 2024
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+    
+    while (currentYear > 2024 || (currentYear === 2024 && currentMonth > 0)) {
+      fireEvent.click(prevButton);
+      currentMonth--;
+      if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+      }
+    }
 
-    // Should show "+2 more" indicator
+    // Should show "+2 more" indicator (5 notes total, showing first 3, so +2 more)
     expect(screen.getByText('+2 more')).toBeInTheDocument();
   });
 

@@ -195,12 +195,14 @@ export const useSearchWithFeedback = (
 
   // Listen to search results from store
   useEffect(() => {
-    const unsubscribe = useNoteStore.subscribe(
-      (state) => state.searchResults,
-      (searchResults) => {
-        setResults(searchResults);
-      }
-    );
+    // Get the current search results from the store
+    const currentResults = useNoteStore.getState().searchResults;
+    setResults(currentResults);
+
+    // Subscribe to future changes
+    const unsubscribe = useNoteStore.subscribe((state) => {
+      setResults(state.searchResults);
+    });
 
     return unsubscribe;
   }, []);

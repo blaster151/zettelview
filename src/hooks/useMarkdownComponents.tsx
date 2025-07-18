@@ -3,7 +3,7 @@ import { Components } from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import EnhancedCodeBlock from '../components/EnhancedCodeBlock';
-import GistEmbed from '../components/GistEmbed';
+import GistEmbed from '../components/features/GistEmbed';
 import { ParsedLink } from './useInternalLinks';
 
 // Constants
@@ -19,6 +19,7 @@ export interface MarkdownComponentOptions {
     code?: React.CSSProperties;
     link?: React.CSSProperties;
   };
+  noteExists?: (noteTitle: string) => boolean;
 }
 
 export interface MarkdownComponentHandlers {
@@ -42,7 +43,8 @@ export const useMarkdownComponents = (options: MarkdownComponentOptions = {}): M
     parseInternalLinks,
     enableGistEmbeds = true,
     enableEnhancedCodeBlocks = true,
-    customStyles = {}
+    customStyles = {},
+    noteExists
   } = options;
 
   /**
@@ -53,7 +55,7 @@ export const useMarkdownComponents = (options: MarkdownComponentOptions = {}): M
   }, []);
 
   /**
-   * Create internal link component
+   * Create internal link component with red link support
    */
   const createInternalLinkComponent = useCallback((noteTitle: string) => {
     const handleClick = () => {
@@ -69,6 +71,15 @@ export const useMarkdownComponents = (options: MarkdownComponentOptions = {}): M
       }
     };
 
+    // Check if note exists to determine styling
+    const exists = noteExists ? noteExists(noteTitle) : true;
+    const isRedLink = !exists;
+    const linkColor = isRedLink ? '#dc3545' : '#007bff';
+    const linkStyle = isRedLink ? 'none' : 'underline';
+    const backgroundColor = isRedLink ? '#fff5f5' : 'transparent';
+    const hoverBackgroundColor = isRedLink ? '#ffe6e6' : '#f8f9fa';
+    const tooltipText = isRedLink ? `Click to create "${noteTitle}"` : `Link to note: ${noteTitle}`;
+
     return (
       <button
         onClick={handleClick}
@@ -76,27 +87,29 @@ export const useMarkdownComponents = (options: MarkdownComponentOptions = {}): M
         style={{
           background: 'none',
           border: 'none',
-          color: '#007bff',
-          textDecoration: 'underline',
+          color: linkColor,
+          textDecoration: linkStyle,
           cursor: 'pointer',
           padding: '2px 4px',
           borderRadius: '3px',
           fontFamily: 'inherit',
           fontSize: 'inherit',
+          backgroundColor: backgroundColor,
           ...customStyles.link
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#f8f9fa';
+          e.currentTarget.style.backgroundColor = hoverBackgroundColor;
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.backgroundColor = backgroundColor;
         }}
-        aria-label={`Link to note: ${noteTitle}`}
+        aria-label={tooltipText}
+        title={tooltipText}
       >
         {`[[${noteTitle}]]`}
       </button>
     );
-  }, [onInternalLinkClick, customStyles.link]);
+  }, [onInternalLinkClick, customStyles.link, noteExists]);
 
   /**
    * Create markdown components with all features
@@ -341,25 +354,7 @@ export const useMarkdownComponents = (options: MarkdownComponentOptions = {}): M
       </em>
     ),
 
-    // Inline code
-    code: ({ children, className }) => {
-      if (className) {
-        // This is a code block, handled above
-        return null;
-      }
-      return (
-        <code style={{
-          background: '#f6f8fa',
-          padding: '2px 4px',
-          borderRadius: '3px',
-          fontFamily: 'monospace',
-          fontSize: '0.9em',
-          color: '#e36209'
-        }}>
-          {children}
-        </code>
-      );
-    },
+
 
     // Images
     img: ({ src, alt }) => (

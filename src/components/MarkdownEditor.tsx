@@ -18,6 +18,7 @@ import { useMarkdownComponents } from '../hooks/useMarkdownComponents';
 import SaveStatus from './SaveStatus';
 import TagManager from './TagManager';
 import MarkdownPreview from './MarkdownPreview';
+import WYSIWYGMarkdownEditor from './WYSIWYGMarkdownEditor';
 import { useDebouncedCallback } from '../hooks/useDebounce';
 import { useMarkdownEditorShortcuts } from '../hooks/useMarkdownEditorShortcuts';
 
@@ -201,6 +202,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   'aria-describedby': ariaDescribedBy
 }) => {
   const [isPreview, setIsPreview] = useState(false);
+  const [isWYSIWYG, setIsWYSIWYG] = useState(false);
   const [parseError, setParseError] = useState<Error | null>(null);
   const { updateNote, getNote } = useNoteStore();
 
@@ -208,10 +210,11 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const note = noteId ? getNote(noteId) : null;
 
   // Custom hooks for complex logic
-  const { handleInternalLinkClick, parseInternalLinks } = useInternalLinks();
+  const { handleInternalLinkClick, parseInternalLinks, noteExists } = useInternalLinks();
   const { components: markdownComponents } = useMarkdownComponents({
     onInternalLinkClick: handleInternalLinkClick,
     parseInternalLinks,
+    noteExists,
     enableGistEmbeds: true,
     enableEnhancedCodeBlocks: true
   });
@@ -236,7 +239,12 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   );
 
   // Keyboard shortcut handler (extracted)
-  const { handleKeyDown } = useMarkdownEditorShortcuts({ isPreview, setIsPreview });
+  const { handleKeyDown } = useMarkdownEditorShortcuts({ 
+    isPreview, 
+    setIsPreview, 
+    isWYSIWYG, 
+    setIsWYSIWYG 
+  });
 
   return (
     <div 
@@ -247,11 +255,14 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       <div style={{ padding: '8px 0', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div role="tablist" aria-label="Editor mode">
           <button
-            onClick={() => setIsPreview(false)}
+            onClick={() => {
+              setIsPreview(false);
+              setIsWYSIWYG(false);
+            }}
             onKeyDown={handleKeyDown}
             style={{
-              background: !isPreview ? '#007bff' : 'transparent',
-              color: !isPreview ? 'white' : '#007bff',
+              background: !isPreview && !isWYSIWYG ? '#007bff' : 'transparent',
+              color: !isPreview && !isWYSIWYG ? 'white' : '#007bff',
               border: '1px solid #007bff',
               padding: '4px 12px',
               marginRight: '8px',
@@ -259,14 +270,39 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               borderRadius: '4px'
             }}
             role="tab"
-            aria-selected={!isPreview}
+            aria-selected={!isPreview && !isWYSIWYG}
             aria-label="Edit mode"
             title="Edit mode (Ctrl+Enter)"
           >
             Edit
           </button>
           <button
-            onClick={() => setIsPreview(true)}
+            onClick={() => {
+              setIsPreview(false);
+              setIsWYSIWYG(true);
+            }}
+            onKeyDown={handleKeyDown}
+            style={{
+              background: isWYSIWYG ? '#28a745' : 'transparent',
+              color: isWYSIWYG ? 'white' : '#28a745',
+              border: '1px solid #28a745',
+              padding: '4px 12px',
+              marginRight: '8px',
+              cursor: 'pointer',
+              borderRadius: '4px'
+            }}
+            role="tab"
+            aria-selected={isWYSIWYG}
+            aria-label="WYSIWYG mode"
+            title="WYSIWYG mode (Ctrl+Shift+Enter)"
+          >
+            WYSIWYG
+          </button>
+          <button
+            onClick={() => {
+              setIsPreview(true);
+              setIsWYSIWYG(false);
+            }}
             onKeyDown={handleKeyDown}
             style={{
               background: isPreview ? '#007bff' : 'transparent',
@@ -305,7 +341,24 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             <MarkdownPreview 
               markdown={value} 
               onInternalLinkClick={handleInternalLinkClick}
+              noteExists={noteExists}
               debounceMs={300} // Match the editor debounce for consistency
+            />
+          </div>
+        ) : isWYSIWYG ? (
+          <div 
+            style={{ height: '100%' }}
+            role="tabpanel"
+            aria-label="WYSIWYG editor"
+          >
+            <WYSIWYGMarkdownEditor
+              value={value}
+              onChange={debouncedOnChange}
+              placeholder={placeholder}
+              noteId={noteId}
+              autoSave={autoSave}
+              aria-label="WYSIWYG Markdown editor"
+              aria-describedby={ariaDescribedBy}
             />
           </div>
         ) : (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AsyncErrorBoundary } from './index';
+import AsyncErrorBoundary from '../AsyncErrorBoundary';
 
 interface GistData {
   id: string;

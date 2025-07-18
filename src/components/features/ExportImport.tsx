@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { useNoteStore } from '../store/noteStore';
-import { Note } from '../types/domain';
+import { useNoteStore } from '../../store/noteStore';
+import { Note } from '../../types/domain';
 
 interface ExportImportProps {
   onClose: () => void;

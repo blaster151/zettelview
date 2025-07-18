@@ -142,12 +142,13 @@ export const useCalendarData = (): CalendarDataHandlers => {
     dateMode: DateMode
   ): Note[] => {
     const dateKey = getDateKey(date);
+    if (!dateKey) return [];
     
     return notes.filter(note => {
       try {
         const noteDate = dateMode === 'created' ? note.createdAt : note.updatedAt;
         const noteDateKey = getDateKey(new Date(noteDate));
-        return noteDateKey === dateKey;
+        return noteDateKey === dateKey && noteDateKey !== '';
       } catch (error) {
         // Handle invalid dates gracefully
         console.warn('Invalid date for note:', note.id, error);
@@ -160,7 +161,20 @@ export const useCalendarData = (): CalendarDataHandlers => {
    * Get date key in YYYY-MM-DD format
    */
   const getDateKey = useMemo(() => (date: Date): string => {
-    return date.toISOString().split('T')[0];
+    try {
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return '';
+      }
+      // Use local date to avoid timezone issues
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch (error) {
+      console.warn('Invalid date in getDateKey:', date, error);
+      return '';
+    }
   }, []);
 
   /**

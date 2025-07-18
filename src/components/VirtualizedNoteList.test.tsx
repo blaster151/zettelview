@@ -8,11 +8,7 @@ jest.mock('react-window', () => ({
   FixedSizeList: ({ children, itemCount, itemData }: any) => (
     <div data-testid="virtualized-list">
       {Array.from({ length: itemCount }, (_, index) => 
-        React.cloneElement(children, { 
-          index, 
-          style: { height: 80 }, 
-          data: itemData 
-        })
+        children
       )}
     </div>
   )
@@ -39,24 +35,24 @@ const mockNotes = [
     title: 'Test Note 1',
     body: 'This is test note 1',
     tags: ['test', 'example'],
-    createdAt: '2023-01-01T00:00:00Z',
-    updatedAt: '2023-01-01T00:00:00Z'
+    createdAt: new Date('2023-01-01T00:00:00Z'),
+    updatedAt: new Date('2023-01-01T00:00:00Z')
   },
   {
     id: '2',
     title: 'Test Note 2',
     body: 'This is test note 2',
     tags: ['test', 'demo'],
-    createdAt: '2023-01-02T00:00:00Z',
-    updatedAt: '2023-01-02T00:00:00Z'
+    createdAt: new Date('2023-01-02T00:00:00Z'),
+    updatedAt: new Date('2023-01-02T00:00:00Z')
   },
   {
     id: '3',
     title: 'Test Note 3',
     body: 'This is test note 3',
     tags: ['demo'],
-    createdAt: '2023-01-03T00:00:00Z',
-    updatedAt: '2023-01-03T00:00:00Z'
+    createdAt: new Date('2023-01-03T00:00:00Z'),
+    updatedAt: new Date('2023-01-03T00:00:00Z')
   }
 ];
 
@@ -167,8 +163,8 @@ describe('VirtualizedNoteList', () => {
         title: 'Note without tags',
         body: 'This note has no tags',
         tags: [],
-        createdAt: '2023-01-01T00:00:00Z',
-        updatedAt: '2023-01-01T00:00:00Z'
+        createdAt: new Date('2023-01-01T00:00:00Z'),
+        updatedAt: new Date('2023-01-01T00:00:00Z')
       }
     ];
     
@@ -186,8 +182,8 @@ describe('VirtualizedNoteList', () => {
         title: 'Note with special chars: @#$%^&*()',
         body: 'This note has special characters',
         tags: ['special'],
-        createdAt: '2023-01-01T00:00:00Z',
-        updatedAt: '2023-01-01T00:00:00Z'
+        createdAt: new Date('2023-01-01T00:00:00Z'),
+        updatedAt: new Date('2023-01-01T00:00:00Z')
       }
     ];
     

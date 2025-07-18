@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import AISummarizer from './AISummarizer';
+import AISummarizer from './features/AISummarizer';
 import { useNoteStore } from '../store/noteStore';
 
 // Mock the note store

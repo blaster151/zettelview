@@ -391,8 +391,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             }}
             title="Plugin Manager (Ctrl+Shift+P)"
           >
-            <Icon name="settings" className="w-4 h-4" />
-            Plugins
+            ⚙️ Plugins
           </button>
         )}
 
@@ -421,8 +420,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             }}
             title="Plugin Store"
           >
-            <Icon name="package" className="w-4 h-4" />
-            Store
+            📦 Store
           </button>
         )}
       </div>

@@ -191,4 +191,58 @@ describe('useInternalLinks', () => {
       expect(links).toEqual(['Note with @#$%^&*()', 'Another-Note']);
     });
   });
+
+  describe('noteExists', () => {
+    it('should return true for existing notes (case-insensitive)', () => {
+      // Mock notes in the store
+      const mockNotes = [
+        { id: '1', title: 'Test Note', body: '', tags: [], createdAt: new Date(), updatedAt: new Date() },
+        { id: '2', title: 'Another Note', body: '', tags: [], createdAt: new Date(), updatedAt: new Date() }
+      ];
+      
+      (useNoteStore as jest.Mock).mockReturnValue({
+        findOrCreateNote: mockFindOrCreateNote,
+        selectNote: mockSelectNote,
+        notes: mockNotes
+      });
+
+      const { result } = renderHook(() => useInternalLinks());
+      
+      expect(result.current.noteExists('Test Note')).toBe(true);
+      expect(result.current.noteExists('test note')).toBe(true);
+      expect(result.current.noteExists('ANOTHER NOTE')).toBe(true);
+    });
+
+    it('should return false for non-existing notes', () => {
+      // Mock empty notes array
+      (useNoteStore as jest.Mock).mockReturnValue({
+        findOrCreateNote: mockFindOrCreateNote,
+        selectNote: mockSelectNote,
+        notes: []
+      });
+
+      const { result } = renderHook(() => useInternalLinks());
+      
+      expect(result.current.noteExists('Non-existent Note')).toBe(false);
+      expect(result.current.noteExists('')).toBe(false);
+    });
+
+    it('should handle edge cases', () => {
+      // Mock notes in the store
+      const mockNotes = [
+        { id: '1', title: 'Test Note', body: '', tags: [], createdAt: new Date(), updatedAt: new Date() }
+      ];
+      
+      (useNoteStore as jest.Mock).mockReturnValue({
+        findOrCreateNote: mockFindOrCreateNote,
+        selectNote: mockSelectNote,
+        notes: mockNotes
+      });
+
+      const { result } = renderHook(() => useInternalLinks());
+      
+      expect(result.current.noteExists('   Test Note   ')).toBe(false); // Whitespace matters
+      expect(result.current.noteExists('TestNote')).toBe(false); // Different format
+    });
+  });
 }); 

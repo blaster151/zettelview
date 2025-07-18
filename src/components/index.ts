@@ -41,4 +41,11 @@ export * from './templates';
 export * from './collaboration'; 
 
 // Plugin components
-export * from './plugins'; 
+export * from './plugins';
+
+// Error handling components
+export { default as ErrorBoundary } from './ErrorBoundary';
+export { default as AsyncErrorBoundary } from './AsyncErrorBoundary';
+
+// Keyboard shortcuts component
+export { default as KeyboardShortcuts } from './KeyboardShortcuts'; 

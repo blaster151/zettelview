@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNoteStore } from '../store/noteStore';
-import { AsyncErrorBoundary } from './index';
+import { useNoteStore } from '../../store/noteStore';
+import AsyncErrorBoundary from '../AsyncErrorBoundary';
 
 interface AISummaryPanelProps {
   noteId: string;

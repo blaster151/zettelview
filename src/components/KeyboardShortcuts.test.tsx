@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import KeyboardShortcuts from './KeyboardShortcuts';
+import KeyboardShortcuts from './features/KeyboardShortcuts';
 import { useNoteStore } from '../store/noteStore';
 
 // Mock the note store

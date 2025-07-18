@@ -111,6 +111,20 @@ const WelcomeOnboarding: React.FC<WelcomeOnboardingProps> = ({ onComplete, onSki
     onSkip();
   };
 
+  // Handle keyboard events
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleSkip();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   if (!isVisible) {
     return null;
   }

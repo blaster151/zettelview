@@ -4,11 +4,9 @@ import { devtools } from 'zustand/middleware';
 // State types
 export type ViewMode = 'editor' | 'graph' | 'calendar';
 
-interface UIState {
-  // View mode
+interface UIStore {
+  // State
   viewMode: ViewMode;
-  
-  // Modal states
   showAISummaryPanel: boolean;
   showExportImport: boolean;
   showOnboarding: boolean;
@@ -19,66 +17,52 @@ interface UIState {
   showCollaborationPanel: boolean;
   showPluginManager: boolean;
   showPluginStore: boolean;
-  
-  // Selected note ID (synced with noteStore)
   selectedNoteId: string | null;
-}
-
-interface UIActions {
-  // View mode actions
+  
+  // Actions
   setViewMode: (viewMode: ViewMode) => void;
   toggleViewMode: () => void;
-  
-  // Modal actions
-  showAISummaryPanel: () => void;
-  hideAISummaryPanel: () => void;
-  showExportImport: () => void;
-  hideExportImport: () => void;
-  showOnboarding: () => void;
-  hideOnboarding: () => void;
-  showHelp: () => void;
-  hideHelp: () => void;
-  showStats: () => void;
-  hideStats: () => void;
-  showTemplateSelector: () => void;
-  hideTemplateSelector: () => void;
-  showSaveAsTemplate: () => void;
-  hideSaveAsTemplate: () => void;
-  showCollaborationPanel: () => void;
-  hideCollaborationPanel: () => void;
-  showPluginManager: () => void;
-  hidePluginManager: () => void;
-  showPluginStore: () => void;
-  hidePluginStore: () => void;
-  
-  // Utility actions
+  openAISummaryPanel: () => void;
+  closeAISummaryPanel: () => void;
+  openExportImport: () => void;
+  closeExportImport: () => void;
+  openOnboarding: () => void;
+  closeOnboarding: () => void;
+  openHelp: () => void;
+  closeHelp: () => void;
+  openStats: () => void;
+  closeStats: () => void;
+  openTemplateSelector: () => void;
+  closeTemplateSelector: () => void;
+  openSaveAsTemplate: () => void;
+  closeSaveAsTemplate: () => void;
+  openCollaborationPanel: () => void;
+  closeCollaborationPanel: () => void;
+  openPluginManager: () => void;
+  closePluginManager: () => void;
+  openPluginStore: () => void;
+  closePluginStore: () => void;
   setSelectedNoteId: (noteId: string | null) => void;
   resetModals: () => void;
   closeAllModals: () => void;
 }
 
-type UIStore = UIState & UIActions;
-
-// Initial state
-const initialState: UIState = {
-  viewMode: 'editor',
-  showAISummaryPanel: false,
-  showExportImport: false,
-  showOnboarding: false,
-  showHelp: false,
-  showStats: false,
-  showTemplateSelector: false,
-  showSaveAsTemplate: false,
-  showCollaborationPanel: false,
-  showPluginManager: false,
-  showPluginStore: false,
-  selectedNoteId: null,
-};
-
 export const useUIStore = create<UIStore>()(
   devtools(
     (set, get) => ({
-      ...initialState,
+      // Initial state
+      viewMode: 'editor',
+      showAISummaryPanel: false,
+      showExportImport: false,
+      showOnboarding: false,
+      showHelp: false,
+      showStats: false,
+      showTemplateSelector: false,
+      showSaveAsTemplate: false,
+      showCollaborationPanel: false,
+      showPluginManager: false,
+      showPluginStore: false,
+      selectedNoteId: null,
       
       // View mode actions
       setViewMode: (viewMode: ViewMode) => set({ viewMode }),
@@ -91,7 +75,7 @@ export const useUIStore = create<UIStore>()(
       }),
       
       // Modal actions
-      showAISummaryPanel: () => set((state) => ({
+      openAISummaryPanel: () => set({
         showAISummaryPanel: true,
         showExportImport: false, // Close other modals
         showTemplateSelector: false,
@@ -99,11 +83,11 @@ export const useUIStore = create<UIStore>()(
         showCollaborationPanel: false,
         showPluginManager: false,
         showPluginStore: false,
-      })),
+      }),
       
-      hideAISummaryPanel: () => set({ showAISummaryPanel: false }),
+      closeAISummaryPanel: () => set({ showAISummaryPanel: false }),
       
-      showExportImport: () => set((state) => ({
+      openExportImport: () => set({
         showExportImport: true,
         showAISummaryPanel: false, // Close other modals
         showTemplateSelector: false,
@@ -111,20 +95,20 @@ export const useUIStore = create<UIStore>()(
         showCollaborationPanel: false,
         showPluginManager: false,
         showPluginStore: false,
-      })),
+      }),
       
-      hideExportImport: () => set({ showExportImport: false }),
+      closeExportImport: () => set({ showExportImport: false }),
       
-      showOnboarding: () => set({ showOnboarding: true }),
-      hideOnboarding: () => set({ showOnboarding: false }),
+      openOnboarding: () => set({ showOnboarding: true }),
+      closeOnboarding: () => set({ showOnboarding: false }),
       
-      showHelp: () => set({ showHelp: true }),
-      hideHelp: () => set({ showHelp: false }),
+      openHelp: () => set({ showHelp: true }),
+      closeHelp: () => set({ showHelp: false }),
       
-      showStats: () => set({ showStats: true }),
-      hideStats: () => set({ showStats: false }),
+      openStats: () => set({ showStats: true }),
+      closeStats: () => set({ showStats: false }),
       
-      showTemplateSelector: () => set((state) => ({
+      openTemplateSelector: () => set({
         showTemplateSelector: true,
         showAISummaryPanel: false, // Close other modals
         showExportImport: false,
@@ -132,11 +116,11 @@ export const useUIStore = create<UIStore>()(
         showCollaborationPanel: false,
         showPluginManager: false,
         showPluginStore: false,
-      })),
+      }),
       
-      hideTemplateSelector: () => set({ showTemplateSelector: false }),
+      closeTemplateSelector: () => set({ showTemplateSelector: false }),
       
-      showSaveAsTemplate: () => set((state) => ({
+      openSaveAsTemplate: () => set({
         showSaveAsTemplate: true,
         showAISummaryPanel: false, // Close other modals
         showExportImport: false,
@@ -144,11 +128,11 @@ export const useUIStore = create<UIStore>()(
         showCollaborationPanel: false,
         showPluginManager: false,
         showPluginStore: false,
-      })),
+      }),
       
-      hideSaveAsTemplate: () => set({ showSaveAsTemplate: false }),
+      closeSaveAsTemplate: () => set({ showSaveAsTemplate: false }),
       
-      showCollaborationPanel: () => set((state) => ({
+      openCollaborationPanel: () => set({
         showCollaborationPanel: true,
         showAISummaryPanel: false, // Close other modals
         showExportImport: false,
@@ -156,11 +140,11 @@ export const useUIStore = create<UIStore>()(
         showSaveAsTemplate: false,
         showPluginManager: false,
         showPluginStore: false,
-      })),
+      }),
       
-      hideCollaborationPanel: () => set({ showCollaborationPanel: false }),
+      closeCollaborationPanel: () => set({ showCollaborationPanel: false }),
       
-      showPluginManager: () => set((state) => ({
+      openPluginManager: () => set({
         showPluginManager: true,
         showAISummaryPanel: false, // Close other modals
         showExportImport: false,
@@ -168,11 +152,11 @@ export const useUIStore = create<UIStore>()(
         showSaveAsTemplate: false,
         showCollaborationPanel: false,
         showPluginStore: false,
-      })),
+      }),
       
-      hidePluginManager: () => set({ showPluginManager: false }),
+      closePluginManager: () => set({ showPluginManager: false }),
       
-      showPluginStore: () => set((state) => ({
+      openPluginStore: () => set({
         showPluginStore: true,
         showAISummaryPanel: false, // Close other modals
         showExportImport: false,
@@ -180,9 +164,9 @@ export const useUIStore = create<UIStore>()(
         showSaveAsTemplate: false,
         showCollaborationPanel: false,
         showPluginManager: false,
-      })),
+      }),
       
-      hidePluginStore: () => set({ showPluginStore: false }),
+      closePluginStore: () => set({ showPluginStore: false }),
       
       // Utility actions
       setSelectedNoteId: (noteId: string | null) => set({ selectedNoteId: noteId }),

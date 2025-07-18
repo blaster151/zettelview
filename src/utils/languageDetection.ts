@@ -155,7 +155,7 @@ export function detectLanguage(code: string): string {
     const words = normalizedCode.toLowerCase().split(/\s+/);
     for (const word of words) {
       if (langPattern.keywords.some(keyword => 
-        word.includes(keyword.toLowerCase())
+        word === keyword.toLowerCase()
       )) {
         score += 1; // Keyword matches are weaker indicators
       }
@@ -197,11 +197,12 @@ export function detectLanguage(code: string): string {
     }
   }
 
-  // Return the language with the highest score
+  // Return the language with the highest score, but require a minimum score
   const detectedLanguage = Object.entries(scores)
     .sort(([,a], [,b]) => b - a)[0];
 
-  return detectedLanguage ? detectedLanguage[0] : 'text';
+  // Require a minimum score of 3 to avoid false positives
+  return detectedLanguage && detectedLanguage[1] >= 3 ? detectedLanguage[0] : 'text';
 }
 
 /**

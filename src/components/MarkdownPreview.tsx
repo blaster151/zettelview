@@ -5,7 +5,7 @@ import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
 import EnhancedCodeBlock from './EnhancedCodeBlock';
-import GistEmbed from './GistEmbed';
+import GistEmbed from './features/GistEmbed';
 import { useDebouncedPreview } from '../hooks/useDebouncedPreview';
 
 // Error boundary for markdown preview
@@ -101,12 +101,14 @@ interface MarkdownPreviewProps {
   markdown: string;
   onInternalLinkClick?: (noteTitle: string) => void;
   debounceMs?: number;
+  noteExists?: (noteTitle: string) => boolean;
 }
 
 const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ 
   markdown, 
   onInternalLinkClick,
-  debounceMs = 500
+  debounceMs = 500,
+  noteExists
 }) => {
   // Use the debounced preview hook
   const { debouncedValue, isUpdating } = useDebouncedPreview(markdown, {
@@ -115,7 +117,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({
     shortContentThreshold: 200 // Render short content immediately
   });
 
-  // Custom component for internal links
+  // Custom component for internal links with red link support
   const InternalLink: React.FC<{ children: string; noteTitle: string }> = React.memo(({ children, noteTitle }) => {
     const handleClick = useCallback(() => {
       if (onInternalLinkClick) onInternalLinkClick(noteTitle);
@@ -128,6 +130,15 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({
       }
     }, [handleClick]);
 
+    // Check if note exists to determine styling
+    const exists = noteExists ? noteExists(noteTitle) : true;
+    const isRedLink = !exists;
+    const linkColor = isRedLink ? '#dc3545' : '#007bff';
+    const linkStyle = isRedLink ? 'none' : 'underline';
+    const backgroundColor = isRedLink ? '#fff5f5' : 'transparent';
+    const hoverBackgroundColor = isRedLink ? '#ffe6e6' : '#f8f9fa';
+    const tooltipText = isRedLink ? `Click to create "${noteTitle}"` : `Link to note: ${noteTitle}`;
+
     return (
       <button
         onClick={handleClick}
@@ -135,21 +146,23 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({
         style={{
           background: 'none',
           border: 'none',
-          color: '#007bff',
-          textDecoration: 'underline',
+          color: linkColor,
+          textDecoration: linkStyle,
           cursor: 'pointer',
           padding: '2px 4px',
           borderRadius: '3px',
           fontFamily: 'inherit',
-          fontSize: 'inherit'
+          fontSize: 'inherit',
+          backgroundColor: backgroundColor
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#f8f9fa';
+          e.currentTarget.style.backgroundColor = hoverBackgroundColor;
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.backgroundColor = backgroundColor;
         }}
-        aria-label={`Link to note: ${noteTitle}`}
+        aria-label={tooltipText}
+        title={tooltipText}
       >
         {children}
       </button>

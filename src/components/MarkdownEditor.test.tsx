@@ -174,7 +174,7 @@ jest.mock('./EnhancedCodeBlock', () => {
   };
 });
 
-jest.mock('./GistEmbed', () => {
+jest.mock('./features/GistEmbed', () => {
   return function MockGistEmbed({ url }: { url: string }) {
     return <div data-testid="gist-embed" data-url={url}>Gist Embed: {url}</div>;
   };

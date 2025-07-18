@@ -66,11 +66,11 @@ describe('EnhancedSearch', () => {
   });
 
   test('should call onSearch when input changes', async () => {
-    const user = userEvent.setup();
+    
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.type(input, 'javascript');
+    await userEvent.type(input, 'javascript');
     
     expect(defaultProps.onSearch).toHaveBeenCalledWith('javascript');
   });
@@ -82,25 +82,25 @@ describe('EnhancedSearch', () => {
   });
 
   test('should show clear button when query exists', async () => {
-    const user = userEvent.setup();
+    
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.type(input, 'test');
+    await userEvent.type(input, 'test');
     
     const clearButton = screen.getByTitle('Clear search');
     expect(clearButton).toBeInTheDocument();
   });
 
   test('should clear search when clear button is clicked', async () => {
-    const user = userEvent.setup();
+    
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.type(input, 'test');
+    await userEvent.type(input, 'test');
     
     const clearButton = screen.getByTitle('Clear search');
-    await user.click(clearButton);
+    await userEvent.click(clearButton);
     
     expect(input).toHaveValue('');
     expect(defaultProps.onSearch).toHaveBeenCalledWith('');
@@ -110,11 +110,11 @@ describe('EnhancedSearch', () => {
     const recentQueries = ['javascript', 'python', 'react'];
     mockGetRecentQueries.mockReturnValue(recentQueries);
     
-    const user = userEvent.setup();
+    
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.click(input);
+    await userEvent.click(input);
     
     expect(screen.getByText('Recent Searches')).toBeInTheDocument();
     expect(screen.getByText('🔍 javascript')).toBeInTheDocument();
@@ -126,11 +126,10 @@ describe('EnhancedSearch', () => {
     const suggestions = ['JavaScript', 'JavaScript Guide'];
     mockGetSearchSuggestions.mockReturnValue(suggestions);
     
-    const user = userEvent.setup();
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.type(input, 'jav');
+    await userEvent.type(input, 'jav');
     
     expect(screen.getByText('Suggestions')).toBeInTheDocument();
     expect(screen.getByText('💡 JavaScript')).toBeInTheDocument();
@@ -150,11 +149,10 @@ describe('EnhancedSearch', () => {
     ];
     mockFuzzySearch.mockReturnValue(searchResults);
     
-    const user = userEvent.setup();
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.type(input, 'javascript');
+    await userEvent.type(input, 'javascript');
     
     expect(screen.getByText('Results (1)')).toBeInTheDocument();
     expect(screen.getByText('📝 JavaScript Guide')).toBeInTheDocument();
@@ -164,14 +162,13 @@ describe('EnhancedSearch', () => {
     const suggestions = ['JavaScript'];
     mockGetSearchSuggestions.mockReturnValue(suggestions);
     
-    const user = userEvent.setup();
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.type(input, 'jav');
+    await userEvent.type(input, 'jav');
     
     const suggestion = screen.getByText('💡 JavaScript');
-    await user.click(suggestion);
+    await userEvent.click(suggestion);
     
     expect(input).toHaveValue('JavaScript');
     expect(defaultProps.onSearch).toHaveBeenCalledWith('JavaScript');
@@ -181,14 +178,14 @@ describe('EnhancedSearch', () => {
     const recentQueries = ['javascript'];
     mockGetRecentQueries.mockReturnValue(recentQueries);
     
-    const user = userEvent.setup();
+    
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.click(input);
+    await userEvent.click(input);
     
     const historyItem = screen.getByText('🔍 javascript');
-    await user.click(historyItem);
+    await userEvent.click(historyItem);
     
     expect(input).toHaveValue('javascript');
     expect(defaultProps.onSearch).toHaveBeenCalledWith('javascript');
@@ -207,14 +204,14 @@ describe('EnhancedSearch', () => {
     ];
     mockFuzzySearch.mockReturnValue(searchResults);
     
-    const user = userEvent.setup();
+    
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.type(input, 'javascript');
+    await userEvent.type(input, 'javascript');
     
     const result = screen.getByText('📝 JavaScript Guide');
-    await user.click(result);
+    await userEvent.click(result);
     
     expect(defaultProps.onSelectNote).toHaveBeenCalledWith('note1');
   });
@@ -232,41 +229,41 @@ describe('EnhancedSearch', () => {
     ];
     mockFuzzySearch.mockReturnValue(searchResults);
     
-    const user = userEvent.setup();
+    
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.type(input, 'javascript');
+    await userEvent.type(input, 'javascript');
     
     // Press arrow down to select first result
-    await user.keyboard('{ArrowDown}');
+    await userEvent.keyboard('{ArrowDown}');
     
     // Press enter to select
-    await user.keyboard('{Enter}');
+    await userEvent.keyboard('{Enter}');
     
     expect(defaultProps.onSelectNote).toHaveBeenCalledWith('note1');
   });
 
   test('should handle escape key', async () => {
-    const user = userEvent.setup();
+    
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.click(input);
+    await userEvent.click(input);
     
     // Press escape to close dropdown
-    await user.keyboard('{Escape}');
+    await userEvent.keyboard('{Escape}');
     
     // Dropdown should be hidden
     expect(screen.queryByText('Recent Searches')).not.toBeInTheDocument();
   });
 
   test('should show no results message', async () => {
-    const user = userEvent.setup();
+    
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.type(input, 'nonexistent');
+    await userEvent.type(input, 'nonexistent');
     
     expect(screen.getByText('No results found for "nonexistent"')).toBeInTheDocument();
   });
@@ -275,24 +272,24 @@ describe('EnhancedSearch', () => {
     const recentQueries = ['javascript'];
     mockGetRecentQueries.mockReturnValue(recentQueries);
     
-    const user = userEvent.setup();
+    
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.click(input);
+    await userEvent.click(input);
     
     const clearButton = screen.getByText('Clear');
-    await user.click(clearButton);
+    await userEvent.click(clearButton);
     
     expect(require('../utils/searchUtils').SearchHistory.clearHistory).toHaveBeenCalled();
   });
 
   test('should close dropdown when clicking outside', async () => {
-    const user = userEvent.setup();
+    
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.click(input);
+    await userEvent.click(input);
     
     // Click outside the component
     fireEvent.mouseDown(document.body);
@@ -315,11 +312,11 @@ describe('EnhancedSearch', () => {
     ];
     mockFuzzySearch.mockReturnValue(searchResults);
     
-    const user = userEvent.setup();
+    
     render(<EnhancedSearch {...defaultProps} />);
     
     const input = screen.getByPlaceholderText('Search notes...');
-    await user.type(input, 'javascript');
+    await userEvent.type(input, 'javascript');
     
     expect(screen.getByText('🏷️ javascript, programming')).toBeInTheDocument();
   });

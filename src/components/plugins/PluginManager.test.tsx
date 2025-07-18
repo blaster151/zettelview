@@ -29,12 +29,7 @@ jest.mock('../ui/Modal', () => ({
 jest.mock('../ui/Tabs', () => ({
   Tabs: ({ children, value, onChange }: any) => (
     <div data-testid="tabs">
-      {React.Children.map(children, child => 
-        React.cloneElement(child, { 
-          isActive: child.props.value === value,
-          onClick: () => onChange(child.props.value)
-        })
-      )}
+      {children}
     </div>
   ),
   Tab: ({ children, isActive, onClick, value }: any) => (

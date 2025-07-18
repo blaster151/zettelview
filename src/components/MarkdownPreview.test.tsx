@@ -271,4 +271,109 @@ describe('MarkdownPreview', () => {
       })
     );
   });
+
+  test('handles red links for non-existent notes', () => {
+    const markdownWithRedLink = 'This links to [[Non-existent Note]]';
+    const noteExists = jest.fn((title: string) => title === 'Existing Note');
+    
+    mockUseDebouncedPreview.mockReturnValue({
+      debouncedValue: markdownWithRedLink,
+      isUpdating: false
+    });
+
+    render(<MarkdownPreview {...defaultProps} noteExists={noteExists} />);
+    
+    const linkButton = screen.getByText('[[Non-existent Note]]');
+    expect(linkButton).toBeInTheDocument();
+    
+    // Check that noteExists was called
+    expect(noteExists).toHaveBeenCalledWith('Non-existent Note');
+    
+    // Check red link styling (red color, no underline)
+    expect(linkButton).toHaveStyle({
+      color: '#dc3545',
+      textDecoration: 'none'
+    });
+    
+    // Check tooltip
+    expect(linkButton).toHaveAttribute('title', 'Click to create "Non-existent Note"');
+  });
+
+  test('handles regular links for existing notes', () => {
+    const markdownWithRegularLink = 'This links to [[Existing Note]]';
+    const noteExists = jest.fn((title: string) => title === 'Existing Note');
+    
+    mockUseDebouncedPreview.mockReturnValue({
+      debouncedValue: markdownWithRegularLink,
+      isUpdating: false
+    });
+
+    render(<MarkdownPreview {...defaultProps} noteExists={noteExists} />);
+    
+    const linkButton = screen.getByText('[[Existing Note]]');
+    expect(linkButton).toBeInTheDocument();
+    
+    // Check that noteExists was called
+    expect(noteExists).toHaveBeenCalledWith('Existing Note');
+    
+    // Check regular link styling (blue color, underline)
+    expect(linkButton).toHaveStyle({
+      color: '#007bff',
+      textDecoration: 'underline'
+    });
+    
+    // Check tooltip
+    expect(linkButton).toHaveAttribute('title', 'Link to note: Existing Note');
+  });
+
+  test('handles mixed existing and non-existing links', () => {
+    const markdownWithMixedLinks = '[[Existing Note]] and [[Non-existent Note]]';
+    const noteExists = jest.fn((title: string) => title === 'Existing Note');
+    
+    mockUseDebouncedPreview.mockReturnValue({
+      debouncedValue: markdownWithMixedLinks,
+      isUpdating: false
+    });
+
+    render(<MarkdownPreview {...defaultProps} noteExists={noteExists} />);
+    
+    const existingLink = screen.getByText('[[Existing Note]]');
+    const nonExistentLink = screen.getByText('[[Non-existent Note]]');
+    
+    expect(existingLink).toHaveStyle({
+      color: '#007bff',
+      textDecoration: 'underline'
+    });
+    
+    expect(nonExistentLink).toHaveStyle({
+      color: '#dc3545',
+      textDecoration: 'none'
+    });
+  });
+
+  test('handles case-insensitive note existence check', () => {
+    const markdownWithCaseVariations = '[[Test Note]] and [[test note]]';
+    const noteExists = jest.fn((title: string) => title.toLowerCase() === 'test note');
+    
+    mockUseDebouncedPreview.mockReturnValue({
+      debouncedValue: markdownWithCaseVariations,
+      isUpdating: false
+    });
+
+    render(<MarkdownPreview {...defaultProps} noteExists={noteExists} />);
+    
+    const link1 = screen.getByText('[[Test Note]]');
+    const link2 = screen.getByText('[[test note]]');
+    
+    // Both should be treated as existing notes
+    expect(link1).toHaveStyle({
+      color: '#007bff',
+      textDecoration: 'underline'
+    });
+    
+    expect(link2).toHaveStyle({
+      color: '#007bff',
+      textDecoration: 'underline'
+    });
+  });
 }); 

@@ -9,11 +9,7 @@ jest.mock('react-window', () => ({
   FixedSizeList: ({ children, itemCount, itemData }: any) => (
     <div data-testid="virtualized-search-results">
       {Array.from({ length: itemCount }, (_, index) => 
-        React.cloneElement(children, { 
-          index, 
-          style: { height: 100 }, 
-          data: itemData 
-        })
+        children
       )}
     </div>
   )

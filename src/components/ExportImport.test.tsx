@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import ExportImport from './ExportImport';
+import ExportImport from './features/ExportImport';
 import { useNoteStore } from '../store/noteStore';
 
 // Mock the note store
