@@ -5,8 +5,11 @@ import VirtualizedSearchResults from './VirtualizedSearchResults';
 import { useSearchWithFeedback } from '../hooks/useSearchWithFeedback';
 import SearchLoadingSpinner from './SearchLoadingSpinner';
 import AdvancedSearchHelp from './AdvancedSearchHelp';
+import SearchHistoryButton from './features/SearchHistoryButton';
+import SearchHistoryPanel from './features/SearchHistoryPanel';
 import { SearchResult } from '../services/searchService';
 import { advancedSearchService } from '../services/advancedSearchService';
+import SearchAnalytics from './features/SearchAnalytics';
 
 interface EnhancedSearchProps {
   notes: Array<{ id: string; title: string; body: string; tags: string[] }>;
@@ -28,6 +31,7 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
   const { colors } = useThemeStore();
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showAdvancedHelp, setShowAdvancedHelp] = useState(false);
   const [isAdvancedQuery, setIsAdvancedQuery] = useState(false);
@@ -188,6 +192,14 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
     setShowHistory(false);
   };
 
+  // Handle search from history
+  const handleSearchFromHistory = useCallback((historyQuery: string) => {
+    setQuery(historyQuery);
+    onSearch(historyQuery);
+    setShowHistory(false);
+    inputRef.current?.focus();
+  }, [setQuery, onSearch]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -206,307 +218,428 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
   }, []);
 
   return (
-    <div 
-      ref={containerRef}
-      className={`enhanced-search ${className}`}
-      style={{ position: 'relative' }}
-      role="search"
-      aria-label="Enhanced search for notes"
-    >
-      {/* Main search input */}
-      <div style={{ position: 'relative' }}>
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
-          placeholder={placeholder}
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            border: `1px solid ${queryError ? '#dc3545' : colors.border}`,
-            borderRadius: '4px',
-            fontSize: '14px',
-            outline: 'none',
-            transition: 'border-color 0.2s'
-          }}
-          aria-label="Search notes"
-          aria-describedby={queryError ? 'search-error' : undefined}
-          aria-expanded={showSuggestions || showHistory || showSavedQueries}
-          aria-haspopup="listbox"
-          aria-autocomplete="list"
-          role="combobox"
-          aria-controls="search-results"
-        />
-        
-        {/* Search status indicator */}
-        {(isLoading || isSearching) && (
-          <div 
+    <>
+      <div 
+        ref={containerRef}
+        className={`enhanced-search ${className}`}
+        style={{ position: 'relative' }}
+        role="search"
+        aria-label="Enhanced search for notes"
+      >
+        {/* Main search input */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          border: `1px solid ${colors.border}`,
+          borderRadius: '6px',
+          background: colors.background,
+          padding: '4px'
+        }}>
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+            placeholder={placeholder}
             style={{
-              position: 'absolute',
-              right: '8px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              fontSize: '12px',
-              color: colors.textSecondary
+              flex: 1,
+              border: 'none',
+              background: 'transparent',
+              color: colors.text,
+              fontSize: '14px',
+              padding: '8px 12px',
+              outline: 'none'
             }}
-            aria-live="polite"
-            aria-label={isLoading ? 'Searching...' : 'Processing search...'}
+            aria-label="Search notes input"
+            aria-autocomplete="list"
+            aria-controls="search-suggestions-list"
+            aria-expanded={showSuggestions}
+            aria-describedby={queryError ? 'search-error' : undefined}
+            role="combobox"
+          />
+
+          {/* Search history button */}
+          <SearchHistoryButton
+            onSearch={handleSearchFromHistory}
+            size="small"
+            showCount={true}
+            aria-label="Open search history dropdown"
+          />
+
+          {/* Advanced search indicator */}
+          {isAdvancedQuery && (
+            <div style={{
+              padding: '4px 8px',
+              background: colors.info,
+              color: 'white',
+              borderRadius: '4px',
+              fontSize: '11px',
+              fontWeight: 'bold'
+            }}
+            aria-label="Advanced search mode enabled"
+            >
+              ADV
+            </div>
+          )}
+
+          {/* Loading spinner */}
+          {isLoading && <SearchLoadingSpinner size="small" aria-label="Searching..." />}
+
+          {/* Clear button */}
+          {query && (
+            <button
+              onClick={clearSearch}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: colors.textSecondary,
+                cursor: 'pointer',
+                padding: '4px',
+                borderRadius: '4px'
+              }}
+              aria-label="Clear search input"
+            >
+              ✕
+            </button>
+          )}
+
+          {/* Search button */}
+          <button
+            onClick={() => onSearch(query)}
+            style={{
+              background: colors.primary,
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '8px 16px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold'
+            }}
+            aria-label="Perform search"
           >
-            {isLoading ? '⏳' : '🔍'}
-          </div>
-        )}
+            Search
+          </button>
+        </div>
+
+        {/* Compact Search Analytics */}
+        <div style={{ margin: '12px 0' }}>
+          <SearchAnalytics style={{ padding: '8px', fontSize: '12px' }} aria-label="Search analytics summary" />
+        </div>
 
         {/* Error message */}
         {queryError && (
-          <div 
-            id="search-error"
-            style={{
-              color: '#dc3545',
-              fontSize: '12px',
-              marginTop: '4px'
-            }}
-            role="alert"
-            aria-live="assertive"
+          <div id="search-error" style={{
+            color: colors.error,
+            fontSize: '12px',
+            marginTop: '4px',
+            padding: '4px 8px',
+            background: colors.surface,
+            borderRadius: '4px'
+          }}
+          role="alert"
+          aria-live="assertive"
           >
-            {queryError}
+            ⚠️ {queryError}
           </div>
         )}
-      </div>
 
-      {/* Search controls */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '8px', 
-        marginTop: '8px',
-        flexWrap: 'wrap'
-      }}>
-        <button
-          onClick={() => setShowSavedQueries(!showSavedQueries)}
-          style={{
-            padding: '4px 8px',
-            fontSize: '12px',
-            border: `1px solid ${colors.border}`,
-            borderRadius: '4px',
-            background: 'transparent',
-            cursor: 'pointer'
-          }}
-          aria-label={`${showSavedQueries ? 'Hide' : 'Show'} saved searches`}
-          aria-expanded={showSavedQueries}
-        >
-          💾 Saved
-        </button>
-        
-        <button
-          onClick={handleSaveQuery}
-          disabled={!query.trim()}
-          style={{
-            padding: '4px 8px',
-            fontSize: '12px',
-            border: `1px solid ${colors.border}`,
-            borderRadius: '4px',
-            background: 'transparent',
-            cursor: query.trim() ? 'pointer' : 'not-allowed',
-            opacity: query.trim() ? 1 : 0.5
-          }}
-          aria-label="Save current search"
-        >
-          💾 Save
-        </button>
-
-        {enableAdvancedSearch && (
-          <button
-            onClick={() => setShowAdvancedHelp(!showAdvancedHelp)}
+        {/* Dropdown */}
+        {(showSuggestions || showHistory || showSavedQueries) && (
+          <div
+            id="search-suggestions-list"
+            role="listbox"
+            aria-label="Search suggestions and history"
             style={{
-              padding: '4px 8px',
-              fontSize: '12px',
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              background: colors.background,
               border: `1px solid ${colors.border}`,
-              borderRadius: '4px',
-              background: 'transparent',
-              cursor: 'pointer'
+              borderRadius: '6px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              marginTop: '4px',
+              maxHeight: '400px',
+              overflow: 'auto',
+              zIndex: 1000
             }}
-            aria-label={`${showAdvancedHelp ? 'Hide' : 'Show'} advanced search help`}
-            aria-expanded={showAdvancedHelp}
           >
-            ❓ Help
-          </button>
-        )}
-      </div>
+            {/* Search suggestions */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div style={{ padding: '8px 0' }}>
+                <div style={{
+                  padding: '8px 16px',
+                  fontSize: '12px',
+                  color: colors.textSecondary,
+                  fontWeight: 'bold'
+                }}>
+                  Suggestions
+                </div>
+                {suggestions.map((suggestion, index) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => {
+                      setQuery(suggestion);
+                      onSearch(suggestion);
+                      setShowSuggestions(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      color: colors.text,
+                      fontSize: '13px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = colors.surfaceHover;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    🔍 {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
 
-      {/* Advanced search help */}
-      {showAdvancedHelp && (
-        <div 
-          style={{
-            marginTop: '8px',
-            padding: '12px',
-            background: '#f8f9fa',
-            border: `1px solid ${colors.border}`,
-            borderRadius: '4px',
-            fontSize: '12px'
-          }}
-          role="region"
-          aria-label="Advanced search help"
-        >
-          <h4 style={{ margin: '0 0 8px 0' }}>Advanced Search Syntax:</h4>
-          <ul style={{ margin: 0, paddingLeft: '16px' }}>
-            <li><code>tag:javascript</code> - Search by tag</li>
-            <li><code>title:meeting</code> - Search in titles only</li>
-            <li><code>body:important</code> - Search in content only</li>
-            <li><code>javascript AND react</code> - Both terms must match</li>
-            <li><code>javascript OR typescript</code> - Either term can match</li>
-            <li><code>NOT draft</code> - Exclude notes with "draft"</li>
-          </ul>
-        </div>
-      )}
-
-      {/* Saved queries panel */}
-      {showSavedQueries && (
-        <div 
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            background: 'white',
-            border: `1px solid ${colors.border}`,
-            borderRadius: '4px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            zIndex: 1000,
-            maxHeight: '200px',
-            overflow: 'auto'
-          }}
-          role="listbox"
-          aria-label="Saved searches"
-        >
-          {savedQueries.length === 0 ? (
-            <div style={{ padding: '12px', color: colors.textSecondary }}>
-              No saved searches
-            </div>
-          ) : (
-            savedQueries.map((savedQuery) => (
-              <div
-                key={savedQuery.id}
-                onClick={() => handleSavedQueryClick(savedQuery)}
-                style={{
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  borderBottom: `1px solid ${colors.border}`,
+            {/* Search history */}
+            {showHistory && recentQueries.length > 0 && (
+              <div style={{ padding: '8px 0' }}>
+                <div style={{
+                  padding: '8px 16px',
+                  fontSize: '12px',
+                  color: colors.textSecondary,
+                  fontWeight: 'bold',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center'
-                }}
-                role="option"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleSavedQueryClick(savedQuery);
-                  }
-                }}
-              >
-                <span style={{ fontWeight: 'bold' }}>{savedQuery.name}</span>
-                <span style={{ fontSize: '12px', color: colors.textSecondary }}>
-                  {savedQuery.query}
-                </span>
+                }}>
+                  <span>Recent Searches</span>
+                  <button
+                    onClick={() => setShowHistoryPanel(true)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: colors.primary,
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    View all
+                  </button>
+                </div>
+                {recentQueries.map((historyQuery, index) => (
+                  <button
+                    key={historyQuery}
+                    onClick={() => handleSearchFromHistory(historyQuery)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      color: colors.text,
+                      fontSize: '13px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = colors.surfaceHover;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    🕒 {historyQuery}
+                  </button>
+                ))}
+                <div style={{
+                  padding: '8px 16px',
+                  borderTop: `1px solid ${colors.border}`,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <button
+                    onClick={handleClearHistory}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: colors.textSecondary,
+                      cursor: 'pointer',
+                      fontSize: '11px'
+                    }}
+                  >
+                    Clear history
+                  </button>
+                </div>
               </div>
-            ))
-          )}
-        </div>
-      )}
+            )}
 
-      {/* Search results */}
-      {showSuggestions && searchResults.length > 0 && (
-        <div 
-          id="search-results"
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            background: 'white',
-            border: `1px solid ${colors.border}`,
-            borderRadius: '4px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            zIndex: 1000,
-            maxHeight: '300px',
-            overflow: 'auto'
-          }}
-          role="listbox"
-          aria-label="Search results"
-        >
-          {searchResults.map((result, index) => (
-            <div
-              key={result.noteId}
-              onClick={() => handleResultClick(result)}
+            {/* Saved queries */}
+            {showSavedQueries && savedQueries.length > 0 && (
+              <div style={{ padding: '8px 0' }}>
+                <div style={{
+                  padding: '8px 16px',
+                  fontSize: '12px',
+                  color: colors.textSecondary,
+                  fontWeight: 'bold'
+                }}>
+                  Saved Queries
+                </div>
+                {savedQueries.map((savedQuery) => (
+                  <button
+                    key={savedQuery.id}
+                    onClick={() => handleSavedQueryClick(savedQuery)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      color: colors.text,
+                      fontSize: '13px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = colors.surfaceHover;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    💾 {savedQuery.name}
+                    <div style={{
+                      fontSize: '11px',
+                      color: colors.textSecondary,
+                      marginTop: '2px'
+                    }}>
+                      {savedQuery.query}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Search results */}
+            {showSuggestions && searchResults.length > 0 && (
+              <div style={{ padding: '8px 0' }}>
+                <div style={{
+                  padding: '8px 16px',
+                  fontSize: '12px',
+                  color: colors.textSecondary,
+                  fontWeight: 'bold'
+                }}>
+                  Results ({searchResults.length})
+                </div>
+                <VirtualizedSearchResults
+                  results={searchResults}
+                  onSelectResult={handleResultClick}
+                  selectedIndex={selectedIndex}
+                  height={200}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginTop: '8px',
+          flexWrap: 'wrap'
+        }}>
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            style={{
+              padding: '4px 8px',
+              background: showHistory ? colors.primary : colors.surface,
+              color: showHistory ? 'white' : colors.text,
+              border: `1px solid ${colors.border}`,
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            🕒 History
+          </button>
+
+          <button
+            onClick={() => setShowSavedQueries(!showSavedQueries)}
+            style={{
+              padding: '4px 8px',
+              background: showSavedQueries ? colors.primary : colors.surface,
+              color: showSavedQueries ? 'white' : colors.text,
+              border: `1px solid ${colors.border}`,
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            💾 Saved
+          </button>
+
+          {query && (
+            <button
+              onClick={handleSaveQuery}
               style={{
-                padding: '8px 12px',
+                padding: '4px 8px',
+                background: colors.surface,
+                color: colors.text,
+                border: `1px solid ${colors.border}`,
+                borderRadius: '4px',
                 cursor: 'pointer',
-                borderBottom: `1px solid ${colors.border}`,
-                background: index === selectedIndex ? '#f0f0f0' : 'transparent'
-              }}
-              role="option"
-              aria-selected={index === selectedIndex}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleResultClick(result);
-                }
+                fontSize: '12px'
               }}
             >
-              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                {result.title}
-              </div>
-              {result.body && (
-                <div style={{ 
-                  fontSize: '12px', 
-                  color: colors.textSecondary,
-                  marginBottom: '4px'
-                }}>
-                  {result.body.substring(0, 100)}...
-                </div>
-              )}
-              {result.tags.length > 0 && (
-                <div style={{ fontSize: '11px', color: '#007bff' }}>
-                  {result.tags.join(', ')}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+              Save Query
+            </button>
+          )}
 
-      {/* No results message */}
-      {showSuggestions && query.trim() && !isLoading && searchResults.length === 0 && (
-        <div 
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            background: 'white',
-            border: `1px solid ${colors.border}`,
-            borderRadius: '4px',
-            padding: '12px',
-            textAlign: 'center',
-            color: colors.textSecondary
-          }}
-          role="status"
-          aria-live="polite"
-        >
-          No notes found matching "{query}"
+          {enableAdvancedSearch && (
+            <button
+              onClick={() => setShowAdvancedHelp(!showAdvancedHelp)}
+              style={{
+                padding: '4px 8px',
+                background: showAdvancedHelp ? colors.info : colors.surface,
+                color: showAdvancedHelp ? 'white' : colors.text,
+                border: `1px solid ${colors.border}`,
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              Advanced Help
+            </button>
+          )}
         </div>
-      )}
 
-      {/* Advanced Search Help Modal */}
-      <AdvancedSearchHelp
-        isOpen={showAdvancedHelp}
-        onClose={() => setShowAdvancedHelp(false)}
+        {/* Advanced search help */}
+        {showAdvancedHelp && (
+          <AdvancedSearchHelp
+            isOpen={showAdvancedHelp}
+            onClose={() => setShowAdvancedHelp(false)}
+          />
+        )}
+      </div>
+
+      {/* Full search history panel */}
+      <SearchHistoryPanel
+        isOpen={showHistoryPanel}
+        onClose={() => setShowHistoryPanel(false)}
+        onSearch={handleSearchFromHistory}
       />
-    </div>
+    </>
   );
 };
 

@@ -17,6 +17,9 @@ beforeEach(() => {
   // Clear all mocks
   jest.clearAllMocks();
   
+  // Clear localStorage to reset persist state
+  localStorage.clear();
+  
   // Reset the store state by creating a new instance
   const { result } = renderHook(() => useNoteStore());
   act(() => {
@@ -106,5 +109,56 @@ describe('NoteStore', () => {
     // Should create a new note
     expect(result.current.notes.length).toBe(initialNoteCount + 1);
     expect(result.current.selectedId).toBe('new-note');
+  });
+}); 
+
+describe('Persist Middleware', () => {
+  it('should persist selectedId to localStorage', () => {
+    const { result } = renderHook(() => useNoteStore());
+    
+    act(() => {
+      result.current.selectNote('test-note-id');
+    });
+    
+    const persisted = localStorage.getItem('zettelview-notes');
+    expect(persisted).toContain('test-note-id');
+  });
+
+  it('should persist storagePermission to localStorage', () => {
+    const { result } = renderHook(() => useNoteStore());
+    
+    act(() => {
+      // Simulate storage permission being granted
+      result.current.requestStoragePermission();
+    });
+    
+    const persisted = localStorage.getItem('zettelview-notes');
+    expect(persisted).toBeDefined();
+  });
+
+  it('should restore selectedId from localStorage on initialization', () => {
+    // Set up localStorage with persisted data
+    localStorage.setItem('zettelview-notes', JSON.stringify({
+      state: { selectedId: 'persisted-note-id' },
+      version: 0
+    }));
+    
+    const { result } = renderHook(() => useNoteStore());
+    
+    expect(result.current.selectedId).toBe('persisted-note-id');
+  });
+
+  it('should not persist notes array to localStorage', () => {
+    const { result } = renderHook(() => useNoteStore());
+    
+    act(() => {
+      result.current.addNote('Test Note');
+    });
+    
+    const persisted = localStorage.getItem('zettelview-notes');
+    const parsed = JSON.parse(persisted || '{}');
+    
+    // Should not contain the full notes array
+    expect(parsed.state.notes).toBeUndefined();
   });
 }); 

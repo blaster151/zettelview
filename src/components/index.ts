@@ -43,6 +43,13 @@ export * from './collaboration';
 // Plugin components
 export * from './plugins';
 
+// Demo components
+export { default as SearchSuggestionsDemo } from './demos/SearchSuggestionsDemo';
+export { default as QueryTemplatesDemo } from './demos/QueryTemplatesDemo';
+export { default as KeyboardNavigationDemo } from './demos/KeyboardNavigationDemo';
+export { default as SearchFeaturesDemo } from './demos/SearchFeaturesDemo';
+export { default as AnalyticsDemo } from './demos/AnalyticsDemo';
+
 // Error handling components
 export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as AsyncErrorBoundary } from './AsyncErrorBoundary';

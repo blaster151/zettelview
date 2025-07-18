@@ -150,6 +150,10 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
   const [showMinimap, setShowMinimap] = useState(true);
   const [performanceMode, setPerformanceMode] = useState<'quality' | 'performance' | 'auto'>('auto');
   
+  // Force-directed layout state
+  const [isSimulationRunning, setIsSimulationRunning] = useState(true);
+  const [simulationSpeed, setSimulationSpeed] = useState(1);
+  
   // Advanced filtering state
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -376,6 +380,107 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
           >
             🗺️ Minimap
           </button>
+          
+          {/* Zoom controls */}
+          <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+            <button
+              onClick={() => setZoom(Math.max(0.1, zoom / 1.2))}
+              style={{
+                width: '24px',
+                height: '24px',
+                border: `1px solid ${colors.border}`,
+                borderRadius: '4px',
+                background: colors.background,
+                color: colors.text,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontWeight: 'bold'
+              }}
+              title="Zoom out"
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+            
+            <span style={{
+              fontSize: '11px',
+              color: colors.textSecondary,
+              padding: '0 4px',
+              minWidth: '40px',
+              textAlign: 'center'
+            }}>
+              {Math.round(zoom * 100)}%
+            </span>
+            
+            <button
+              onClick={() => setZoom(Math.min(3, zoom * 1.2))}
+              style={{
+                width: '24px',
+                height: '24px',
+                border: `1px solid ${colors.border}`,
+                borderRadius: '4px',
+                background: colors.background,
+                color: colors.text,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontWeight: 'bold'
+              }}
+              title="Zoom in"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+            
+            <button
+              onClick={() => {
+                setZoom(1);
+                setPan({ x: 0, y: 0 });
+              }}
+              style={{
+                width: '24px',
+                height: '24px',
+                border: `1px solid ${colors.border}`,
+                borderRadius: '4px',
+                background: colors.background,
+                color: colors.text,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '10px'
+              }}
+              title="Reset view"
+              aria-label="Reset view"
+            >
+              ⌂
+            </button>
+          </div>
+          
+          {/* Simulation controls */}
+          <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+            <button
+              onClick={() => setIsSimulationRunning(!isSimulationRunning)}
+              style={{
+                padding: '4px 8px',
+                border: `1px solid ${colors.border}`,
+                borderRadius: '4px',
+                background: isSimulationRunning ? colors.primary : 'transparent',
+                color: isSimulationRunning ? 'white' : colors.text,
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+              title={`${isSimulationRunning ? 'Pause' : 'Resume'} simulation`}
+              aria-label={`${isSimulationRunning ? 'Pause' : 'Resume'} simulation`}
+            >
+              {isSimulationRunning ? '⏸️' : '▶️'}
+            </button>
+          </div>
         </div>
       </div>
 
