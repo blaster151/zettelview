@@ -1,43 +1,285 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="Web site created using create-react-app"
-    />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
-
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-    <title>React App</title>
-  </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="ZettelView - Advanced note management system" />
+  <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+  <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+  
+  <!-- Theme Flash Prevention - Inline Script -->
+  <script>
+    (function() {
+      'use strict';
+      
+      // Get theme preference from localStorage or system preference
+      function getThemePreference() {
+        try {
+          // Check localStorage first
+          const saved = localStorage.getItem('zettelview-theme');
+          if (saved) {
+            const themeData = JSON.parse(saved);
+            if (themeData && themeData.theme) {
+              return themeData.theme;
+            }
+          }
+          
+          // Fall back to system preference
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+          }
+          
+          return 'light'; // Default fallback
+        } catch (error) {
+          console.warn('Theme detection failed:', error);
+          return 'light';
+        }
+      }
+      
+      // Apply theme immediately to prevent flash
+      function applyTheme(theme) {
+        const root = document.documentElement;
+        
+        // Remove existing theme classes
+        root.classList.remove('light', 'dark');
+        
+        // Add new theme class
+        root.classList.add(theme);
+        
+        // Set theme attribute for CSS custom properties
+        root.setAttribute('data-theme', theme);
+        
+        // Apply critical CSS variables immediately
+        const criticalStyles = theme === 'dark' ? {
+          '--color-background': '#1f2937',
+          '--color-text': '#f9fafb',
+          '--color-primary': '#60a5fa',
+          '--color-secondary': '#9ca3af',
+          '--color-border': '#374151',
+          '--color-accent': '#374151',
+          '--color-surface': '#111827',
+          '--color-surface-hover': '#1f2937',
+          '--color-input-background': '#374151',
+          '--color-input-border': '#4b5563',
+          '--color-shadow': 'rgba(0, 0, 0, 0.3)',
+          '--color-overlay': 'rgba(0, 0, 0, 0.5)'
+        } : {
+          '--color-background': '#ffffff',
+          '--color-text': '#000000',
+          '--color-primary': '#3b82f6',
+          '--color-secondary': '#6b7280',
+          '--color-border': '#e5e7eb',
+          '--color-accent': '#f3f4f6',
+          '--color-surface': '#ffffff',
+          '--color-surface-hover': '#f9fafb',
+          '--color-input-background': '#ffffff',
+          '--color-input-border': '#d1d5db',
+          '--color-shadow': 'rgba(0, 0, 0, 0.1)',
+          '--color-overlay': 'rgba(0, 0, 0, 0.3)'
+        };
+        
+        // Apply critical styles immediately
+        Object.entries(criticalStyles).forEach(([property, value]) => {
+          root.style.setProperty(property, value);
+        });
+        
+        // Set meta theme-color for mobile browsers
+        const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        if (metaThemeColor) {
+          metaThemeColor.setAttribute('content', theme === 'dark' ? '#1f2937' : '#ffffff');
+        }
+      }
+      
+      // Detect and apply theme immediately
+      const theme = getThemePreference();
+      applyTheme(theme);
+      
+      // Store theme for React app to use
+      window.__INITIAL_THEME__ = theme;
+      
+      // Listen for system theme changes
+      if (window.matchMedia) {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addEventListener('change', function(e) {
+          // Only update if no theme is saved in localStorage
+          const saved = localStorage.getItem('zettelview-theme');
+          if (!saved) {
+            const newTheme = e.matches ? 'dark' : 'light';
+            applyTheme(newTheme);
+            window.__INITIAL_THEME__ = newTheme;
+          }
+        });
+      }
+      
+      // Expose theme functions for React app
+      window.__THEME_UTILS__ = {
+        getThemePreference,
+        applyTheme,
+        isSystemTheme: function() {
+          try {
+            const saved = localStorage.getItem('zettelview-theme');
+            if (saved) {
+              const themeData = JSON.parse(saved);
+              return themeData && themeData.isSystem === true;
+            }
+            return true;
+          } catch (error) {
+            return true;
+          }
+        }
+      };
+    })();
+  </script>
+  
+  <!-- Critical CSS for theme flash prevention -->
+  <style>
+    /* Prevent flash of unstyled content */
+    html {
+      visibility: hidden;
+    }
+    
+    html.theme-applied {
+      visibility: visible;
+    }
+    
+    /* Critical theme styles */
+    :root {
+      /* Light theme defaults */
+      --color-background: #ffffff;
+      --color-text: #000000;
+      --color-primary: #3b82f6;
+      --color-secondary: #6b7280;
+      --color-border: #e5e7eb;
+      --color-accent: #f3f4f6;
+      --color-surface: #ffffff;
+      --color-surface-hover: #f9fafb;
+      --color-input-background: #ffffff;
+      --color-input-border: #d1d5db;
+      --color-shadow: rgba(0, 0, 0, 0.1);
+      --color-overlay: rgba(0, 0, 0, 0.3);
+      
+      /* Smooth transitions */
+      --transition-duration: 0.3s;
+      --transition-timing: ease;
+    }
+    
+    /* Dark theme overrides */
+    html.dark {
+      --color-background: #1f2937;
+      --color-text: #f9fafb;
+      --color-primary: #60a5fa;
+      --color-secondary: #9ca3af;
+      --color-border: #374151;
+      --color-accent: #374151;
+      --color-surface: #111827;
+      --color-surface-hover: #1f2937;
+      --color-input-background: #374151;
+      --color-input-border: #4b5563;
+      --color-shadow: rgba(0, 0, 0, 0.3);
+      --color-overlay: rgba(0, 0, 0, 0.5);
+    }
+    
+    /* Apply theme colors to body immediately */
+    body {
+      background-color: var(--color-background);
+      color: var(--color-text);
+      transition: background-color var(--transition-duration) var(--transition-timing),
+                  color var(--transition-duration) var(--transition-timing);
+    }
+    
+    /* Loading spinner styles */
+    .theme-loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--color-background);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity var(--transition-duration) var(--transition-timing);
+    }
+    
+    .theme-loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--color-border);
+      border-top: 3px solid var(--color-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+  
+  <title>ZettelView</title>
+</head>
+<body>
+  <!-- Theme loading indicator -->
+  <div id="theme-loading" class="theme-loading">
+    <div class="loading-spinner"></div>
+  </div>
+  
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div id="root"></div>
+  
+  <!-- Theme initialization completion script -->
+  <script>
+    (function() {
+      'use strict';
+      
+      // Mark theme as applied
+      document.documentElement.classList.add('theme-applied');
+      
+      // Hide loading indicator after a short delay
+      setTimeout(function() {
+        const loadingElement = document.getElementById('theme-loading');
+        if (loadingElement) {
+          loadingElement.classList.add('hidden');
+          setTimeout(function() {
+            if (loadingElement.parentNode) {
+              loadingElement.parentNode.removeChild(loadingElement);
+            }
+          }, 300);
+        }
+      }, 100);
+      
+      // Ensure theme is properly applied even if React hasn't loaded yet
+      function ensureThemeApplied() {
+        const theme = window.__INITIAL_THEME__ || 'light';
+        const root = document.documentElement;
+        
+        if (!root.classList.contains(theme)) {
+          root.classList.remove('light', 'dark');
+          root.classList.add(theme);
+          root.setAttribute('data-theme', theme);
+        }
+      }
+      
+      // Check theme on DOM ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', ensureThemeApplied);
+      } else {
+        ensureThemeApplied();
+      }
+      
+      // Double-check theme after React loads
+      window.addEventListener('load', function() {
+        setTimeout(ensureThemeApplied, 0);
+      });
+    })();
+  </script>
+</body>
 </html>
