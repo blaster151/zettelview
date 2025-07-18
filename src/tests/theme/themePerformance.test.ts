@@ -1,7 +1,7 @@
 // Remove Vitest import and use Jest globals
 // import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { themeStore } from '../../stores/themeStore';
+import { useThemeStore } from '../../store/themeStore';
 
 // Mock localStorage
 const localStorageMock = {
@@ -30,12 +30,31 @@ beforeEach(() => {
   // Clear all mocks
   jest.clearAllMocks();
   
+  // Clear localStorage to prevent quota exceeded errors
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.clear();
+  }
+  
   // Reset theme store
-  themeStore.setState({
+  useThemeStore.setState({
     theme: 'light',
     systemPreference: 'light',
     isDark: false,
     isSystem: false,
+    colors: {
+      background: '#ffffff',
+      text: '#000000',
+      primary: '#3b82f6',
+      secondary: '#6b7280',
+      border: '#e5e7eb',
+      accent: '#f3f4f6',
+      surface: '#ffffff',
+      surfaceHover: '#f9fafb',
+      inputBackground: '#ffffff',
+      inputBorder: '#d1d5db',
+      shadow: 'rgba(0, 0, 0, 0.1)',
+      overlay: 'rgba(0, 0, 0, 0.3)',
+    },
   });
 
   // Mock localStorage
@@ -83,7 +102,7 @@ describe('Theme Performance', () => {
       const startTime = performance.now();
       
       // Act
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
       const endTime = performance.now();
       const duration = endTime - startTime;
 
@@ -96,9 +115,9 @@ describe('Theme Performance', () => {
       const observer = new MutationObserver(jest.fn());
       
       // Act
-      themeStore.getState().setTheme('dark');
-      themeStore.getState().setTheme('light');
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('light');
+      useThemeStore.getState().setTheme('dark');
 
       // Assert - Should not trigger excessive DOM mutations
       expect(performanceMock.mark).toHaveBeenCalled();
@@ -111,9 +130,9 @@ describe('Theme Performance', () => {
       jest.useFakeTimers();
 
       // Act
-      themeStore.getState().setTheme('dark');
-      themeStore.getState().setTheme('light');
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('light');
+      useThemeStore.getState().setTheme('dark');
 
       jest.advanceTimersByTime(debounceDelay);
 
@@ -143,7 +162,7 @@ describe('Theme Performance', () => {
       const startTime = performance.now();
 
       // Act
-      themeStore.getState().setSystemPreference('dark');
+      useThemeStore.getState().setSystemPreference('dark');
       const endTime = performance.now();
       const duration = endTime - startTime;
 
@@ -167,7 +186,7 @@ describe('Theme Performance', () => {
 
       // Act & Assert
       expect(() => {
-        themeStore.getState().setSystemPreference('light');
+        useThemeStore.getState().setSystemPreference('light');
       }).not.toThrow();
     });
   });
@@ -193,7 +212,7 @@ describe('Theme Performance', () => {
       const startTime = performance.now();
 
       // Act
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
       const endTime = performance.now();
       const duration = endTime - startTime;
 
@@ -220,8 +239,8 @@ describe('Theme Performance', () => {
       });
 
       // Act
-      themeStore.getState().setTheme('dark');
-      themeStore.getState().setTheme('light');
+      useThemeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('light');
 
       // Assert - Should not call setAttribute excessively
       expect(mockDocumentElement.setAttribute).toHaveBeenCalledTimes(2);
@@ -235,8 +254,8 @@ describe('Theme Performance', () => {
 
       // Act - Perform multiple theme operations
       for (let i = 0; i < 100; i++) {
-        themeStore.getState().setTheme('dark');
-        themeStore.getState().setTheme('light');
+        useThemeStore.getState().setTheme('dark');
+        useThemeStore.getState().setTheme('light');
       }
 
       // Assert - Memory usage should not increase significantly
@@ -265,8 +284,8 @@ describe('Theme Performance', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
-      themeStore.getState().cleanup();
+      useThemeStore.getState().initializeTheme();
+      useThemeStore.getState().cleanup();
 
       // Assert
       expect(removeEventListenerMock).toHaveBeenCalled();
@@ -282,7 +301,7 @@ describe('Theme Performance', () => {
       });
 
       // Act
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Assert
       expect(requestAnimationFrameMock).toHaveBeenCalled();
@@ -297,7 +316,7 @@ describe('Theme Performance', () => {
 
       // Act - Multiple rapid theme changes
       for (let i = 0; i < 10; i++) {
-        themeStore.getState().setTheme('dark');
+        useThemeStore.getState().setTheme('dark');
       }
 
       // Assert - Should not request excessive animation frames
@@ -327,7 +346,7 @@ describe('Theme Performance', () => {
       });
 
       // Act
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Assert
       expect(mockDocumentElement.style.setProperty).toHaveBeenCalledWith(
@@ -357,9 +376,9 @@ describe('Theme Performance', () => {
       });
 
       // Act - Rapid theme changes
-      themeStore.getState().setTheme('dark');
-      themeStore.getState().setTheme('light');
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('light');
+      useThemeStore.getState().setTheme('dark');
 
       // Assert - Should disable transitions during rapid changes
       expect(mockDocumentElement.style.setProperty).toHaveBeenCalledWith(
@@ -373,7 +392,7 @@ describe('Theme Performance', () => {
     it('should not cause excessive localStorage writes', () => {
       // Act - Multiple theme changes
       for (let i = 0; i < 10; i++) {
-        themeStore.getState().setTheme('dark');
+        useThemeStore.getState().setTheme('dark');
       }
 
       // Assert - Should only write once per unique theme
@@ -389,7 +408,7 @@ describe('Theme Performance', () => {
       // Act & Assert
       expect(() => {
         for (let i = 0; i < 100; i++) {
-          themeStore.getState().setTheme('dark');
+          useThemeStore.getState().setTheme('dark');
         }
       }).not.toThrow();
     });
@@ -406,7 +425,7 @@ describe('Theme Performance', () => {
       });
 
       // Act
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
       const endTime = performance.now();
       const duration = endTime - startTime;
 
@@ -421,7 +440,7 @@ describe('Theme Performance', () => {
       });
 
       // Act
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Assert - Should not retry more than once
       expect(localStorageMock.setItem).toHaveBeenCalledTimes(1);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AdvancedSearchService, SearchQuery, SearchResult } from '../services/advancedSearchService';
-import { useNoteStore } from '../stores/noteStore';
+import { useNoteStore } from '../store/noteStore';
 
 interface AdvancedSearchPanelProps {
   isOpen: boolean;

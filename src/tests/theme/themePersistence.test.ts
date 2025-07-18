@@ -1,7 +1,7 @@
 // Remove Vitest import and use Jest globals
 // import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { useThemeStore } from '../../stores/themeStore';
+import { useThemeStore } from '../../store/themeStore';
 
 // Mock localStorage
 const localStorageMock = {
@@ -23,7 +23,7 @@ beforeEach(() => {
   // Clear all mocks
   jest.clearAllMocks();
   
-  // Clear localStorage to prevent quota issues
+  // Clear localStorage to prevent quota exceeded errors
   if (typeof window !== 'undefined' && window.localStorage) {
     window.localStorage.clear();
   }
@@ -352,13 +352,13 @@ describe('Theme Persistence', () => {
   describe('Edge Cases', () => {
     it('should handle null/undefined theme values', () => {
       // Act & Assert
-      expect(() => useThemeStore.getState().setTheme(null)).not.toThrow();
-      expect(() => useThemeStore.getState().setTheme(undefined)).not.toThrow();
+      expect(() => useThemeStore.getState().setTheme(null as any)).not.toThrow();
+      expect(() => useThemeStore.getState().setTheme(undefined as any)).not.toThrow();
     });
 
     it('should handle empty string theme values', () => {
       // Act
-      useThemeStore.getState().setTheme('');
+      useThemeStore.getState().setTheme('' as any);
 
       // Assert - The store accepts any string value, so empty string is valid
       expect(useThemeStore.getState().theme).toBe('');
@@ -366,7 +366,7 @@ describe('Theme Persistence', () => {
 
     it('should handle invalid theme values', () => {
       // Act
-      useThemeStore.getState().setTheme('invalid-theme');
+      useThemeStore.getState().setTheme('invalid-theme' as any);
 
       // Assert - The store accepts any string value, so invalid theme is valid
       expect(useThemeStore.getState().theme).toBe('invalid-theme');

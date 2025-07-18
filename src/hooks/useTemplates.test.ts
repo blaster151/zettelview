@@ -24,8 +24,9 @@ Object.defineProperty(window, 'localStorage', {
 
 describe('useTemplates', () => {
   beforeEach(() => {
-    localStorageMock.clear();
     jest.clearAllMocks();
+    localStorageMock.clear();
+    localStorage.clear();
   });
 
   describe('initialization', () => {

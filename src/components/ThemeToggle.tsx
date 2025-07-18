@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useThemeStore } from '../stores/themeStore';
+import { useThemeStore } from '../store/themeStore';
 
 interface ThemeToggleProps {
   className?: string;

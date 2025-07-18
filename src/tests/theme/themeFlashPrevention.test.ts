@@ -1,7 +1,7 @@
 // Remove Vitest import and use Jest globals
 // import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { themeStore } from '../../stores/themeStore';
+import { useThemeStore } from '../../store/themeStore';
 
 // Mock localStorage
 const localStorageMock = {
@@ -25,12 +25,31 @@ beforeEach(() => {
   // Clear all mocks
   jest.clearAllMocks();
   
+  // Clear localStorage to prevent quota exceeded errors
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.clear();
+  }
+  
   // Reset theme store
-  themeStore.setState({
+  useThemeStore.setState({
     theme: 'light',
     systemPreference: 'light',
     isDark: false,
     isSystem: false,
+    colors: {
+      background: '#ffffff',
+      text: '#000000',
+      primary: '#3b82f6',
+      secondary: '#6b7280',
+      border: '#e5e7eb',
+      accent: '#f3f4f6',
+      surface: '#ffffff',
+      surfaceHover: '#f9fafb',
+      inputBackground: '#ffffff',
+      inputBorder: '#d1d5db',
+      shadow: 'rgba(0, 0, 0, 0.1)',
+      overlay: 'rgba(0, 0, 0, 0.3)',
+    },
   });
 
   // Mock localStorage
@@ -90,7 +109,7 @@ describe('Theme Flash Prevention', () => {
       createElementMock.mockReturnValue(mockScript);
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(createElementMock).toHaveBeenCalledWith('script');
@@ -102,7 +121,7 @@ describe('Theme Flash Prevention', () => {
       localStorageMock.getItem.mockReturnValue('dark');
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(setAttributeMock).toHaveBeenCalledWith('data-theme', 'dark');
@@ -129,7 +148,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(mockStyle.setProperty).toHaveBeenCalledWith('visibility', 'hidden');
@@ -158,7 +177,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(mockStyle.setProperty).toHaveBeenCalledWith('visibility', 'hidden');
@@ -185,8 +204,8 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
-      themeStore.getState().applyTheme();
+      useThemeStore.getState().initializeTheme();
+      useThemeStore.getState().applyTheme();
 
       // Assert
       expect(mockStyle.setProperty).toHaveBeenCalledWith('visibility', 'visible');
@@ -203,7 +222,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(matchMediaMock).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
@@ -218,7 +237,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(setAttributeMock).toHaveBeenCalledWith('data-theme', 'dark');
@@ -236,7 +255,7 @@ describe('Theme Flash Prevention', () => {
       querySelectorMock.mockReturnValue(mockLoadingElement);
 
       // Act
-      themeStore.getState().showLoadingIndicator();
+      useThemeStore.getState().showLoadingIndicator();
 
       // Assert
       expect(querySelectorMock).toHaveBeenCalledWith('.theme-loading');
@@ -253,7 +272,7 @@ describe('Theme Flash Prevention', () => {
       querySelectorMock.mockReturnValue(mockLoadingElement);
 
       // Act
-      themeStore.getState().hideLoadingIndicator();
+      useThemeStore.getState().hideLoadingIndicator();
 
       // Assert
       expect(querySelectorMock).toHaveBeenCalledWith('.theme-loading');
@@ -269,7 +288,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act & Assert
-      expect(() => themeStore.getState().initializeTheme()).not.toThrow();
+      expect(() => useThemeStore.getState().initializeTheme()).not.toThrow();
     });
 
     it('should handle matchMedia errors gracefully', () => {
@@ -279,7 +298,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act & Assert
-      expect(() => themeStore.getState().initializeTheme()).not.toThrow();
+      expect(() => useThemeStore.getState().initializeTheme()).not.toThrow();
     });
 
     it('should fallback to light theme on errors', () => {
@@ -289,7 +308,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(setAttributeMock).toHaveBeenCalledWith('data-theme', 'light');
@@ -302,7 +321,7 @@ describe('Theme Flash Prevention', () => {
       const startTime = performance.now();
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
       const endTime = performance.now();
       const duration = endTime - startTime;
 
@@ -319,7 +338,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(mockRequestIdleCallback).toHaveBeenCalled();
@@ -348,7 +367,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(setAttributeMock).toHaveBeenCalledWith('data-theme', expect.any(String));
@@ -372,7 +391,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(matchMediaMock).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
@@ -388,7 +407,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act & Assert
-      expect(() => themeStore.getState().initializeTheme()).not.toThrow();
+      expect(() => useThemeStore.getState().initializeTheme()).not.toThrow();
     });
 
     it('should work in browsers without matchMedia', () => {
@@ -399,7 +418,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act & Assert
-      expect(() => themeStore.getState().initializeTheme()).not.toThrow();
+      expect(() => useThemeStore.getState().initializeTheme()).not.toThrow();
     });
 
     it('should handle older browser APIs', () => {
@@ -413,7 +432,7 @@ describe('Theme Flash Prevention', () => {
       matchMediaMock.mockReturnValue(oldMatchMedia);
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(oldMatchMedia.addListener).toHaveBeenCalled();
@@ -442,7 +461,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(mockStyle.setProperty).toHaveBeenCalledWith('--theme-transition-duration', '0ms');
@@ -469,8 +488,8 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
-      themeStore.getState().applyTheme();
+      useThemeStore.getState().initializeTheme();
+      useThemeStore.getState().applyTheme();
 
       // Assert
       expect(mockStyle.setProperty).toHaveBeenCalledWith('--theme-transition-duration', '200ms');
@@ -499,7 +518,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(mockClassList.remove).toHaveBeenCalled();
@@ -526,7 +545,7 @@ describe('Theme Flash Prevention', () => {
       });
 
       // Act
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Assert
       expect(mockClassList.add).toHaveBeenCalledWith('dark');
@@ -545,7 +564,7 @@ describe('Theme Flash Prevention', () => {
       matchMediaMock.mockReturnValue(mockMediaQuery);
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(mockMediaQuery.addEventListener).toHaveBeenCalledWith('change', expect.any(Function));
@@ -562,7 +581,7 @@ describe('Theme Flash Prevention', () => {
       matchMediaMock.mockReturnValue(mockMediaQuery);
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(mockMediaQuery.addListener).toHaveBeenCalled();

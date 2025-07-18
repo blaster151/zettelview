@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { ExportImportService, ExportOptions, ImportOptions, ExportResult, ImportResult } from '../services/exportImportService';
-import { useNoteStore } from '../stores/noteStore';
+import { useNoteStore } from '../store/noteStore';
 
 interface ExportImportPanelProps {
   isOpen: boolean;

@@ -79,7 +79,7 @@ describe('TagManager', () => {
     });
   });
 
-  it('prevents adding duplicate tags', () => {
+  it('prevents adding duplicate tags', async () => {
     render(
       <TagManager 
         note={mockNote} 
@@ -93,10 +93,12 @@ describe('TagManager', () => {
 
     fireEvent.change(input, { target: { value: 'javascript' } });
     
-    expect(addButton).toBeDisabled();
+    await waitFor(() => {
+      expect(addButton).toBeDisabled();
+    });
   });
 
-  it('prevents adding empty tags', () => {
+  it('prevents adding empty tags', async () => {
     render(
       <TagManager 
         note={mockNote} 
@@ -110,7 +112,9 @@ describe('TagManager', () => {
 
     fireEvent.change(input, { target: { value: '   ' } });
     
-    expect(addButton).toBeDisabled();
+    await waitFor(() => {
+      expect(addButton).toBeDisabled();
+    });
   });
 
   it('allows removing a tag', async () => {

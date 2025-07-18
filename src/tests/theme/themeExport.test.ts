@@ -1,7 +1,7 @@
 // Remove Vitest import and use Jest globals
 // import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { themeStore } from '../../stores/themeStore';
+import { useThemeStore } from '../../store/themeStore';
 
 // Mock jsPDF
 const jsPDFMock = jest.fn(() => ({
@@ -50,12 +50,31 @@ beforeEach(() => {
   // Clear all mocks
   jest.clearAllMocks();
   
+  // Clear localStorage to prevent quota exceeded errors
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.clear();
+  }
+  
   // Reset theme store
-  themeStore.setState({
+  useThemeStore.setState({
     theme: 'light',
     systemPreference: 'light',
     isDark: false,
     isSystem: false,
+    colors: {
+      background: '#ffffff',
+      text: '#000000',
+      primary: '#3b82f6',
+      secondary: '#6b7280',
+      border: '#e5e7eb',
+      accent: '#f3f4f6',
+      surface: '#ffffff',
+      surfaceHover: '#f9fafb',
+      inputBackground: '#ffffff',
+      inputBorder: '#d1d5db',
+      shadow: 'rgba(0, 0, 0, 0.1)',
+      overlay: 'rgba(0, 0, 0, 0.3)',
+    },
   });
 
   // Mock localStorage
@@ -104,11 +123,11 @@ describe('Theme Export', () => {
   describe('PDF Export Theme Consistency', () => {
     it('should apply current theme to PDF export', () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
       const mockPdf = jsPDFMock();
 
       // Act
-      themeStore.getState().exportToPDF('Test Note', 'Test content');
+      useThemeStore.getState().exportToPDF('Test Note', 'Test content');
 
       // Assert
       expect(mockPdf.setFillColor).toHaveBeenCalledWith(expect.any(Number));
@@ -117,11 +136,11 @@ describe('Theme Export', () => {
 
     it('should use light theme colors when in light mode', () => {
       // Arrange
-      themeStore.getState().setTheme('light');
+      useThemeStore.getState().setTheme('light');
       const mockPdf = jsPDFMock();
 
       // Act
-      themeStore.getState().exportToPDF('Test Note', 'Test content');
+      useThemeStore.getState().exportToPDF('Test Note', 'Test content');
 
       // Assert
       expect(mockPdf.setFillColor).toHaveBeenCalledWith(255, 255, 255); // White background
@@ -130,11 +149,11 @@ describe('Theme Export', () => {
 
     it('should use dark theme colors when in dark mode', () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
       const mockPdf = jsPDFMock();
 
       // Act
-      themeStore.getState().exportToPDF('Test Note', 'Test content');
+      useThemeStore.getState().exportToPDF('Test Note', 'Test content');
 
       // Assert
       expect(mockPdf.setFillColor).toHaveBeenCalledWith(30, 30, 30); // Dark background
@@ -143,11 +162,11 @@ describe('Theme Export', () => {
 
     it('should apply theme to PDF header', () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
       const mockPdf = jsPDFMock();
 
       // Act
-      themeStore.getState().exportToPDF('Test Note', 'Test content');
+      useThemeStore.getState().exportToPDF('Test Note', 'Test content');
 
       // Assert
       expect(mockPdf.setFontSize).toHaveBeenCalledWith(16);
@@ -156,11 +175,11 @@ describe('Theme Export', () => {
 
     it('should apply theme to PDF content', () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
       const mockPdf = jsPDFMock();
 
       // Act
-      themeStore.getState().exportToPDF('Test Note', 'Test content');
+      useThemeStore.getState().exportToPDF('Test Note', 'Test content');
 
       // Assert
       expect(mockPdf.setFontSize).toHaveBeenCalledWith(12);
@@ -171,10 +190,10 @@ describe('Theme Export', () => {
   describe('HTML Export Theme Consistency', () => {
     it('should include theme CSS in HTML export', () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Act
-      const html = themeStore.getState().exportToHTML('Test Note', 'Test content');
+      const html = useThemeStore.getState().exportToHTML('Test Note', 'Test content');
 
       // Assert
       expect(html).toContain('data-theme="dark"');
@@ -184,10 +203,10 @@ describe('Theme Export', () => {
 
     it('should include light theme CSS when in light mode', () => {
       // Arrange
-      themeStore.getState().setTheme('light');
+      useThemeStore.getState().setTheme('light');
 
       // Act
-      const html = themeStore.getState().exportToHTML('Test Note', 'Test content');
+      const html = useThemeStore.getState().exportToHTML('Test Note', 'Test content');
 
       // Assert
       expect(html).toContain('data-theme="light"');
@@ -197,10 +216,10 @@ describe('Theme Export', () => {
 
     it('should include dark theme CSS when in dark mode', () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Act
-      const html = themeStore.getState().exportToHTML('Test Note', 'Test content');
+      const html = useThemeStore.getState().exportToHTML('Test Note', 'Test content');
 
       // Assert
       expect(html).toContain('data-theme="dark"');
@@ -210,10 +229,10 @@ describe('Theme Export', () => {
 
     it('should include theme transitions in HTML export', () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Act
-      const html = themeStore.getState().exportToHTML('Test Note', 'Test content');
+      const html = useThemeStore.getState().exportToHTML('Test Note', 'Test content');
 
       // Assert
       expect(html).toContain('transition: background-color 0.2s ease');
@@ -224,7 +243,7 @@ describe('Theme Export', () => {
   describe('Image Export Theme Consistency', () => {
     it('should apply current theme to image export', async () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
       const mockCanvas = {
         toBlob: jest.fn(() => Promise.resolve(new Blob())),
         toDataURL: jest.fn(() => 'data:image/png;base64,test'),
@@ -232,7 +251,7 @@ describe('Theme Export', () => {
       html2canvasMock.mockResolvedValue(mockCanvas);
 
       // Act
-      await themeStore.getState().exportToImage('Test Note', 'Test content');
+      await useThemeStore.getState().exportToImage('Test Note', 'Test content');
 
       // Assert
       expect(html2canvasMock).toHaveBeenCalledWith(
@@ -245,7 +264,7 @@ describe('Theme Export', () => {
 
     it('should use light theme background for image export', async () => {
       // Arrange
-      themeStore.getState().setTheme('light');
+      useThemeStore.getState().setTheme('light');
       const mockCanvas = {
         toBlob: jest.fn(() => Promise.resolve(new Blob())),
         toDataURL: jest.fn(() => 'data:image/png;base64,test'),
@@ -253,7 +272,7 @@ describe('Theme Export', () => {
       html2canvasMock.mockResolvedValue(mockCanvas);
 
       // Act
-      await themeStore.getState().exportToImage('Test Note', 'Test content');
+      await useThemeStore.getState().exportToImage('Test Note', 'Test content');
 
       // Assert
       expect(html2canvasMock).toHaveBeenCalledWith(
@@ -266,7 +285,7 @@ describe('Theme Export', () => {
 
     it('should use dark theme background for image export', async () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
       const mockCanvas = {
         toBlob: jest.fn(() => Promise.resolve(new Blob())),
         toDataURL: jest.fn(() => 'data:image/png;base64,test'),
@@ -274,7 +293,7 @@ describe('Theme Export', () => {
       html2canvasMock.mockResolvedValue(mockCanvas);
 
       // Act
-      await themeStore.getState().exportToImage('Test Note', 'Test content');
+      await useThemeStore.getState().exportToImage('Test Note', 'Test content');
 
       // Assert
       expect(html2canvasMock).toHaveBeenCalledWith(
@@ -289,10 +308,10 @@ describe('Theme Export', () => {
   describe('Markdown Export Theme Consistency', () => {
     it('should include theme metadata in markdown export', () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Act
-      const markdown = themeStore.getState().exportToMarkdown('Test Note', 'Test content');
+      const markdown = useThemeStore.getState().exportToMarkdown('Test Note', 'Test content');
 
       // Assert
       expect(markdown).toContain('theme: dark');
@@ -301,10 +320,10 @@ describe('Theme Export', () => {
 
     it('should include light theme metadata', () => {
       // Arrange
-      themeStore.getState().setTheme('light');
+      useThemeStore.getState().setTheme('light');
 
       // Act
-      const markdown = themeStore.getState().exportToMarkdown('Test Note', 'Test content');
+      const markdown = useThemeStore.getState().exportToMarkdown('Test Note', 'Test content');
 
       // Assert
       expect(markdown).toContain('theme: light');
@@ -312,10 +331,10 @@ describe('Theme Export', () => {
 
     it('should include dark theme metadata', () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Act
-      const markdown = themeStore.getState().exportToMarkdown('Test Note', 'Test content');
+      const markdown = useThemeStore.getState().exportToMarkdown('Test Note', 'Test content');
 
       // Assert
       expect(markdown).toContain('theme: dark');
@@ -325,10 +344,10 @@ describe('Theme Export', () => {
   describe('Theme Color Mapping', () => {
     it('should map light theme colors correctly', () => {
       // Arrange
-      themeStore.getState().setTheme('light');
+      useThemeStore.getState().setTheme('light');
 
       // Act
-      const colors = themeStore.getState().getThemeColors();
+      const colors = useThemeStore.getState().getThemeColors();
 
       // Assert
       expect(colors.background).toBe('#ffffff');
@@ -339,10 +358,10 @@ describe('Theme Export', () => {
 
     it('should map dark theme colors correctly', () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Act
-      const colors = themeStore.getState().getThemeColors();
+      const colors = useThemeStore.getState().getThemeColors();
 
       // Assert
       expect(colors.background).toBe('#1e1e1e');
@@ -355,12 +374,12 @@ describe('Theme Export', () => {
   describe('Export Format Consistency', () => {
     it('should maintain theme consistency across all export formats', () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Act
-      const pdf = themeStore.getState().exportToPDF('Test Note', 'Test content');
-      const html = themeStore.getState().exportToHTML('Test Note', 'Test content');
-      const markdown = themeStore.getState().exportToMarkdown('Test Note', 'Test content');
+      const pdf = useThemeStore.getState().exportToPDF('Test Note', 'Test content');
+      const html = useThemeStore.getState().exportToHTML('Test Note', 'Test content');
+      const markdown = useThemeStore.getState().exportToMarkdown('Test Note', 'Test content');
 
       // Assert
       expect(pdf).toBeDefined();
@@ -370,13 +389,13 @@ describe('Theme Export', () => {
 
     it('should handle theme switching during export', () => {
       // Arrange
-      themeStore.getState().setTheme('light');
+      useThemeStore.getState().setTheme('light');
 
       // Act
-      const html1 = themeStore.getState().exportToHTML('Test Note', 'Test content');
+      const html1 = useThemeStore.getState().exportToHTML('Test Note', 'Test content');
       
-      themeStore.getState().setTheme('dark');
-      const html2 = themeStore.getState().exportToHTML('Test Note', 'Test content');
+      useThemeStore.getState().setTheme('dark');
+      const html2 = useThemeStore.getState().exportToHTML('Test Note', 'Test content');
 
       // Assert
       expect(html1).toContain('data-theme="light"');
@@ -393,7 +412,7 @@ describe('Theme Export', () => {
 
       // Act & Assert
       expect(() => {
-        themeStore.getState().exportToPDF('Test Note', 'Test content');
+        useThemeStore.getState().exportToPDF('Test Note', 'Test content');
       }).not.toThrow();
     });
 
@@ -403,19 +422,19 @@ describe('Theme Export', () => {
 
       // Act & Assert
       await expect(
-        themeStore.getState().exportToImage('Test Note', 'Test content')
+        useThemeStore.getState().exportToImage('Test Note', 'Test content')
       ).rejects.toThrow('Image generation failed');
     });
 
     it('should fallback to light theme on export errors', () => {
       // Arrange
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
       jsPDFMock.mockImplementation(() => {
         throw new Error('PDF generation failed');
       });
 
       // Act
-      themeStore.getState().exportToPDF('Test Note', 'Test content');
+      useThemeStore.getState().exportToPDF('Test Note', 'Test content');
 
       // Assert - Should fallback to light theme colors
       const mockPdf = jsPDFMock();
@@ -429,7 +448,7 @@ describe('Theme Export', () => {
       const startTime = performance.now();
 
       // Act
-      themeStore.getState().exportToPDF('Test Note', 'Test content');
+      useThemeStore.getState().exportToPDF('Test Note', 'Test content');
       const endTime = performance.now();
       const duration = endTime - startTime;
 
@@ -442,7 +461,7 @@ describe('Theme Export', () => {
       const startTime = performance.now();
 
       // Act
-      themeStore.getState().exportToHTML('Test Note', 'Test content');
+      useThemeStore.getState().exportToHTML('Test Note', 'Test content');
       const endTime = performance.now();
       const duration = endTime - startTime;
 
@@ -459,7 +478,7 @@ describe('Theme Export', () => {
       });
 
       // Act
-      themeStore.getState().exportToPDF('Test Note', 'Test content');
+      useThemeStore.getState().exportToPDF('Test Note', 'Test content');
 
       // Assert
       expect(mockRequestIdleCallback).toHaveBeenCalled();

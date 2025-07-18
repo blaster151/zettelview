@@ -1,15 +1,15 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { useThemeStore } from './stores/themeStore';
-import { useNoteStore } from './stores/noteStore';
-import { useUIStore } from './stores/uiStore';
-import { useNotificationStore } from './stores/notificationStore';
+import { useThemeStore } from './store/themeStore';
+import { useNoteStore } from './store/noteStore';
+import { useUIStore } from './store/uiStore';
+import { useNotificationStore } from './store/notificationStore';
 
 // Import components
-import Header from './components/Header';
+import AppHeader from './components/AppHeader';
 import Sidebar from './components/Sidebar';
-import NoteEditor from './components/NoteEditor';
-import NoteList from './components/NoteList';
+import MarkdownEditor from './components/MarkdownEditor';
+import VirtualizedNoteList from './components/VirtualizedNoteList';
 import GraphView from './components/features/GraphView';
 import CalendarView from './components/features/CalendarView';
 import SearchView from './components/features/SearchView';
@@ -117,7 +117,7 @@ const App: React.FC = () => {
     >
       <Router>
         <div className="app-container">
-          <Header />
+          <AppHeader />
           <div className="main-content">
             <Sidebar />
             <main className="content-area">
@@ -125,15 +125,15 @@ const App: React.FC = () => {
                 {/* Main Routes */}
                 <Route path="/" element={
                   <div className="content-wrapper">
-                    <NoteList />
-                    {selectedNoteId && <NoteEditor />}
+                    <VirtualizedNoteList />
+                    {selectedNoteId && <MarkdownEditor />}
                   </div>
                 } />
                 
                 <Route path="/notes" element={
                   <div className="content-wrapper">
-                    <NoteList />
-                    {selectedNoteId && <NoteEditor />}
+                    <VirtualizedNoteList />
+                    {selectedNoteId && <MarkdownEditor />}
                   </div>
                 } />
                 

@@ -47,6 +47,7 @@ const mockNotes = [
 describe('Search Utils', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.clear();
   });
 
   describe('fuzzySearch', () => {

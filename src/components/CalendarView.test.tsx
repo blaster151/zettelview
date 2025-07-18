@@ -70,6 +70,7 @@ describe('CalendarView', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.clear();
     
     mockUseNoteStore.mockReturnValue({
       notes: mockNotes,

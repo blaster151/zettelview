@@ -1,4 +1,4 @@
-import { useThemeStore } from '../../stores/themeStore';
+import { useThemeStore } from '../../store/themeStore';
 
 // Mock localStorage
 const localStorageMock = {

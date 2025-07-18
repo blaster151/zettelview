@@ -1,7 +1,7 @@
 // Remove Vitest import and use Jest globals
 // import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import { themeStore } from '../../stores/themeStore';
+import { useThemeStore } from '../../store/themeStore';
 
 // Mock localStorage
 const localStorageMock = {
@@ -54,42 +54,61 @@ describe('Theme System Integration', () => {
     // Clear all mocks
     jest.clearAllMocks();
     
+    // Clear localStorage to prevent quota exceeded errors
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.clear();
+    }
+    
     // Reset theme store
-    themeStore.setState({
+    useThemeStore.setState({
       theme: 'light',
       systemPreference: 'light',
       isDark: false,
       isSystem: false,
+      colors: {
+        background: '#ffffff',
+        text: '#000000',
+        primary: '#3b82f6',
+        secondary: '#6b7280',
+        border: '#e5e7eb',
+        accent: '#f3f4f6',
+        surface: '#ffffff',
+        surfaceHover: '#f9fafb',
+        inputBackground: '#ffffff',
+        inputBorder: '#d1d5db',
+        shadow: 'rgba(0, 0, 0, 0.1)',
+        overlay: 'rgba(0, 0, 0, 0.3)',
+      },
     });
   });
 
   describe('Theme Store Integration', () => {
     it('should initialize theme store correctly', () => {
       // Assert
-      expect(themeStore.getState().theme).toBe('light');
-      expect(themeStore.getState().isDark).toBe(false);
-      expect(themeStore.getState().isSystem).toBe(false);
+      expect(useThemeStore.getState().theme).toBe('light');
+      expect(useThemeStore.getState().isDark).toBe(false);
+      expect(useThemeStore.getState().isSystem).toBe(false);
     });
 
     it('should switch themes correctly', () => {
       // Act
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Assert
-      expect(themeStore.getState().theme).toBe('dark');
-      expect(themeStore.getState().isDark).toBe(true);
+      expect(useThemeStore.getState().theme).toBe('dark');
+      expect(useThemeStore.getState().isDark).toBe(true);
     });
 
     it('should toggle themes correctly', () => {
       // Arrange
-      themeStore.getState().setTheme('light');
+      useThemeStore.getState().setTheme('light');
 
       // Act
-      themeStore.getState().toggleTheme();
+      useThemeStore.getState().toggleTheme();
 
       // Assert
-      expect(themeStore.getState().theme).toBe('dark');
-      expect(themeStore.getState().isDark).toBe(true);
+      expect(useThemeStore.getState().theme).toBe('dark');
+      expect(useThemeStore.getState().isDark).toBe(true);
     });
   });
 
@@ -103,10 +122,10 @@ describe('Theme System Integration', () => {
       });
 
       // Act
-      themeStore.getState().setSystemPreference('dark');
+      useThemeStore.getState().setSystemPreference('dark');
 
       // Assert
-      expect(themeStore.getState().systemPreference).toBe('dark');
+      expect(useThemeStore.getState().systemPreference).toBe('dark');
     });
 
     it('should handle system mode correctly', () => {
@@ -118,17 +137,17 @@ describe('Theme System Integration', () => {
       });
 
       // Act
-      themeStore.getState().setSystemMode(true);
+      useThemeStore.getState().setSystemMode(true);
 
       // Assert
-      expect(themeStore.getState().isSystem).toBe(true);
+      expect(useThemeStore.getState().isSystem).toBe(true);
     });
   });
 
   describe('Persistence Integration', () => {
     it('should save theme to localStorage', () => {
       // Act
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Assert
       expect(localStorageMock.setItem).toHaveBeenCalledWith('theme', 'dark');
@@ -139,11 +158,11 @@ describe('Theme System Integration', () => {
       localStorageMock.getItem.mockReturnValue('dark');
 
       // Act
-      themeStore.getState().initializeTheme();
+      useThemeStore.getState().initializeTheme();
 
       // Assert
       expect(localStorageMock.getItem).toHaveBeenCalledWith('theme');
-      expect(themeStore.getState().theme).toBe('dark');
+      expect(useThemeStore.getState().theme).toBe('dark');
     });
   });
 
@@ -166,7 +185,7 @@ describe('Theme System Integration', () => {
       });
 
       // Act
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Assert
       expect(mockDocumentElement.setAttribute).toHaveBeenCalledWith('data-theme', 'dark');
@@ -190,7 +209,7 @@ describe('Theme System Integration', () => {
       });
 
       // Act
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
 
       // Assert
       expect(mockDocumentElement.classList.remove).toHaveBeenCalled();
@@ -205,7 +224,7 @@ describe('Theme System Integration', () => {
       });
 
       // Act & Assert
-      expect(() => themeStore.getState().setTheme('dark')).not.toThrow();
+      expect(() => useThemeStore.getState().setTheme('dark')).not.toThrow();
     });
 
     it('should handle matchMedia errors gracefully', () => {
@@ -215,7 +234,7 @@ describe('Theme System Integration', () => {
       });
 
       // Act & Assert
-      expect(() => themeStore.getState().setSystemPreference('dark')).not.toThrow();
+      expect(() => useThemeStore.getState().setSystemPreference('dark')).not.toThrow();
     });
   });
 
@@ -225,7 +244,7 @@ describe('Theme System Integration', () => {
       const startTime = performance.now();
 
       // Act
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
       const endTime = performance.now();
       const duration = endTime - startTime;
 
@@ -251,9 +270,9 @@ describe('Theme System Integration', () => {
       });
 
       // Act
-      themeStore.getState().setTheme('dark');
-      themeStore.getState().setTheme('light');
-      themeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('dark');
+      useThemeStore.getState().setTheme('light');
+      useThemeStore.getState().setTheme('dark');
 
       // Assert
       expect(mockDocumentElement.setAttribute).toHaveBeenCalledTimes(3);

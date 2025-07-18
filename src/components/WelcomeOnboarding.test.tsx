@@ -41,6 +41,7 @@ describe('WelcomeOnboarding', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.clear();
     localStorageMock.getItem.mockReturnValue(null);
   });
 

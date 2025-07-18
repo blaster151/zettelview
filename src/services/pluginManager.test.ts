@@ -15,6 +15,7 @@ Object.defineProperty(window, 'localStorage', {
 describe('PluginManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.clear();
     // Reset plugin manager state
     const allPlugins = pluginManager.getAllPlugins();
     allPlugins.forEach(plugin => {
