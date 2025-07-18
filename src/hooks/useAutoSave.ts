@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
-interface UseAutoSaveOptions {
-  debounceMs?: number;
-  onSave: (data: any) => Promise<void>;
-  onError?: (error: Error) => void;
-}
-
-interface SaveStatus {
+export interface SaveStatus {
   isSaving: boolean;
   lastSaved: Date | null;
   error: string | null;
+}
+
+export interface UseAutoSaveOptions {
+  debounceMs?: number;
+  onSave: (data: any) => Promise<void>;
+  onError?: (error: Error) => void;
 }
 
 export function useAutoSave<T>(
@@ -26,49 +26,35 @@ export function useAutoSave<T>(
   const lastDataRef = useRef<T>(data);
 
   const saveData = useCallback(async (dataToSave: T) => {
-    console.log('🔄 saveData called with:', dataToSave);
-    console.log('📊 lastDataRef.current:', lastDataRef.current);
-    
     if (JSON.stringify(dataToSave) === JSON.stringify(lastDataRef.current)) {
-      console.log('⏭️ Skipping save - no changes detected');
       return; // No changes to save
     }
 
-    console.log('💾 Starting save operation');
     setIsSaving(true);
     setError(null);
     
     try {
-      console.log('📞 Calling onSave function');
       await onSave(dataToSave);
-      console.log('✅ onSave completed successfully');
       lastDataRef.current = dataToSave;
       setLastSaved(new Date());
-      console.log('📅 Updated lastSaved timestamp');
     } catch (err) {
-      console.log('❌ Save failed with error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Save failed';
       setError(errorMessage);
       onError?.(err instanceof Error ? err : new Error(errorMessage));
     } finally {
-      console.log('🏁 Setting isSaving to false');
       setIsSaving(false);
     }
   }, [onSave, onError]);
 
   const saveNow = useCallback(async () => {
-    console.log('🚀 saveNow called with data:', data);
     if (timeoutRef.current) {
-      console.log('⏰ Clearing existing timeout');
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    console.log('📞 Calling saveData');
     await saveData(data);
-    console.log('✅ saveNow completed');
   }, [data, saveData]);
 
-  // Debounced auto-save
+  // Auto-save on data changes
   useEffect(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -85,18 +71,14 @@ export function useAutoSave<T>(
     };
   }, [data, debounceMs, saveData]);
 
-  // Handle Ctrl+S manual save
+  // Cleanup on unmount
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-        event.preventDefault();
-        saveNow();
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [saveNow]);
+  }, []);
 
   return {
     isSaving,

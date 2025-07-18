@@ -4,14 +4,14 @@ import {
   PluginContext, 
   PluginHook, 
   PluginEvent, 
-  PluginRegistry,
-  PluginManager 
+  PluginRegistry 
 } from '../types/plugins';
 import { pluginAPI } from './pluginAPI';
 import { pluginPermissionsService } from './pluginPermissions';
 import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
 import { useNotificationStore } from '../store/notificationStore';
+import { SecurityMonitor } from '../utils/securityUtils';
 
 class PluginManagerService implements PluginManager {
   private registry: PluginRegistry = {
@@ -23,8 +23,10 @@ class PluginManagerService implements PluginManager {
 
   private context: PluginContext;
   private isInitialized = false;
+  private securityMonitor: SecurityMonitor;
 
   constructor() {
+    this.securityMonitor = new SecurityMonitor();
     this.context = this.createContext();
     this.loadBuiltInPlugins();
   }
@@ -46,7 +48,7 @@ class PluginManagerService implements PluginManager {
     this.context = this.createContext();
     this.isInitialized = true;
 
-    console.log('Plugin manager initialized with stores');
+    this.securityMonitor.logViolation('PLUGIN_MANAGER_INITIALIZED', {}, 'low');
   }
 
   private createContext(): PluginContext {
@@ -71,25 +73,37 @@ class PluginManagerService implements PluginManager {
         },
         update: (id: string, updates: any) => {
           // This would be connected to the actual note store
-          console.log('Plugin updating note:', id, updates);
+          // Log plugin activity for security monitoring
+          this.securityMonitor.logViolation('PLUGIN_NOTE_UPDATE', { 
+            noteId: id, 
+            updates 
+          }, 'low');
         },
         delete: (id: string) => {
           // This would be connected to the actual note store
-          console.log('Plugin deleting note:', id);
+          this.securityMonitor.logViolation('PLUGIN_NOTE_DELETE', { 
+            noteId: id 
+          }, 'medium');
         }
       },
       ui: {
         showNotification: (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
           // This would be connected to the actual UI notification system
-          console.log(`[${type.toUpperCase()}] ${message}`);
+          this.securityMonitor.logViolation('PLUGIN_NOTIFICATION', { 
+            message, 
+            type 
+          }, 'low');
         },
         openModal: (component: React.ComponentType<any>, props?: any) => {
           // This would be connected to the actual modal system
-          console.log('Plugin opening modal:', component.name, props);
+          this.securityMonitor.logViolation('PLUGIN_MODAL_OPEN', { 
+            component: component.name, 
+            props 
+          }, 'low');
         },
         closeModal: () => {
           // This would be connected to the actual modal system
-          console.log('Plugin closing modal');
+          this.securityMonitor.logViolation('PLUGIN_MODAL_CLOSE', {}, 'low');
         }
       },
       storage: {
@@ -279,9 +293,14 @@ class PluginManagerService implements PluginManager {
         });
       }
 
-      console.log(`Plugin ${manifest.name} registered successfully`);
+      this.securityMonitor.logViolation('PLUGIN_REGISTERED', { 
+        pluginId: manifest.id, 
+        pluginName: manifest.name 
+      }, 'low');
     } catch (error) {
-      console.error('Failed to register plugin:', error);
+      this.securityMonitor.logViolation('PLUGIN_REGISTRATION_FAILED', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      }, 'medium');
       throw error;
     }
   }
@@ -305,7 +324,10 @@ class PluginManagerService implements PluginManager {
     // Remove plugin settings
     this.registry.settings.delete(pluginId);
 
-    console.log(`Plugin ${plugin.name} unregistered successfully`);
+    this.securityMonitor.logViolation('PLUGIN_UNREGISTERED', { 
+      pluginId, 
+      pluginName: plugin.name 
+    }, 'low');
   }
 
   async enablePlugin(pluginId: string): Promise<void> {
@@ -334,7 +356,10 @@ class PluginManagerService implements PluginManager {
       source: 'plugin-manager'
     });
 
-    console.log(`Plugin ${plugin.name} enabled successfully`);
+    this.securityMonitor.logViolation('PLUGIN_ENABLED', { 
+      pluginId, 
+      pluginName: plugin.name 
+    }, 'low');
   }
 
   async disablePlugin(pluginId: string): Promise<void> {
@@ -353,7 +378,10 @@ class PluginManagerService implements PluginManager {
       source: 'plugin-manager'
     });
 
-    console.log(`Plugin ${plugin.name} disabled successfully`);
+    this.securityMonitor.logViolation('PLUGIN_DISABLED', { 
+      pluginId, 
+      pluginName: plugin.name 
+    }, 'low');
   }
 
   getPlugin(pluginId: string): Plugin | undefined {
@@ -383,7 +411,10 @@ class PluginManagerService implements PluginManager {
     // Sort by priority (higher priority first)
     hooks.sort((a, b) => b.priority - a.priority);
 
-    console.log(`Hook ${hookName} added with priority ${priority}`);
+    this.securityMonitor.logViolation('HOOK_ADDED', { 
+      hookName, 
+      priority 
+    }, 'low');
   }
 
   removeHook(hookName: string, callback: PluginHook['callback']): void {
@@ -393,7 +424,9 @@ class PluginManagerService implements PluginManager {
     const index = hooks.findIndex(hook => hook.callback === callback);
     if (index !== -1) {
       hooks.splice(index, 1);
-      console.log(`Hook ${hookName} removed`);
+      this.securityMonitor.logViolation('HOOK_REMOVED', { 
+        hookName 
+      }, 'low');
     }
   }
 
@@ -410,7 +443,10 @@ class PluginManagerService implements PluginManager {
           results.push(result);
         }
       } catch (error) {
-        console.error(`Error executing hook ${hookName}:`, error);
+        this.securityMonitor.logViolation('HOOK_EXECUTION_FAILED', { 
+          hookName, 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        }, 'medium');
       }
     });
 
@@ -463,7 +499,10 @@ class PluginManagerService implements PluginManager {
       source: 'plugin-manager'
     });
 
-    console.log(`Settings updated for plugin ${plugin.name}`);
+    this.securityMonitor.logViolation('PLUGIN_SETTINGS_UPDATED', { 
+      pluginId, 
+      settings 
+    }, 'low');
   }
 
   // Utility methods

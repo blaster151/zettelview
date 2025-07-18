@@ -98,8 +98,6 @@ tags: ${JSON.stringify(note.tags)}
       
       await writable.write(content);
       await writable.close();
-      
-      console.log(`Note ${note.id} saved successfully`);
     } catch (error) {
       if (error instanceof SecurityError) {
         this.securityMonitor.logViolation('SECURITY_VIOLATION', { 
@@ -110,7 +108,6 @@ tags: ${JSON.stringify(note.tags)}
         throw new Error(`Security violation: ${error.message}`);
       }
       
-      console.error('Failed to save note:', error);
       this.securityMonitor.logViolation('SAVE_FAILED', { noteId: note.id, error }, 'medium');
       throw error;
     }
@@ -168,9 +165,8 @@ tags: ${JSON.stringify(note.tags)}
       let processedCount = 0;
       const maxNotesToProcess = 1000; // Prevent infinite loops
       
-      for await (const entry of this.notesHandle.values()) {
+      for await (const entry of this.notesHandle.entries()) {
         if (processedCount >= maxNotesToProcess) {
-          console.warn(`Stopped processing notes after ${maxNotesToProcess} files`);
           this.securityMonitor.logViolation('TOO_MANY_FILES', { 
             processed: processedCount, 
             max: maxNotesToProcess 
@@ -178,19 +174,18 @@ tags: ${JSON.stringify(note.tags)}
           break;
         }
         
-        if (entry.kind === 'file' && entry.name.endsWith('.md')) {
+        if (entry[1].kind === 'file' && entry[0].endsWith('.md')) {
           try {
-            const file = await entry.getFile();
+            const file = await entry[1].getFile();
             
             // Validate file size
             this.securityValidator.validateFileSize(file.size);
             
             const content = await file.text();
-            const id = entry.name.replace('.md', '');
+            const id = entry[0].replace('.md', '');
             
             // Additional validation for content length
             if (content.length > this.securityValidator['config'].maxBodyLength) {
-              console.warn(`Skipping note ${id}: content too long (${content.length} chars)`);
               this.securityMonitor.logViolation('CONTENT_TOO_LONG', { 
                 noteId: id, 
                 length: content.length 
@@ -206,7 +201,6 @@ tags: ${JSON.stringify(note.tags)}
                 this.securityValidator.validateNote(note);
                 notes.push(note);
               } catch (validationError) {
-                console.warn(`Skipping note ${id}: validation failed:`, validationError);
                 this.securityMonitor.logViolation('VALIDATION_FAILED', { 
                   noteId: id, 
                   error: validationError 
@@ -216,19 +210,16 @@ tags: ${JSON.stringify(note.tags)}
             
             processedCount++;
           } catch (error) {
-            console.warn(`Failed to load note ${entry.name}:`, error);
             this.securityMonitor.logViolation('LOAD_FAILED', { 
-              filename: entry.name, 
+              filename: entry[0], 
               error 
             }, 'low');
           }
         }
       }
       
-      console.log(`Successfully loaded ${notes.length} notes`);
       return notes;
     } catch (error) {
-      console.error('Failed to load notes:', error);
       this.securityMonitor.logViolation('BULK_LOAD_FAILED', { error }, 'high');
       return [];
     }
@@ -242,7 +233,6 @@ tags: ${JSON.stringify(note.tags)}
     try {
       const filename = `${id}.md`;
       await this.notesHandle.removeEntry(filename);
-      console.log(`Note ${id} deleted successfully`);
     } catch (error) {
       console.error('Failed to delete note:', error);
       this.securityMonitor.logViolation('DELETE_FAILED', { noteId: id, error }, 'medium');
@@ -291,7 +281,6 @@ tags: ${JSON.stringify(note.tags)}
         try {
           this.securityValidator.validateNote(noteData);
         } catch (validationError) {
-          console.warn(`Skipping invalid note during import:`, validationError);
           this.securityMonitor.logViolation('IMPORT_VALIDATION_FAILED', { 
             noteData, 
             error: validationError 
@@ -310,10 +299,7 @@ tags: ${JSON.stringify(note.tags)}
         
         await this.saveNote(note);
       }
-      
-      console.log(`Successfully imported ${importData.notes.length} notes`);
     } catch (error) {
-      console.error('Failed to import notes:', error);
       this.securityMonitor.logViolation('IMPORT_FAILED', { error }, 'high');
       throw error;
     }

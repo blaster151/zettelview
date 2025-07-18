@@ -1,224 +1,447 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNoteStore } from '../../store/noteStore';
+import { useThemeStore } from '../../store/themeStore';
 import { Note } from '../../types/domain';
+import { loggingService } from '../../services/loggingService';
 
 interface ExportImportProps {
+  isOpen: boolean;
   onClose: () => void;
 }
 
-interface ExportData {
-  version: string;
-  exportedAt: string;
-  notes: Note[];
+type ExportFormat = 'json' | 'markdown' | 'csv' | 'pdf' | 'html';
+type ImportFormat = 'json' | 'markdown';
+
+interface ExportOptions {
+  format: ExportFormat;
+  includeMetadata: boolean;
+  includeTags: boolean;
+  includeTimestamps: boolean;
+  compress: boolean;
+  selectedNotes?: string[];
 }
 
-const ExportImport: React.FC<ExportImportProps> = ({ onClose }) => {
+interface ImportOptions {
+  format: ImportFormat;
+  mergeStrategy: 'replace' | 'merge' | 'skip-duplicates';
+  validateData: boolean;
+}
+
+const ExportImport: React.FC<ExportImportProps> = ({ isOpen, onClose }) => {
   const { notes, addNote, updateNote } = useNoteStore();
-  const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [importSuccess, setImportSuccess] = useState<string | null>(null);
-  const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
-  const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set());
+  const { colors } = useThemeStore();
+  
+  const [activeTab, setActiveTab] = useState<'export' | 'import'>('export');
+  const [exportOptions, setExportOptions] = useState<ExportOptions>({
+    format: 'json',
+    includeMetadata: true,
+    includeTags: true,
+    includeTimestamps: true,
+    compress: false
+  });
+  const [importOptions, setImportOptions] = useState<ImportOptions>({
+    format: 'json',
+    mergeStrategy: 'merge',
+    validateData: true
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  // Select all notes by default
-  React.useEffect(() => {
-    setSelectedNotes(new Set(notes.map(note => note.id)));
-  }, [notes]);
-
-  const handleSelectAll = useCallback(() => {
-    setSelectedNotes(new Set(notes.map(note => note.id)));
-  }, [notes]);
-
-  const handleSelectNone = useCallback(() => {
-    setSelectedNotes(new Set());
-  }, []);
-
-  const handleNoteToggle = useCallback((noteId: string) => {
-    setSelectedNotes(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(noteId)) {
-        newSet.delete(noteId);
-      } else {
-        newSet.add(noteId);
-      }
-      return newSet;
-    });
-  }, []);
-
-  const exportToJSON = useCallback((selectedNotesData: typeof notes) => {
-    const exportData: ExportData = {
-      version: '1.0',
+  // Memoized export data
+  const exportData = useMemo(() => {
+    const data = {
+      version: '1.0.0',
       exportedAt: new Date().toISOString(),
-      notes: selectedNotesData.map(note => ({
+      noteCount: notes.length,
+      notes: notes.map(note => ({
         id: note.id,
         title: note.title,
         body: note.body,
-        tags: note.tags,
-        createdAt: note.createdAt.toISOString(),
-        updatedAt: note.updatedAt.toISOString(),
+        tags: exportOptions.includeTags ? note.tags : [],
+        createdAt: exportOptions.includeTimestamps ? note.createdAt : undefined,
+        updatedAt: exportOptions.includeTimestamps ? note.updatedAt : undefined,
+        metadata: exportOptions.includeMetadata ? {
+          wordCount: note.body.split(/\s+/).length,
+          characterCount: note.body.length,
+          tagCount: note.tags.length,
+          hasLinks: /\[\[([^[\]]+)\]\]/g.test(note.body)
+        } : undefined
       }))
     };
+    return data;
+  }, [notes, exportOptions]);
 
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: 'application/json'
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `zettelview-export-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, []);
+  // Export functions
+  const exportToJSON = useCallback(async () => {
+    try {
+      const data = JSON.stringify(exportData, null, exportOptions.compress ? 0 : 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zettelview-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return true;
+    } catch (error) {
+      loggingService.error('Failed to export to JSON', error as Error);
+      return false;
+    }
+  }, [exportData, exportOptions.compress]);
 
-  const exportToCSV = useCallback((selectedNotesData: typeof notes) => {
-    const csvContent = [
-      ['Title', 'Body', 'Tags', 'Created', 'Updated'].join(','),
-      ...selectedNotesData.map(note => [
+  const exportToMarkdown = useCallback(async () => {
+    try {
+      let markdown = `# ZettelView Export\n\nExported on: ${new Date().toLocaleString()}\nTotal notes: ${notes.length}\n\n`;
+      
+      for (const note of notes) {
+        markdown += `## ${note.title}\n\n`;
+        if (exportOptions.includeTags && note.tags.length > 0) {
+          markdown += `**Tags:** ${note.tags.join(', ')}\n\n`;
+        }
+        if (exportOptions.includeTimestamps) {
+          markdown += `**Created:** ${new Date(note.createdAt).toLocaleString()}\n`;
+          markdown += `**Updated:** ${new Date(note.updatedAt).toLocaleString()}\n\n`;
+        }
+        markdown += `${note.body}\n\n---\n\n`;
+      }
+      
+      const blob = new Blob([markdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zettelview-export-${new Date().toISOString().split('T')[0]}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return true;
+    } catch (error) {
+      loggingService.error('Failed to export to Markdown', error as Error);
+      return false;
+    }
+  }, [notes, exportOptions]);
+
+  const exportToCSV = useCallback(async () => {
+    try {
+      const headers = ['Title', 'Body', 'Tags', 'Created', 'Updated'];
+      const rows = notes.map(note => [
         `"${note.title.replace(/"/g, '""')}"`,
         `"${note.body.replace(/"/g, '""')}"`,
-        `"${note.tags.join('; ')}"`,
-        note.createdAt.toISOString(),
-        note.updatedAt.toISOString()
-      ].join(','))
-    ].join('\n');
+        `"${note.tags.join(', ')}"`,
+        new Date(note.createdAt).toISOString(),
+        new Date(note.updatedAt).toISOString()
+      ]);
+      
+      const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zettelview-export-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return true;
+    } catch (error) {
+      loggingService.error('Failed to export to CSV', error as Error);
+      return false;
+    }
+  }, [notes]);
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `zettelview-export-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const exportToHTML = useCallback(async () => {
+    try {
+      let html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZettelView Export</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .note { margin-bottom: 40px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+        .note h2 { color: #333; margin-bottom: 10px; }
+        .note .tags { color: #666; font-size: 0.9em; margin-bottom: 10px; }
+        .note .timestamps { color: #999; font-size: 0.8em; margin-bottom: 15px; }
+        .note .body { white-space: pre-wrap; }
+        .metadata { background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="metadata">
+        <h1>ZettelView Export</h1>
+        <p><strong>Exported on:</strong> ${new Date().toLocaleString()}</p>
+        <p><strong>Total notes:</strong> ${notes.length}</p>
+    </div>`;
+      
+      for (const note of notes) {
+        html += `
+    <div class="note">
+        <h2>${note.title}</h2>`;
+        
+        if (exportOptions.includeTags && note.tags.length > 0) {
+          html += `
+        <div class="tags"><strong>Tags:</strong> ${note.tags.join(', ')}</div>`;
+        }
+        
+        if (exportOptions.includeTimestamps) {
+          html += `
+        <div class="timestamps">
+            <strong>Created:</strong> ${new Date(note.createdAt).toLocaleString()}<br>
+            <strong>Updated:</strong> ${new Date(note.updatedAt).toLocaleString()}
+        </div>`;
+        }
+        
+        html += `
+        <div class="body">${note.body.replace(/\n/g, '<br>')}</div>
+    </div>`;
+      }
+      
+      html += `
+</body>
+</html>`;
+      
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zettelview-export-${new Date().toISOString().split('T')[0]}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return true;
+    } catch (error) {
+      loggingService.error('Failed to export to HTML', error as Error);
+      return false;
+    }
+  }, [notes, exportOptions]);
+
+  const exportToPDF = useCallback(async () => {
+    try {
+      // For now, we'll export as HTML and let the browser handle PDF conversion
+      // In a real implementation, you'd use a library like jsPDF or html2pdf
+      setError('PDF export is not yet implemented. Please use HTML export and convert to PDF in your browser.');
+      return false;
+    } catch (error) {
+      loggingService.error('Failed to export to PDF', error as Error);
+      return false;
+    }
   }, []);
 
+  // Handle export
   const handleExport = useCallback(async () => {
-    if (selectedNotes.size === 0) {
-      alert('Please select at least one note to export.');
-      return;
-    }
+    setIsProcessing(true);
+    setProgress(0);
+    setError(null);
+    setSuccess(null);
 
-    setIsExporting(true);
     try {
-      const selectedNotesData = notes.filter(note => selectedNotes.has(note.id));
+      let success = false;
       
-      if (exportFormat === 'json') {
-        exportToJSON(selectedNotesData);
+      switch (exportOptions.format) {
+        case 'json':
+          success = await exportToJSON();
+          break;
+        case 'markdown':
+          success = await exportToMarkdown();
+          break;
+        case 'csv':
+          success = await exportToCSV();
+          break;
+        case 'html':
+          success = await exportToHTML();
+          break;
+        case 'pdf':
+          success = await exportToPDF();
+          break;
+      }
+
+      setProgress(100);
+      
+      if (success) {
+        setSuccess(`Successfully exported ${notes.length} notes to ${exportOptions.format.toUpperCase()}`);
+        loggingService.info('Export completed successfully', { 
+          format: exportOptions.format, 
+          noteCount: notes.length 
+        });
       } else {
-        exportToCSV(selectedNotesData);
+        setError(`Failed to export to ${exportOptions.format.toUpperCase()}`);
       }
     } catch (error) {
-      console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
+      setError(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      loggingService.error('Export failed', error as Error);
     } finally {
-      setIsExporting(false);
+      setIsProcessing(false);
     }
-  }, [selectedNotes, notes, exportFormat, exportToJSON, exportToCSV]);
+  }, [exportOptions, notes, exportToJSON, exportToMarkdown, exportToCSV, exportToHTML, exportToPDF]);
 
+  // Import functions
+  const importFromJSON = useCallback(async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      if (!data.notes || !Array.isArray(data.notes)) {
+        throw new Error('Invalid JSON format: missing notes array');
+      }
+
+      const importedNotes: Note[] = [];
+      let skippedCount = 0;
+      let updatedCount = 0;
+      let addedCount = 0;
+
+      for (const noteData of data.notes) {
+        // Validate note data
+        if (importOptions.validateData) {
+          if (!noteData.title || !noteData.body) {
+            loggingService.warn('Skipping invalid note', { noteData });
+            skippedCount++;
+            continue;
+          }
+        }
+
+        const existingNote = notes.find(n => n.id === noteData.id);
+        
+        if (existingNote) {
+          switch (importOptions.mergeStrategy) {
+            case 'replace':
+              await updateNote(noteData.id, {
+                title: noteData.title,
+                body: noteData.body,
+                tags: noteData.tags || []
+              });
+              updatedCount++;
+              break;
+            case 'skip-duplicates':
+              skippedCount++;
+              break;
+            case 'merge':
+              // Merge by updating existing note
+              await updateNote(noteData.id, {
+                title: noteData.title,
+                body: noteData.body,
+                tags: [...new Set([...existingNote.tags, ...(noteData.tags || [])])]
+              });
+              updatedCount++;
+              break;
+          }
+        } else {
+          await addNote(noteData.title, noteData.body, noteData.tags || []);
+          addedCount++;
+        }
+      }
+
+      return { addedCount, updatedCount, skippedCount };
+    } catch (error) {
+      loggingService.error('Failed to import from JSON', error as Error);
+      throw error;
+    }
+  }, [notes, addNote, updateNote, importOptions]);
+
+  const importFromMarkdown = useCallback(async (file: File) => {
+    try {
+      const text = await file.text();
+      const sections = text.split(/\n## /);
+      
+      let addedCount = 0;
+      let skippedCount = 0;
+
+      for (let i = 1; i < sections.length; i++) { // Skip first section (header)
+        const section = sections[i];
+        const lines = section.split('\n');
+        const title = lines[0].trim();
+        const body = lines.slice(1).join('\n').trim();
+        
+        if (title && body) {
+          await addNote(title, body);
+          addedCount++;
+        } else {
+          skippedCount++;
+        }
+      }
+
+      return { addedCount, updatedCount: 0, skippedCount };
+    } catch (error) {
+      loggingService.error('Failed to import from Markdown', error as Error);
+      throw error;
+    }
+  }, [addNote]);
+
+  // Handle import
   const handleImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setIsImporting(true);
-    setImportError(null);
-    setImportSuccess(null);
+    setIsProcessing(true);
+    setProgress(0);
+    setError(null);
+    setSuccess(null);
 
     try {
-      const text = await file.text();
-      let importData: ExportData;
-
-      if (file.name.endsWith('.json')) {
-        importData = JSON.parse(text);
-        
-        if (!importData.notes || !Array.isArray(importData.notes)) {
-          throw new Error('Invalid JSON format. Expected notes array.');
-        }
-      } else if (file.name.endsWith('.csv')) {
-        // Parse CSV format
-        const lines = text.split('\n').filter(line => line.trim());
-        if (lines.length < 2) {
-          throw new Error('Invalid CSV format. Expected header and data rows.');
-        }
-
-        const headers = lines[0].split(',').map(h => h.trim());
-        const notes = lines.slice(1).map(line => {
-          const values = line.split(',').map(v => v.trim());
-          return {
-            id: `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            title: values[0]?.replace(/^"|"$/g, '') || 'Imported Note',
-            body: values[1]?.replace(/^"|"$/g, '') || '',
-            tags: values[2]?.replace(/^"|"$/g, '').split(';').map(t => t.trim()).filter(Boolean) || [],
-            createdAt: new Date(values[3] || Date.now()).toISOString(),
-            updatedAt: new Date(values[4] || Date.now()).toISOString(),
-          };
-        });
-
-        importData = {
-          version: '1.0',
-          exportedAt: new Date().toISOString(),
-          notes
-        };
-      } else {
-        throw new Error('Unsupported file format. Please use .json or .csv files.');
-      }
-
-      // Import notes
-      let importedCount = 0;
-      let updatedCount = 0;
-
-      for (const noteData of importData.notes) {
-        const existingNote = notes.find(n => n.id === noteData.id);
-        
-        if (existingNote) {
-          // Update existing note
-          await updateNote(noteData.id, {
-            title: noteData.title,
-            body: noteData.body,
-            tags: noteData.tags
-          });
-          updatedCount++;
-        } else {
-          // Add new note
-          await addNote(noteData.title, {
-            body: noteData.body,
-            tags: noteData.tags,
-            createdAt: new Date(noteData.createdAt),
-            id: noteData.id
-          });
-          importedCount++;
-        }
-      }
-
-      setImportSuccess(`Import completed: ${importedCount} new notes, ${updatedCount} updated notes.`);
+      let result;
       
+      switch (importOptions.format) {
+        case 'json':
+          result = await importFromJSON(file);
+          break;
+        case 'markdown':
+          result = await importFromMarkdown(file);
+          break;
+        default:
+          throw new Error(`Unsupported import format: ${importOptions.format}`);
+      }
+
+      setProgress(100);
+      setSuccess(`Import completed: ${result.addedCount} added, ${result.updatedCount} updated, ${result.skippedCount} skipped`);
+      loggingService.info('Import completed successfully', result);
+    } catch (error) {
+      setError(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      loggingService.error('Import failed', error as Error);
+    } finally {
+      setIsProcessing(false);
       // Reset file input
       event.target.value = '';
-    } catch (error) {
-      console.error('Import failed:', error);
-      setImportError(error instanceof Error ? error.message : 'Import failed. Please try again.');
-    } finally {
-      setIsImporting(false);
     }
-  }, [notes, addNote, updateNote]);
+  }, [importOptions, importFromJSON, importFromMarkdown]);
+
+  if (!isOpen) return null;
 
   return (
     <div style={{
-      padding: '24px',
-      maxWidth: '800px',
-      margin: '0 auto'
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: colors.overlay,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000
     }}>
       <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px'
+        background: colors.background,
+        border: `1px solid ${colors.border}`,
+        borderRadius: '8px',
+        padding: '24px',
+        maxWidth: '600px',
+        width: '90%',
+        maxHeight: '80vh',
+        overflow: 'auto'
       }}>
-        <h2>Export & Import Notes</h2>
-        {onClose && (
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '24px'
+        }}>
+          <h2 style={{ margin: 0, color: colors.text }}>Export & Import</h2>
           <button
             onClick={onClose}
             style={{
@@ -226,220 +449,290 @@ const ExportImport: React.FC<ExportImportProps> = ({ onClose }) => {
               border: 'none',
               fontSize: '24px',
               cursor: 'pointer',
-              color: '#666'
+              color: colors.textSecondary
             }}
             aria-label="Close export/import dialog"
           >
             ×
           </button>
-        )}
-      </div>
+        </div>
 
-      {/* Export Section */}
-      <div style={{
-        background: '#f8f9fa',
-        padding: '20px',
-        borderRadius: '8px',
-        marginBottom: '24px'
-      }}>
-        <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Export Notes</h3>
-        
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-            Export Format:
-          </label>
-          <select
-            value={exportFormat}
-            onChange={(e) => setExportFormat(e.target.value as 'json' | 'csv')}
+        {/* Tabs */}
+        <div style={{
+          display: 'flex',
+          borderBottom: `1px solid ${colors.border}`,
+          marginBottom: '24px'
+        }}>
+          <button
+            onClick={() => setActiveTab('export')}
             style={{
-              padding: '8px 12px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '14px'
+              padding: '12px 24px',
+              background: activeTab === 'export' ? colors.primary : 'transparent',
+              color: activeTab === 'export' ? 'white' : colors.text,
+              border: 'none',
+              cursor: 'pointer',
+              borderBottom: activeTab === 'export' ? `2px solid ${colors.primary}` : 'none'
             }}
           >
-            <option value="json">JSON (Full data with metadata)</option>
-            <option value="csv">CSV (Simple table format)</option>
-          </select>
+            Export
+          </button>
+          <button
+            onClick={() => setActiveTab('import')}
+            style={{
+              padding: '12px 24px',
+              background: activeTab === 'import' ? colors.primary : 'transparent',
+              color: activeTab === 'import' ? 'white' : colors.text,
+              border: 'none',
+              cursor: 'pointer',
+              borderBottom: activeTab === 'import' ? `2px solid ${colors.primary}` : 'none'
+            }}
+          >
+            Import
+          </button>
         </div>
 
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-            <button
-              onClick={handleSelectAll}
-              style={{
-                background: '#007bff',
-                color: 'white',
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              Select All
-            </button>
-            <button
-              onClick={handleSelectNone}
-              style={{
-                background: '#6c757d',
-                color: 'white',
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              Select None
-            </button>
-          </div>
-          
-          <div style={{
-            maxHeight: '200px',
-            overflowY: 'auto',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            padding: '8px'
-          }}>
-            {notes.map(note => (
-              <label
-                key={note.id}
+        {/* Export Tab */}
+        {activeTab === 'export' && (
+          <div>
+            <h3 style={{ margin: '0 0 16px 0', color: colors.text }}>Export Notes</h3>
+            
+            {/* Format Selection */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: colors.text }}>
+                Export Format:
+              </label>
+              <select
+                value={exportOptions.format}
+                onChange={(e) => setExportOptions(prev => ({ ...prev, format: e.target.value as ExportFormat }))}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '4px 0',
-                  cursor: 'pointer'
+                  width: '100%',
+                  padding: '8px',
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: '4px',
+                  background: colors.background,
+                  color: colors.text
                 }}
               >
+                <option value="json">JSON (Full data)</option>
+                <option value="markdown">Markdown (Text only)</option>
+                <option value="csv">CSV (Spreadsheet)</option>
+                <option value="html">HTML (Web page)</option>
+                <option value="pdf">PDF (Document)</option>
+              </select>
+            </div>
+
+            {/* Export Options */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: colors.text }}>
+                Export Options:
+              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={exportOptions.includeMetadata}
+                    onChange={(e) => setExportOptions(prev => ({ ...prev, includeMetadata: e.target.checked }))}
+                  />
+                  Include metadata
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={exportOptions.includeTags}
+                    onChange={(e) => setExportOptions(prev => ({ ...prev, includeTags: e.target.checked }))}
+                  />
+                  Include tags
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={exportOptions.includeTimestamps}
+                    onChange={(e) => setExportOptions(prev => ({ ...prev, includeTimestamps: e.target.checked }))}
+                  />
+                  Include timestamps
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={exportOptions.compress}
+                    onChange={(e) => setExportOptions(prev => ({ ...prev, compress: e.target.checked }))}
+                  />
+                  Compress JSON (minified)
+                </label>
+              </div>
+            </div>
+
+            {/* Export Button */}
+            <button
+              onClick={handleExport}
+              disabled={isProcessing}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: colors.primary,
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: isProcessing ? 'not-allowed' : 'pointer',
+                opacity: isProcessing ? 0.6 : 1
+              }}
+            >
+              {isProcessing ? 'Exporting...' : `Export ${notes.length} Notes`}
+            </button>
+          </div>
+        )}
+
+        {/* Import Tab */}
+        {activeTab === 'import' && (
+          <div>
+            <h3 style={{ margin: '0 0 16px 0', color: colors.text }}>Import Notes</h3>
+            
+            {/* Format Selection */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: colors.text }}>
+                Import Format:
+              </label>
+              <select
+                value={importOptions.format}
+                onChange={(e) => setImportOptions(prev => ({ ...prev, format: e.target.value as ImportFormat }))}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: '4px',
+                  background: colors.background,
+                  color: colors.text
+                }}
+              >
+                <option value="json">JSON (Full data)</option>
+                <option value="markdown">Markdown (Text only)</option>
+              </select>
+            </div>
+
+            {/* Import Options */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', color: colors.text }}>
+                Import Options:
+              </label>
+              <div style={{ marginBottom: '8px' }}>
+                <label style={{ display: 'block', marginBottom: '4px', color: colors.textSecondary }}>
+                  Merge Strategy:
+                </label>
+                <select
+                  value={importOptions.mergeStrategy}
+                  onChange={(e) => setImportOptions(prev => ({ ...prev, mergeStrategy: e.target.value as any }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: '4px',
+                    background: colors.background,
+                    color: colors.text
+                  }}
+                >
+                  <option value="merge">Merge (combine data)</option>
+                  <option value="replace">Replace (overwrite existing)</option>
+                  <option value="skip-duplicates">Skip duplicates</option>
+                </select>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input
                   type="checkbox"
-                  checked={selectedNotes.has(note.id)}
-                  onChange={() => handleNoteToggle(note.id)}
-                  style={{ marginRight: '8px' }}
+                  checked={importOptions.validateData}
+                  onChange={(e) => setImportOptions(prev => ({ ...prev, validateData: e.target.checked }))}
                 />
-                <span style={{ fontSize: '14px' }}>{note.title}</span>
-                {note.tags.length > 0 && (
-                  <span style={{
-                    fontSize: '12px',
-                    color: '#666',
-                    marginLeft: '8px'
-                  }}>
-                    ({note.tags.slice(0, 2).join(', ')}{note.tags.length > 2 ? ` +${note.tags.length - 2}` : ''})
-                  </span>
-                )}
+                Validate data before import
               </label>
-            ))}
+            </div>
+
+            {/* File Input */}
+            <input
+              type="file"
+              accept={importOptions.format === 'json' ? '.json' : '.md,.markdown'}
+              onChange={handleImport}
+              disabled={isProcessing}
+              style={{
+                width: '100%',
+                padding: '8px',
+                border: `1px solid ${colors.border}`,
+                borderRadius: '4px',
+                background: colors.background,
+                color: colors.text
+              }}
+            />
           </div>
-        </div>
+        )}
 
-        <button
-          onClick={handleExport}
-          disabled={isExporting || selectedNotes.size === 0}
-          style={{
-            background: selectedNotes.size === 0 ? '#ccc' : '#28a745',
-            color: 'white',
-            border: 'none',
-            padding: '10px 20px',
+        {/* Progress Bar */}
+        {isProcessing && (
+          <div style={{ marginTop: '16px' }}>
+            <div style={{
+              width: '100%',
+              height: '4px',
+              background: colors.border,
+              borderRadius: '2px',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                width: `${progress}%`,
+                height: '100%',
+                background: colors.primary,
+                transition: 'width 0.3s ease'
+              }} />
+            </div>
+            <div style={{ 
+              textAlign: 'center', 
+              marginTop: '8px', 
+              fontSize: '12px', 
+              color: colors.textSecondary 
+            }}>
+              {progress}% complete
+            </div>
+          </div>
+        )}
+
+        {/* Status Messages */}
+        {error && (
+          <div style={{
+            marginTop: '16px',
+            padding: '12px',
+            background: '#fee',
+            border: '1px solid #fcc',
             borderRadius: '4px',
-            cursor: selectedNotes.size === 0 ? 'not-allowed' : 'pointer',
-            fontSize: '14px'
-          }}
-        >
-          {isExporting ? 'Exporting...' : `Export ${selectedNotes.size} Note${selectedNotes.size !== 1 ? 's' : ''}`}
-        </button>
-      </div>
+            color: '#c33'
+          }}>
+            {error}
+          </div>
+        )}
 
-      {/* Import Section */}
-      <div style={{
-        background: '#f8f9fa',
-        padding: '20px',
-        borderRadius: '8px'
-      }}>
-        <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Import Notes</h3>
-        
-        <div style={{ marginBottom: '16px' }}>
-          <p style={{ fontSize: '14px', color: '#666', marginBottom: '12px' }}>
-            Import notes from a previously exported JSON or CSV file. 
-            Existing notes with the same ID will be updated.
-          </p>
-          
-          <input
-            type="file"
-            accept=".json,.csv"
-            onChange={handleImport}
-            disabled={isImporting}
+        {success && (
+          <div style={{
+            marginTop: '16px',
+            padding: '12px',
+            background: '#efe',
+            border: '1px solid #cfc',
+            borderRadius: '4px',
+            color: '#3c3'
+          }}>
+            {success}
+          </div>
+        )}
+
+        {/* Close Button */}
+        <div style={{ marginTop: '24px', textAlign: 'right' }}>
+          <button
+            onClick={onClose}
             style={{
-              padding: '8px',
-              border: '1px solid #ddd',
+              padding: '8px 16px',
+              background: colors.surface,
+              border: `1px solid ${colors.border}`,
               borderRadius: '4px',
-              fontSize: '14px',
-              width: '100%'
+              cursor: 'pointer',
+              color: colors.text
             }}
-          />
-        </div>
-
-        {importError && (
-          <div style={{
-            background: '#f8d7da',
-            color: '#721c24',
-            padding: '12px',
-            borderRadius: '4px',
-            marginBottom: '12px',
-            fontSize: '14px'
-          }}>
-            <strong>Import Error:</strong> {importError}
-          </div>
-        )}
-
-        {importSuccess && (
-          <div style={{
-            background: '#d4edda',
-            color: '#155724',
-            padding: '12px',
-            borderRadius: '4px',
-            marginBottom: '12px',
-            fontSize: '14px'
-          }}>
-            <strong>Success:</strong> {importSuccess}
-          </div>
-        )}
-
-        {isImporting && (
-          <div style={{
-            background: '#d1ecf1',
-            color: '#0c5460',
-            padding: '12px',
-            borderRadius: '4px',
-            fontSize: '14px'
-          }}>
-            Importing notes...
-          </div>
-        )}
-      </div>
-
-      {/* Statistics */}
-      <div style={{
-        marginTop: '24px',
-        padding: '16px',
-        background: '#e9ecef',
-        borderRadius: '8px',
-        fontSize: '14px'
-      }}>
-        <h4 style={{ marginTop: 0, marginBottom: '8px' }}>Statistics</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          <div>
-            <strong>Total Notes:</strong> {notes.length}
-          </div>
-          <div>
-            <strong>Total Tags:</strong> {new Set(notes.flatMap(note => note.tags)).size}
-          </div>
-          <div>
-            <strong>Notes with Tags:</strong> {notes.filter(note => note.tags.length > 0).length}
-          </div>
-          <div>
-            <strong>Total Content:</strong> {notes.reduce((sum, note) => sum + note.body.length, 0).toLocaleString()} characters
-          </div>
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>

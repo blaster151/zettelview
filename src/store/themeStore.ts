@@ -1,9 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type Theme = 'light' | 'dark';
+export type Theme = 'light' | 'dark' | 'auto';
 
-export interface ThemeColors {
+export interface ColorScheme {
+  // Primary colors
+  primary: string;
+  primaryHover: string;
+  primaryActive: string;
+  
   // Background colors
   background: string;
   surface: string;
@@ -17,118 +22,237 @@ export interface ThemeColors {
   
   // Border colors
   border: string;
-  borderLight: string;
+  borderHover: string;
+  borderFocus: string;
   
-  // Accent colors
-  primary: string;
-  primaryHover: string;
-  secondary: string;
+  // Status colors
   success: string;
   warning: string;
   error: string;
-  
-  // Code block colors
-  codeBackground: string;
-  codeBorder: string;
+  info: string;
   
   // Graph colors
   graphNode: string;
-  graphNodeHover: string;
-  graphNodeSelected: string;
-  graphEdge: string;
-  graphBackground: string;
+  graphLink: string;
+  graphSelected: string;
+  graphHover: string;
+  
+  // Code colors
+  codeBackground: string;
+  codeText: string;
+  codeComment: string;
+  codeKeyword: string;
+  codeString: string;
+  codeNumber: string;
+  
+  // Shadow colors
+  shadow: string;
+  shadowHover: string;
+  
+  // Overlay colors
+  overlay: string;
+  backdrop: string;
 }
 
-export const lightTheme: ThemeColors = {
+const lightColors: ColorScheme = {
+  // Primary colors
+  primary: '#007bff',
+  primaryHover: '#0056b3',
+  primaryActive: '#004085',
+  
+  // Background colors
   background: '#ffffff',
   surface: '#f8f9fa',
   surfaceHover: '#e9ecef',
   surfaceActive: '#dee2e6',
   
+  // Text colors
   text: '#212529',
   textSecondary: '#6c757d',
   textMuted: '#adb5bd',
   
+  // Border colors
   border: '#dee2e6',
-  borderLight: '#e9ecef',
+  borderHover: '#adb5bd',
+  borderFocus: '#007bff',
   
-  primary: '#007bff',
-  primaryHover: '#0056b3',
-  secondary: '#6c757d',
+  // Status colors
   success: '#28a745',
   warning: '#ffc107',
   error: '#dc3545',
+  info: '#17a2b8',
   
+  // Graph colors
+  graphNode: '#6c757d',
+  graphLink: '#dee2e6',
+  graphSelected: '#007bff',
+  graphHover: '#ffc107',
+  
+  // Code colors
   codeBackground: '#f8f9fa',
-  codeBorder: '#e9ecef',
+  codeText: '#212529',
+  codeComment: '#6c757d',
+  codeKeyword: '#d63384',
+  codeString: '#198754',
+  codeNumber: '#fd7e14',
   
-  graphNode: '#007bff',
-  graphNodeHover: '#0056b3',
-  graphNodeSelected: '#28a745',
-  graphEdge: '#6c757d',
-  graphBackground: '#ffffff',
+  // Shadow colors
+  shadow: 'rgba(0, 0, 0, 0.1)',
+  shadowHover: 'rgba(0, 0, 0, 0.15)',
+  
+  // Overlay colors
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  backdrop: 'rgba(0, 0, 0, 0.3)'
 };
 
-export const darkTheme: ThemeColors = {
+const darkColors: ColorScheme = {
+  // Primary colors
+  primary: '#0d6efd',
+  primaryHover: '#0b5ed7',
+  primaryActive: '#0a58ca',
+  
+  // Background colors
   background: '#1a1a1a',
   surface: '#2d2d2d',
   surfaceHover: '#3d3d3d',
   surfaceActive: '#4d4d4d',
   
-  text: '#e9ecef',
-  textSecondary: '#adb5bd',
-  textMuted: '#6c757d',
+  // Text colors
+  text: '#ffffff',
+  textSecondary: '#b0b0b0',
+  textMuted: '#808080',
   
-  border: '#495057',
-  borderLight: '#343a40',
+  // Border colors
+  border: '#404040',
+  borderHover: '#606060',
+  borderFocus: '#0d6efd',
   
-  primary: '#0d6efd',
-  primaryHover: '#0b5ed7',
-  secondary: '#6c757d',
+  // Status colors
   success: '#198754',
   warning: '#ffc107',
   error: '#dc3545',
+  info: '#0dcaf0',
   
+  // Graph colors
+  graphNode: '#b0b0b0',
+  graphLink: '#404040',
+  graphSelected: '#0d6efd',
+  graphHover: '#ffc107',
+  
+  // Code colors
   codeBackground: '#2d2d2d',
-  codeBorder: '#495057',
+  codeText: '#ffffff',
+  codeComment: '#808080',
+  codeKeyword: '#ff6b6b',
+  codeString: '#51cf66',
+  codeNumber: '#ffd43b',
   
-  graphNode: '#0d6efd',
-  graphNodeHover: '#0b5ed7',
-  graphNodeSelected: '#198754',
-  graphEdge: '#6c757d',
-  graphBackground: '#1a1a1a',
+  // Shadow colors
+  shadow: 'rgba(0, 0, 0, 0.3)',
+  shadowHover: 'rgba(0, 0, 0, 0.4)',
+  
+  // Overlay colors
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  backdrop: 'rgba(0, 0, 0, 0.5)'
 };
 
 interface ThemeStore {
   theme: Theme;
-  colors: ThemeColors;
-  toggleTheme: () => void;
+  colors: ColorScheme;
   setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
+  isDark: boolean;
 }
+
+// Get system theme preference
+const getSystemTheme = (): 'light' | 'dark' => {
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return 'light';
+};
+
+// Get effective theme (resolves 'auto' to system preference)
+const getEffectiveTheme = (theme: Theme): 'light' | 'dark' => {
+  if (theme === 'auto') {
+    return getSystemTheme();
+  }
+  return theme;
+};
+
+// Get colors for a specific theme
+const getColors = (theme: 'light' | 'dark'): ColorScheme => {
+  return theme === 'dark' ? darkColors : lightColors;
+};
 
 export const useThemeStore = create<ThemeStore>()(
   persist(
     (set, get) => ({
-      theme: 'light',
-      colors: lightTheme,
-      
-      toggleTheme: () => {
-        const newTheme = get().theme === 'light' ? 'dark' : 'light';
-        set({
-          theme: newTheme,
-          colors: newTheme === 'light' ? lightTheme : darkTheme,
-        });
-      },
-      
+      theme: 'auto',
+      colors: getColors(getEffectiveTheme('auto')),
+      isDark: getEffectiveTheme('auto') === 'dark',
+
       setTheme: (theme: Theme) => {
+        const effectiveTheme = getEffectiveTheme(theme);
         set({
           theme,
-          colors: theme === 'light' ? lightTheme : darkTheme,
+          colors: getColors(effectiveTheme),
+          isDark: effectiveTheme === 'dark'
         });
+        
+        // Apply theme to document
+        applyThemeToDocument(effectiveTheme);
       },
+
+      toggleTheme: () => {
+        const current = get();
+        const newTheme = current.isDark ? 'light' : 'dark';
+        current.setTheme(newTheme);
+      }
     }),
     {
       name: 'zettelview-theme',
+      partialize: (state) => ({ theme: state.theme })
     }
   )
-); 
+);
+
+// Apply theme to document (CSS custom properties)
+const applyThemeToDocument = (theme: 'light' | 'dark') => {
+  if (typeof document === 'undefined') return;
+  
+  const colors = getColors(theme);
+  const root = document.documentElement;
+  
+  // Set CSS custom properties
+  Object.entries(colors).forEach(([key, value]) => {
+    root.style.setProperty(`--color-${key}`, value);
+  });
+  
+  // Set theme class
+  root.classList.remove('theme-light', 'theme-dark');
+  root.classList.add(`theme-${theme}`);
+  
+  // Update meta theme-color
+  const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+  if (metaThemeColor) {
+    metaThemeColor.setAttribute('content', colors.background);
+  }
+};
+
+// Initialize theme on mount
+if (typeof window !== 'undefined') {
+  // Listen for system theme changes
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  mediaQuery.addEventListener('change', (e) => {
+    const store = useThemeStore.getState();
+    if (store.theme === 'auto') {
+      const effectiveTheme = e.matches ? 'dark' : 'light';
+      store.setTheme('auto'); // This will resolve to the new system theme
+    }
+  });
+  
+  // Apply initial theme
+  const store = useThemeStore.getState();
+  applyThemeToDocument(getEffectiveTheme(store.theme));
+} 

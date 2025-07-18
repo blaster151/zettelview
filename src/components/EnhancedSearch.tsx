@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SearchHistory, highlightSearchTerms } from '../utils/searchUtils';
 import { useThemeStore } from '../store/themeStore';
 import VirtualizedSearchResults from './VirtualizedSearchResults';
@@ -104,129 +104,83 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
   }, []);
 
   // Save queries to localStorage
-  const saveQueriesToStorage = (queries: typeof savedQueries) => {
-    localStorage.setItem('zettelview_saved_queries', JSON.stringify(queries));
-  };
-
-  // Add saved query
-  const addSavedQuery = (name: string, query: string) => {
+  const saveQuery = useCallback((name: string, query: string) => {
     const newQuery = {
-      id: `saved-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: Date.now().toString(),
       name,
       query,
       createdAt: new Date()
     };
-    const updatedQueries = [...savedQueries, newQuery];
-    setSavedQueries(updatedQueries);
-    saveQueriesToStorage(updatedQueries);
-  };
-
-  // Remove saved query
-  const removeSavedQuery = (id: string) => {
-    const updatedQueries = savedQueries.filter(q => q.id !== id);
-    setSavedQueries(updatedQueries);
-    saveQueriesToStorage(updatedQueries);
-  };
-
-  // Check if current query is saved
-  const isCurrentQuerySaved = savedQueries.some(q => q.query === query);
-
-  // Handle input change
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newQuery = e.target.value;
-    setQuery(newQuery);
-    setSelectedIndex(-1);
-    setShowSuggestions(newQuery.trim().length > 0);
-    setShowHistory(false);
-    onSearch(newQuery);
-  };
-
-  // Handle input focus
-  const handleInputFocus = () => {
-    if (query.trim()) {
-      setShowSuggestions(true);
-    } else {
-      setShowHistory(true);
-    }
-  };
-
-  // Handle input blur
-  const handleInputBlur = () => {
-    // Delay hiding to allow for clicks on suggestions
-    setTimeout(() => {
-      setShowSuggestions(false);
-      setShowHistory(false);
-    }, 200);
-  };
+    const updated = [...savedQueries, newQuery];
+    setSavedQueries(updated);
+    localStorage.setItem('zettelview_saved_queries', JSON.stringify(updated));
+  }, [savedQueries]);
 
   // Handle keyboard navigation
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    const items = [...suggestions, ...searchResults];
-    
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setSelectedIndex(prev => Math.min(prev + 1, items.length - 1));
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setSelectedIndex(prev => Math.max(prev - 1, -1));
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (selectedIndex >= 0 && selectedIndex < items.length) {
-          const item = items[selectedIndex];
-          if (selectedIndex < suggestions.length) {
-            // It's a suggestion
-            const suggestion = item as string;
-            setQuery(suggestion);
-            onSearch(suggestion);
-          } else {
-            // It's a search result
-            const resultIndex = selectedIndex - suggestions.length;
-            const result = searchResults[resultIndex];
-            onSelectNote(result.noteId);
-          }
-        }
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => 
+        prev < searchResults.length - 1 ? prev + 1 : prev
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+      e.preventDefault();
+      const selectedResult = searchResults[selectedIndex];
+      if (selectedResult) {
+        onSelectNote(selectedResult.noteId);
         setShowSuggestions(false);
-        setShowHistory(false);
-        break;
-      case 'Escape':
-        setShowSuggestions(false);
-        setShowHistory(false);
-        inputRef.current?.blur();
-        break;
-      case 'F1':
-        if (enableAdvancedSearch) {
-          e.preventDefault();
-          setShowAdvancedHelp(true);
-        }
-        break;
+        setSelectedIndex(-1);
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+      setShowHistory(false);
+      setShowSavedQueries(false);
+      setSelectedIndex(-1);
     }
-  };
+  }, [searchResults, selectedIndex, onSelectNote]);
 
-  // Handle suggestion click
-  const handleSuggestionClick = (suggestion: string) => {
-    setQuery(suggestion);
-    onSearch(suggestion);
-    setShowSuggestions(false);
-    inputRef.current?.focus();
-  };
+  // Handle input focus
+  const handleInputFocus = useCallback(() => {
+    if (query.trim()) {
+      setShowSuggestions(true);
+    }
+  }, [query]);
 
-  // Handle history item click
-  const handleHistoryClick = (historyQuery: string) => {
-    setQuery(historyQuery);
-    onSearch(historyQuery);
-    setShowHistory(false);
-    inputRef.current?.focus();
-  };
+  // Handle input blur
+  const handleInputBlur = useCallback(() => {
+    // Delay hiding suggestions to allow for clicks
+    setTimeout(() => {
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+    }, 200);
+  }, []);
 
-  // Handle search result click
-  const handleResultClick = (result: SearchResult) => {
+  // Handle result selection
+  const handleResultClick = useCallback((result: SearchResult) => {
     onSelectNote(result.noteId);
     setShowSuggestions(false);
-    inputRef.current?.blur();
-  };
+    setSelectedIndex(-1);
+  }, [onSelectNote]);
+
+  // Handle saved query selection
+  const handleSavedQueryClick = useCallback((savedQuery: { query: string }) => {
+    setQuery(savedQuery.query);
+    setShowSavedQueries(false);
+    inputRef.current?.focus();
+  }, [setQuery]);
+
+  // Handle save current query
+  const handleSaveQuery = useCallback(() => {
+    if (!query.trim()) return;
+    
+    const name = prompt('Enter a name for this search:');
+    if (name?.trim()) {
+      saveQuery(name.trim(), query);
+    }
+  }, [query, saveQuery]);
 
   // Handle clear history
   const handleClearHistory = () => {
@@ -240,6 +194,8 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
         setShowHistory(false);
+        setShowSavedQueries(false);
+        setSelectedIndex(-1);
       }
     };
 
@@ -250,391 +206,298 @@ const EnhancedSearch: React.FC<EnhancedSearchProps> = ({
   }, []);
 
   return (
-    <div ref={containerRef} style={{ position: 'relative' }}>
+    <div 
+      ref={containerRef}
+      className={`enhanced-search ${className}`}
+      style={{ position: 'relative' }}
+      role="search"
+      aria-label="Enhanced search for notes"
+    >
+      {/* Main search input */}
       <div style={{ position: 'relative' }}>
         <input
           ref={inputRef}
           type="text"
           value={query}
-          onChange={handleInputChange}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
-          onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className={className}
           style={{
             width: '100%',
             padding: '8px 12px',
-            paddingRight: isLoading ? '40px' : '12px', // Make room for spinner
-            border: `1px solid ${queryError ? '#e74c3c' : colors.border}`,
+            border: `1px solid ${queryError ? '#dc3545' : colors.border}`,
             borderRadius: '4px',
             fontSize: '14px',
-            background: colors.background,
-            color: colors.text,
-            transition: 'all 0.2s ease'
+            outline: 'none',
+            transition: 'border-color 0.2s'
           }}
+          aria-label="Search notes"
+          aria-describedby={queryError ? 'search-error' : undefined}
+          aria-expanded={showSuggestions || showHistory || showSavedQueries}
+          aria-haspopup="listbox"
+          aria-autocomplete="list"
+          role="combobox"
+          aria-controls="search-results"
         />
         
-        {/* Loading spinner */}
-        {isLoading && (
-          <div style={{
-            position: 'absolute',
-            right: '8px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            pointerEvents: 'none'
-          }}>
-            <SearchLoadingSpinner size="small" showText={false} />
+        {/* Search status indicator */}
+        {(isLoading || isSearching) && (
+          <div 
+            style={{
+              position: 'absolute',
+              right: '8px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              fontSize: '12px',
+              color: colors.textSecondary
+            }}
+            aria-live="polite"
+            aria-label={isLoading ? 'Searching...' : 'Processing search...'}
+          >
+            {isLoading ? '⏳' : '🔍'}
           </div>
         )}
 
-        {/* Advanced search indicator */}
-        {enableAdvancedSearch && isAdvancedQuery && !queryError && (
-          <div style={{
-            position: 'absolute',
-            right: isLoading ? '40px' : '8px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            fontSize: '12px',
-            color: colors.primary,
-            fontWeight: '600',
-            pointerEvents: 'none'
-          }}>
-            ⚡
+        {/* Error message */}
+        {queryError && (
+          <div 
+            id="search-error"
+            style={{
+              color: '#dc3545',
+              fontSize: '12px',
+              marginTop: '4px'
+            }}
+            role="alert"
+            aria-live="assertive"
+          >
+            {queryError}
           </div>
         )}
       </div>
 
-      {/* Query error message */}
-      {queryError && (
-        <div style={{
-          marginTop: '4px',
-          padding: '6px 8px',
-          background: '#fee',
-          border: '1px solid #e74c3c',
-          borderRadius: '4px',
-          fontSize: '12px',
-          color: '#e74c3c'
-        }}>
-          {queryError}
+      {/* Search controls */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '8px', 
+        marginTop: '8px',
+        flexWrap: 'wrap'
+      }}>
+        <button
+          onClick={() => setShowSavedQueries(!showSavedQueries)}
+          style={{
+            padding: '4px 8px',
+            fontSize: '12px',
+            border: `1px solid ${colors.border}`,
+            borderRadius: '4px',
+            background: 'transparent',
+            cursor: 'pointer'
+          }}
+          aria-label={`${showSavedQueries ? 'Hide' : 'Show'} saved searches`}
+          aria-expanded={showSavedQueries}
+        >
+          💾 Saved
+        </button>
+        
+        <button
+          onClick={handleSaveQuery}
+          disabled={!query.trim()}
+          style={{
+            padding: '4px 8px',
+            fontSize: '12px',
+            border: `1px solid ${colors.border}`,
+            borderRadius: '4px',
+            background: 'transparent',
+            cursor: query.trim() ? 'pointer' : 'not-allowed',
+            opacity: query.trim() ? 1 : 0.5
+          }}
+          aria-label="Save current search"
+        >
+          💾 Save
+        </button>
+
+        {enableAdvancedSearch && (
+          <button
+            onClick={() => setShowAdvancedHelp(!showAdvancedHelp)}
+            style={{
+              padding: '4px 8px',
+              fontSize: '12px',
+              border: `1px solid ${colors.border}`,
+              borderRadius: '4px',
+              background: 'transparent',
+              cursor: 'pointer'
+            }}
+            aria-label={`${showAdvancedHelp ? 'Hide' : 'Show'} advanced search help`}
+            aria-expanded={showAdvancedHelp}
+          >
+            ❓ Help
+          </button>
+        )}
+      </div>
+
+      {/* Advanced search help */}
+      {showAdvancedHelp && (
+        <div 
+          style={{
+            marginTop: '8px',
+            padding: '12px',
+            background: '#f8f9fa',
+            border: `1px solid ${colors.border}`,
+            borderRadius: '4px',
+            fontSize: '12px'
+          }}
+          role="region"
+          aria-label="Advanced search help"
+        >
+          <h4 style={{ margin: '0 0 8px 0' }}>Advanced Search Syntax:</h4>
+          <ul style={{ margin: 0, paddingLeft: '16px' }}>
+            <li><code>tag:javascript</code> - Search by tag</li>
+            <li><code>title:meeting</code> - Search in titles only</li>
+            <li><code>body:important</code> - Search in content only</li>
+            <li><code>javascript AND react</code> - Both terms must match</li>
+            <li><code>javascript OR typescript</code> - Either term can match</li>
+            <li><code>NOT draft</code> - Exclude notes with "draft"</li>
+          </ul>
         </div>
       )}
 
-              {/* Search controls */}
-        <div style={{
-          marginTop: '4px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '12px',
-          color: colors.textSecondary
-        }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            {enableAdvancedSearch && (
-              <>
-                <span>Press F1 for advanced search help</span>
-                <button
-                  onClick={() => setShowAdvancedHelp(true)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: colors.primary,
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    textDecoration: 'underline'
-                  }}
-                >
-                  Advanced Search
-                </button>
-              </>
-            )}
-          </div>
-          
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            {/* Save query button */}
-            {query.trim() && !isCurrentQuerySaved && (
-              <button
-                onClick={() => {
-                  const name = prompt('Enter a name for this saved query:');
-                  if (name?.trim()) {
-                    addSavedQuery(name.trim(), query);
+      {/* Saved queries panel */}
+      {showSavedQueries && (
+        <div 
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            background: 'white',
+            border: `1px solid ${colors.border}`,
+            borderRadius: '4px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            zIndex: 1000,
+            maxHeight: '200px',
+            overflow: 'auto'
+          }}
+          role="listbox"
+          aria-label="Saved searches"
+        >
+          {savedQueries.length === 0 ? (
+            <div style={{ padding: '12px', color: colors.textSecondary }}>
+              No saved searches
+            </div>
+          ) : (
+            savedQueries.map((savedQuery) => (
+              <div
+                key={savedQuery.id}
+                onClick={() => handleSavedQueryClick(savedQuery)}
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  borderBottom: `1px solid ${colors.border}`,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+                role="option"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleSavedQueryClick(savedQuery);
                   }
                 }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: colors.primary,
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  textDecoration: 'underline'
-                }}
-                title="Save current query"
               >
-                💾 Save
-              </button>
-            )}
-            
-            {/* Saved queries toggle */}
-            {savedQueries.length > 0 && (
-              <button
-                onClick={() => {
-                  setShowSavedQueries(!showSavedQueries);
-                  setShowSuggestions(false);
-                  setShowHistory(false);
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: colors.primary,
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  textDecoration: 'underline'
-                }}
-                title="Show saved queries"
-              >
-                📚 Saved ({savedQueries.length})
-              </button>
-            )}
-          </div>
+                <span style={{ fontWeight: 'bold' }}>{savedQuery.name}</span>
+                <span style={{ fontSize: '12px', color: colors.textSecondary }}>
+                  {savedQuery.query}
+                </span>
+              </div>
+            ))
+          )}
         </div>
+      )}
 
-      {/* Dropdown with Virtualized Results */}
-      {(showSuggestions || showHistory || showSavedQueries) && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          right: 0,
-          background: colors.surface,
-          border: `1px solid ${colors.border}`,
-          borderRadius: '4px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-          zIndex: 1000,
-          maxHeight: '400px',
-          overflow: 'hidden'
-        }}>
-          {/* Search History */}
-          {showHistory && recentQueries.length > 0 && (
-            <div>
-              <div style={{
+      {/* Search results */}
+      {showSuggestions && searchResults.length > 0 && (
+        <div 
+          id="search-results"
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            background: 'white',
+            border: `1px solid ${colors.border}`,
+            borderRadius: '4px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            zIndex: 1000,
+            maxHeight: '300px',
+            overflow: 'auto'
+          }}
+          role="listbox"
+          aria-label="Search results"
+        >
+          {searchResults.map((result, index) => (
+            <div
+              key={result.noteId}
+              onClick={() => handleResultClick(result)}
+              style={{
                 padding: '8px 12px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: colors.textSecondary,
+                cursor: 'pointer',
                 borderBottom: `1px solid ${colors.border}`,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                Recent Searches
-                <button
-                  onClick={handleClearHistory}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: colors.textSecondary,
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  Clear
-                </button>
+                background: index === selectedIndex ? '#f0f0f0' : 'transparent'
+              }}
+              role="option"
+              aria-selected={index === selectedIndex}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleResultClick(result);
+                }
+              }}
+            >
+              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                {result.title}
               </div>
-              {recentQueries.map((historyQuery, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleHistoryClick(historyQuery)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    background: 'transparent',
-                    border: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    color: colors.text,
-                    fontSize: '14px',
-                    borderBottom: `1px solid ${colors.border}`,
-                    transition: 'background 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = colors.surfaceHover;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  🔍 {historyQuery}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Saved Queries */}
-          {showSavedQueries && savedQueries.length > 0 && (
-            <div>
-              <div style={{
-                padding: '8px 12px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: colors.textSecondary,
-                borderBottom: `1px solid ${colors.border}`,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                Saved Queries
-                <button
-                  onClick={() => setShowSavedQueries(false)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: colors.textSecondary,
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  Close
-                </button>
-              </div>
-              {savedQueries.map((savedQuery) => (
-                <div
-                  key={savedQuery.id}
-                  style={{
-                    padding: '8px 12px',
-                    borderBottom: `1px solid ${colors.border}`,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  <button
-                    onClick={() => {
-                      setQuery(savedQuery.query);
-                      onSearch(savedQuery.query);
-                      setShowSavedQueries(false);
-                    }}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      color: colors.text,
-                      fontSize: '14px',
-                      flex: 1
-                    }}
-                  >
-                    <div style={{ fontWeight: 'bold' }}>{savedQuery.name}</div>
-                    <div style={{ fontSize: '12px', color: colors.textSecondary }}>
-                      {savedQuery.query}
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => removeSavedQuery(savedQuery.id)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#e74c3c',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      padding: '4px'
-                    }}
-                    title="Remove saved query"
-                  >
-                    ×
-                  </button>
+              {result.body && (
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: colors.textSecondary,
+                  marginBottom: '4px'
+                }}>
+                  {result.body.substring(0, 100)}...
                 </div>
-              ))}
+              )}
+              {result.tags.length > 0 && (
+                <div style={{ fontSize: '11px', color: '#007bff' }}>
+                  {result.tags.join(', ')}
+                </div>
+              )}
             </div>
-          )}
+          ))}
+        </div>
+      )}
 
-          {/* Search Suggestions */}
-          {showSuggestions && suggestions.length > 0 && (
-            <div>
-              <div style={{
-                padding: '8px 12px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: colors.textSecondary,
-                borderBottom: `1px solid ${colors.border}`
-              }}>
-                Suggestions
-              </div>
-              {suggestions.map((suggestion, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    background: selectedIndex === index ? colors.surfaceActive : 'transparent',
-                    border: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    color: colors.text,
-                    fontSize: '14px',
-                    borderBottom: `1px solid ${colors.border}`,
-                    transition: 'background 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = colors.surfaceHover;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = selectedIndex === index ? colors.surfaceActive : 'transparent';
-                  }}
-                >
-                  💡 {suggestion}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Loading indicator for search results */}
-          {isSearching && !isLoading && (
-            <div style={{
-              padding: '12px',
-              textAlign: 'center',
-              color: colors.textSecondary,
-              fontSize: '14px'
-            }}>
-              <SearchLoadingSpinner size="small" showText={true} />
-            </div>
-          )}
-
-          {/* Virtualized Search Results */}
-          {showSuggestions && searchResults.length > 0 && !isSearching && (
-            <div>
-              <div style={{
-                padding: '8px 12px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: colors.textSecondary,
-                borderBottom: `1px solid ${colors.border}`
-              }}>
-                Results ({searchResults.length})
-              </div>
-              <div style={{ height: '300px' }}>
-                <VirtualizedSearchResults
-                  results={searchResults}
-                  selectedIndex={Math.max(0, selectedIndex - suggestions.length)}
-                  onSelectResult={handleResultClick}
-                  height={300}
-                  itemHeight={100}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* No results */}
-          {showSuggestions && query.trim() && suggestions.length === 0 && searchResults.length === 0 && !isSearching && (
-            <div style={{
-              padding: '12px',
-              textAlign: 'center',
-              color: colors.textSecondary,
-              fontSize: '14px'
-            }}>
-              No results found for "{query}"
-            </div>
-          )}
+      {/* No results message */}
+      {showSuggestions && query.trim() && !isLoading && searchResults.length === 0 && (
+        <div 
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            background: 'white',
+            border: `1px solid ${colors.border}`,
+            borderRadius: '4px',
+            padding: '12px',
+            textAlign: 'center',
+            color: colors.textSecondary
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          No notes found matching "{query}"
         </div>
       )}
 

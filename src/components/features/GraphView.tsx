@@ -1,92 +1,144 @@
-import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useNoteStore } from '../../store/noteStore';
-import { Note } from '../../types/domain';
+import { useThemeStore } from '../../store/themeStore';
 import { GraphNode, GraphLink, GraphRenderMode } from '../../types/graph';
 import { GraphLinkService } from '../../services/graphLinkService';
-import { GraphOptimizationService, OptimizedGraphData, Viewport } from '../../services/graphOptimizationService';
-import RenderModeSelector from '../graph/RenderModeSelector';
-import GraphPerformanceMonitor from '../graph/GraphPerformanceMonitor';
+import { GraphOptimizationService } from '../../services/graphOptimizationService';
+import { RenderModeSelector } from '../graph/RenderModeSelector';
+import { GraphPerformanceMonitor } from '../graph/GraphPerformanceMonitor';
 
-interface GraphViewProps {
-  onNodeClick?: (nodeId: string) => void;
-  selectedNodeId?: string;
-}
+// Lazy load heavy components
+const GraphCanvas = React.lazy(() => import('../graph/GraphCanvas'));
+const GraphControls = React.lazy(() => import('../graph/GraphControls'));
+const GraphLegend = React.lazy(() => import('../graph/GraphLegend'));
 
-// Constants - extracted from magic numbers
-const GRAPH_CONSTANTS = {
-  INITIAL_RADIUS: 200,
-  MIN_NODE_SIZE: 20,
-  MAX_NODE_SIZE: 60,
-  BASE_NODE_SIZE: 30,
-  CONTENT_SIZE_FACTOR: 10,
-  TAG_SIZE_FACTOR: 5,
-  ZOOM_MIN: 0.1,
-  ZOOM_MAX: 3,
-  ZOOM_FACTOR: 1.2,
-  PAN_SENSITIVITY: 1,
-  HOVER_RADIUS: 5,
-  DEBOUNCE_DELAY: 16, // ~60fps
+// Performance constants
+const PERFORMANCE_CONSTANTS = {
+  RENDER_THROTTLE: 16, // ~60fps
+  NODE_CLICK_DEBOUNCE: 150,
+  ZOOM_SENSITIVITY: 0.1,
+  PAN_SENSITIVITY: 0.5,
+  MAX_NODES_FOR_QUALITY: 100,
+  MAX_NODES_FOR_PERFORMANCE: 500
 } as const;
 
-// Error boundary for canvas operations
-class CanvasErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error?: Error }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
+// Memoized graph data calculation
+const useGraphData = (notes: any[], renderMode: GraphRenderMode, selectedNodeId?: string, hoveredNode?: string) => {
+  return useMemo(() => {
+    const startTime = performance.now();
+    
+    const graphNodes: GraphNode[] = notes.map((note, index) => {
+      const angle = (index / notes.length) * 2 * Math.PI;
+      const radius = 200;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
 
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
+      const contentLength = note.body.length;
+      const tagCount = note.tags.length;
+      const size = Math.max(20, Math.min(60, 30 + (contentLength / 1000) * 5 + tagCount * 2));
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Canvas error:', error, errorInfo);
-  }
+      const color = note.tags.length > 0 
+        ? `hsl(${(note.tags[0].length * 50) % 360}, 70%, 60%)`
+        : '#6c757d';
 
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{
-          padding: '24px',
-          textAlign: 'center',
-          color: '#666',
-          background: '#f8f9fa',
-          border: '1px solid #e1e4e8',
-          borderRadius: '6px',
-          margin: '16px'
-        }}>
-          <h3>Graph View Error</h3>
-          <p>Failed to render graph visualization.</p>
-          <button
-            onClick={() => this.setState({ hasError: false })}
-            style={{
-              background: '#007bff',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Retry
-          </button>
-        </div>
-      );
+      return {
+        id: note.id,
+        title: note.title,
+        x,
+        y,
+        size,
+        color,
+        tags: note.tags,
+        isSelected: note.id === selectedNodeId,
+        isHovered: note.id === hoveredNode
+      };
+    });
+
+    const graphLinks = GraphLinkService.generateLinks(notes, renderMode);
+    
+    const endTime = performance.now();
+    
+    return {
+      nodes: graphNodes,
+      links: graphLinks,
+      performanceMetrics: {
+        calculationTime: endTime - startTime,
+        nodeCount: graphNodes.length,
+        linkCount: graphLinks.length
+      }
+    };
+  }, [notes, renderMode, selectedNodeId, hoveredNode]);
+};
+
+// Memoized viewport optimization
+const useViewportOptimization = (nodes: GraphNode[], links: GraphLink[], performanceMode: string) => {
+  return useMemo(() => {
+    const nodeCount = nodes.length;
+    
+    // Determine optimization level based on node count and performance mode
+    let optimizationLevel = 'none';
+    if (performanceMode === 'performance' || nodeCount > PERFORMANCE_CONSTANTS.MAX_NODES_FOR_PERFORMANCE) {
+      optimizationLevel = 'high';
+    } else if (nodeCount > PERFORMANCE_CONSTANTS.MAX_NODES_FOR_QUALITY) {
+      optimizationLevel = 'medium';
     }
 
-    return this.props.children;
-  }
-}
+    // Apply optimizations
+    let optimizedNodes = nodes;
+    let optimizedLinks = links;
 
+    if (optimizationLevel === 'high') {
+      // High optimization: reduce node count, simplify rendering
+      optimizedNodes = nodes.slice(0, PERFORMANCE_CONSTANTS.MAX_NODES_FOR_PERFORMANCE);
+      optimizedLinks = links.filter(link => 
+        optimizedNodes.some(node => node.id === link.source) &&
+        optimizedNodes.some(node => node.id === link.target)
+      );
+    } else if (optimizationLevel === 'medium') {
+      // Medium optimization: reduce link complexity
+      optimizedLinks = links.slice(0, links.length * 0.7);
+    }
+
+    return {
+      nodes: optimizedNodes,
+      links: optimizedLinks,
+      optimizationLevel,
+      originalNodeCount: nodeCount,
+      originalLinkCount: links.length
+    };
+  }, [nodes, links, performanceMode]);
+};
+
+// Memoized interaction handlers
+const useGraphInteractions = (
+  onNodeClick?: (nodeId: string) => void,
+  onNodeHover?: (nodeId: string | null) => void
+) => {
+  const handleNodeClick = useCallback((nodeId: string) => {
+    onNodeClick?.(nodeId);
+  }, [onNodeClick]);
+
+  const handleNodeHover = useCallback((nodeId: string | null) => {
+    onNodeHover?.(nodeId);
+  }, [onNodeHover]);
+
+  const handleCanvasClick = useCallback(() => {
+    onNodeClick?.('');
+  }, [onNodeClick]);
+
+  return {
+    handleNodeClick,
+    handleNodeHover,
+    handleCanvasClick
+  };
+};
+
+// Main GraphView component with performance optimizations
 const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) => {
   const { notes, selectNote } = useNoteStore();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number | undefined>(undefined);
+  const { colors } = useThemeStore();
   
-  // State management
+  // State management with performance considerations
   const [isDragging, setIsDragging] = useState(false);
   const [dragNode, setDragNode] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -110,7 +162,7 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     return (saved as GraphRenderMode) || 'internal-links';
   });
   
-  // Persistent node positions (in a real app, this would be in the store)
+  // Persistent node positions
   const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
 
   // Handle render mode change with persistence
@@ -119,110 +171,80 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     localStorage.setItem('zettelview_graph_render_mode', mode);
   }, []);
 
-  // Memoized graph data generation with render mode support
-  const { nodes, links, filteredNodes } = useMemo(() => {
-    const graphNodes: GraphNode[] = [];
-    const linkCounts: Record<string, number> = {};
+  // Memoized graph data
+  const { nodes, links, performanceMetrics } = useGraphData(
+    notes, 
+    renderMode, 
+    selectedNodeId, 
+    hoveredNode
+  );
 
-    // Create nodes from notes with memoized calculations
-    notes.forEach((note, index) => {
-      // Use saved position or calculate new one
-      const savedPosition = nodePositions[note.id];
-      let x: number, y: number;
-      
-      if (savedPosition) {
-        x = savedPosition.x;
-        y = savedPosition.y;
-      } else {
-        const angle = (index / notes.length) * 2 * Math.PI;
-        const radius = GRAPH_CONSTANTS.INITIAL_RADIUS;
-        x = Math.cos(angle) * radius;
-        y = Math.sin(angle) * radius;
+  // Memoized viewport optimization
+  const { 
+    nodes: optimizedNodes, 
+    links: optimizedLinks, 
+    optimizationLevel,
+    originalNodeCount,
+    originalLinkCount
+  } = useViewportOptimization(nodes, links, performanceMode);
+
+  // Memoized interaction handlers
+  const { handleNodeClick, handleNodeHover, handleCanvasClick } = useGraphInteractions(
+    (nodeId) => {
+      if (nodeId) {
+        selectNote(nodeId);
+        onNodeClick?.(nodeId);
       }
+    },
+    setHoveredNode
+  );
 
-      // Memoized size calculation
-      const contentLength = note.body.length;
-      const tagCount = note.tags.length;
-      const size = Math.max(
-        GRAPH_CONSTANTS.MIN_NODE_SIZE,
-        Math.min(
-          GRAPH_CONSTANTS.MAX_NODE_SIZE,
-          GRAPH_CONSTANTS.BASE_NODE_SIZE + 
-          (contentLength / 1000) * GRAPH_CONSTANTS.CONTENT_SIZE_FACTOR + 
-          tagCount * GRAPH_CONSTANTS.TAG_SIZE_FACTOR
-        )
-      );
+  // Memoized filtered nodes
+  const filteredNodes = useMemo(() => {
+    let filtered = optimizedNodes;
 
-      // Memoized color generation
-      const color = note.tags.length > 0 
-        ? `hsl(${(note.tags[0].length * 50) % 360}, 70%, 60%)`
-        : '#6c757d';
-
-      const isSelected = note.id === selectedNodeId;
-      const isHovered = note.id === hoveredNode;
-
-      graphNodes.push({
-        id: note.id,
-        title: note.title,
-        x,
-        y,
-        size,
-        color,
-        tags: note.tags,
-        isSelected,
-        isHovered
-      });
-    });
-
-    // Generate links based on selected render mode
-    const graphLinks = GraphLinkService.generateLinks(notes, renderMode);
-
-    // Apply advanced filtering
-    let filtered = graphNodes;
-    
-    // Search query filter
-    if (searchQuery.trim() !== '') {
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(node => 
-        node.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        node.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+        node.title.toLowerCase().includes(query) ||
+        node.tags.some((tag: string) => tag.toLowerCase().includes(query))
       );
     }
-    
+
     // Tag filter
     if (selectedTags.length > 0) {
-      filtered = filtered.filter(node => 
-        selectedTags.some(selectedTag => node.tags.includes(selectedTag))
+      filtered = filtered.filter(node =>
+        selectedTags.some(tag => node.tags.includes(tag))
       );
     }
-    
+
     // Date filter
     if (dateFilter !== 'all') {
       const now = new Date();
-      const getNoteDate = (noteId: string) => {
-        const note = notes.find(n => n.id === noteId);
-        return note ? new Date(note.createdAt) : new Date(0);
-      };
+      const filterDate = new Date();
+      
+      switch (dateFilter) {
+        case 'today':
+          filterDate.setDate(now.getDate() - 1);
+          break;
+        case 'week':
+          filterDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          filterDate.setMonth(now.getMonth() - 1);
+          break;
+        case 'year':
+          filterDate.setFullYear(now.getFullYear() - 1);
+          break;
+      }
       
       filtered = filtered.filter(node => {
-        const noteDate = getNoteDate(node.id);
-        switch (dateFilter) {
-          case 'today':
-            return noteDate.toDateString() === now.toDateString();
-          case 'week':
-            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            return noteDate >= weekAgo;
-          case 'month':
-            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            return noteDate >= monthAgo;
-          case 'year':
-            const yearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-            return noteDate >= yearAgo;
-          default:
-            return true;
-        }
+        const note = notes.find(n => n.id === node.id);
+        return note && new Date(note.createdAt) >= filterDate;
       });
     }
-    
+
     // Content filter
     if (contentFilter !== 'all') {
       filtered = filtered.filter(node => {
@@ -235,13 +257,13 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
           case 'has-tags':
             return note.tags.length > 0;
           case 'has-content':
-            return note.body.length > 100; // More than just a title
+            return note.body.length > 100;
           default:
             return true;
         }
       });
     }
-    
+
     // Node size filter
     if (nodeSizeFilter !== 'all') {
       filtered = filtered.filter(node => {
@@ -259,583 +281,315 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
       });
     }
 
-    return { nodes: graphNodes, links: graphLinks, filteredNodes: filtered };
-  }, [notes, nodePositions, selectedNodeId, hoveredNode, searchQuery, renderMode]);
+    return filtered;
+  }, [optimizedNodes, searchQuery, selectedTags, dateFilter, contentFilter, nodeSizeFilter, notes]);
 
-  // Optimize graph data based on viewport and performance mode
-  const optimizedGraphData = useMemo((): OptimizedGraphData => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return {
-        visibleNodes: filteredNodes,
-        visibleLinks: links,
-        totalNodes: nodes.length,
-        totalLinks: links.length,
-        clusteringLevel: 'none',
-        performanceMetrics: { cullingEfficiency: 0, clusteringEfficiency: 0, renderTime: 0 }
-      };
-    }
-
-    const viewport = GraphOptimizationService.calculateViewport(
-      canvas.width,
-      canvas.height,
-      pan,
-      zoom
+  // Memoized filtered links
+  const filteredLinks = useMemo(() => {
+    const filteredNodeIds = new Set(filteredNodes.map(node => node.id));
+    return optimizedLinks.filter(link => 
+      filteredNodeIds.has(link.source) && filteredNodeIds.has(link.target)
     );
+  }, [optimizedLinks, filteredNodes]);
 
-    return GraphOptimizationService.optimizeGraph(
-      filteredNodes,
-      links,
-      viewport,
-      performanceMode
-    );
-  }, [filteredNodes, links, nodes.length, pan, zoom, performanceMode]);
-
-  // Debounced canvas drawing with requestAnimationFrame
-  const drawGraph = useCallback(() => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-
-    animationFrameRef.current = requestAnimationFrame(() => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      try {
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width;
-        canvas.height = rect.height;
-
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Apply transformations
-        ctx.save();
-        ctx.translate(pan.x + canvas.width / 2, pan.y + canvas.height / 2);
-        ctx.scale(zoom, zoom);
-
-        // Draw optimized links
-        optimizedGraphData.visibleLinks.forEach(link => {
-          const sourceNode = optimizedGraphData.visibleNodes.find(n => n.id === link.source);
-          const targetNode = optimizedGraphData.visibleNodes.find(n => n.id === link.target);
-          
-          if (sourceNode && targetNode) {
-            ctx.beginPath();
-            ctx.moveTo(sourceNode.x, sourceNode.y);
-            ctx.lineTo(targetNode.x, targetNode.y);
-            
-            // Different link styles based on type
-            let strokeStyle: string;
-            let lineWidth: number;
-            
-            switch (link.type) {
-              case 'internal':
-                strokeStyle = `rgba(0, 123, 255, ${0.4 + link.strength * 0.3})`;
-                lineWidth = 1 + link.strength;
-                break;
-              case 'tag':
-                strokeStyle = `rgba(40, 167, 69, ${0.4 + link.strength * 0.3})`;
-                lineWidth = 1 + link.strength * 0.5;
-                break;
-              case 'similarity':
-                strokeStyle = `rgba(255, 193, 7, ${0.4 + link.strength * 0.3})`;
-                lineWidth = 1 + link.strength * 0.5;
-                break;
-              case 'hierarchical':
-                strokeStyle = `rgba(220, 53, 69, ${0.4 + link.strength * 0.3})`;
-                lineWidth = 1 + link.strength;
-                break;
-              default:
-                strokeStyle = `rgba(100, 100, 100, ${0.3 + link.strength * 0.2})`;
-                lineWidth = 1 + link.strength;
-            }
-            
-            ctx.strokeStyle = strokeStyle;
-            ctx.lineWidth = lineWidth;
-            ctx.stroke();
-          }
-        });
-
-        // Draw optimized nodes (including clusters)
-        optimizedGraphData.visibleNodes.forEach(node => {
-          const isSelected = node.isSelected;
-          const isHovered = node.isHovered;
-          const isCluster = 'isCluster' in node && node.isCluster;
-
-          // Node circle with enhanced visual feedback
-          ctx.beginPath();
-          ctx.arc(node.x, node.y, node.size, 0, 2 * Math.PI);
-          
-          if (isSelected) {
-            ctx.fillStyle = '#007bff';
-          } else if (isHovered) {
-            ctx.fillStyle = '#0056b3';
-          } else {
-            ctx.fillStyle = node.color;
-          }
-          
-          ctx.fill();
-          
-          // Node border with enhanced styling
-          ctx.strokeStyle = isSelected ? '#0056b3' : isHovered ? '#007bff' : '#fff';
-          ctx.lineWidth = isSelected ? 3 : isHovered ? 2 : 1;
-          ctx.stroke();
-
-          // Node title with improved text rendering
-          ctx.fillStyle = '#fff';
-          ctx.font = '12px Arial';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          
-          // Truncate title if too long
-          const maxWidth = node.size * 1.5;
-          let title = node.title;
-          while (ctx.measureText(title).width > maxWidth && title.length > 3) {
-            title = title.slice(0, -1) + '...';
-          }
-          
-          ctx.fillText(title, node.x, node.y);
-
-          // Special styling for clusters
-          if (isCluster) {
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, node.size + 5, 0, 2 * Math.PI);
-            ctx.strokeStyle = 'rgba(0, 123, 255, 0.5)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            // Show cluster size
-            ctx.fillStyle = '#007bff';
-            ctx.font = '10px Arial';
-            ctx.fillText(`${node.clusterSize}`, node.x, node.y + node.size + 15);
-          }
-
-          // Highlight effect for hovered nodes
-          if (isHovered) {
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, node.size + GRAPH_CONSTANTS.HOVER_RADIUS, 0, 2 * Math.PI);
-            ctx.strokeStyle = 'rgba(0, 123, 255, 0.3)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-          }
-        });
-
-        ctx.restore();
-      } catch (error) {
-        console.error('Canvas drawing error:', error);
-        throw error; // Let error boundary handle it
-      }
-    });
-  }, [optimizedGraphData, selectedNodeId, hoveredNode, zoom, pan]);
-
-  // Enhanced mouse event handlers with debouncing
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left - pan.x - canvas.width / 2) / zoom;
-    const y = (e.clientY - rect.top - pan.y - canvas.height / 2) / zoom;
-
-    // Check if clicking on a node (including clusters)
-    const clickedNode = optimizedGraphData.visibleNodes.find(node => {
-      const distance = Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2);
-      return distance <= node.size;
-    });
-
-    if (clickedNode) {
-      setIsDragging(true);
-      setDragNode(clickedNode.id);
-      
-      // Handle cluster clicks
-      if ('isCluster' in clickedNode && clickedNode.isCluster) {
-        // For now, just select the representative node
-        if (clickedNode.representativeNode) {
-          onNodeClick?.(clickedNode.representativeNode.id);
-          selectNote(clickedNode.representativeNode.id);
-        }
-      } else {
-        onNodeClick?.(clickedNode.id);
-        selectNote(clickedNode.id);
-      }
-    } else {
-      setIsDragging(true);
-      setDragNode(null);
-    }
-
-    setLastMousePos({ x: e.clientX, y: e.clientY });
-  }, [optimizedGraphData.visibleNodes, pan, zoom, onNodeClick, selectNote]);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left - pan.x - canvas.width / 2) / zoom;
-    const y = (e.clientY - rect.top - pan.y - canvas.height / 2) / zoom;
-
-    // Update hover state
-    const hoveredNode = optimizedGraphData.visibleNodes.find(node => {
-      const distance = Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2);
-      return distance <= node.size;
-    });
-    
-    setHoveredNode(hoveredNode?.id || null);
-
-    if (!isDragging) return;
-
-    const deltaX = e.clientX - lastMousePos.x;
-    const deltaY = e.clientY - lastMousePos.y;
-
-    if (dragNode) {
-      // Move specific node with persistent storage
-      setNodePositions(prev => ({
-        ...prev,
-        [dragNode]: {
-          x: (prev[dragNode]?.x || 0) + deltaX / zoom,
-          y: (prev[dragNode]?.y || 0) + deltaY / zoom
-        }
-      }));
-    } else {
-      // Pan the view
-      setPan(prev => ({
-        x: prev.x + deltaX * GRAPH_CONSTANTS.PAN_SENSITIVITY,
-        y: prev.y + deltaY * GRAPH_CONSTANTS.PAN_SENSITIVITY
-      }));
-    }
-
-    setLastMousePos({ x: e.clientX, y: e.clientY });
-  }, [isDragging, dragNode, lastMousePos, zoom, optimizedGraphData.visibleNodes]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-    setDragNode(null);
-  }, []);
-
-  const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 1 / GRAPH_CONSTANTS.ZOOM_FACTOR : GRAPH_CONSTANTS.ZOOM_FACTOR;
-    setZoom(prev => Math.max(GRAPH_CONSTANTS.ZOOM_MIN, Math.min(GRAPH_CONSTANTS.ZOOM_MAX, prev * delta)));
-  }, []);
-
-  // Optimized redraw with useEffect
-  useEffect(() => {
-    drawGraph();
-  }, [drawGraph]);
-
-  // Cleanup animation frame
-  useEffect(() => {
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, []);
+  // Performance monitoring data
+  const performanceData = useMemo(() => ({
+    totalNodes: originalNodeCount,
+    totalLinks: originalLinkCount,
+    visibleNodes: filteredNodes.length,
+    visibleLinks: filteredLinks.length,
+    optimizationLevel,
+    performanceMetrics,
+    cullingEfficiency: originalNodeCount > 0 ? (originalNodeCount - filteredNodes.length) / originalNodeCount : 0,
+    clusteringEfficiency: 0, // Would be calculated if clustering was implemented
+    renderTime: performanceMetrics.calculationTime
+  }), [originalNodeCount, originalLinkCount, filteredNodes.length, filteredLinks.length, optimizationLevel, performanceMetrics]);
 
   return (
-    <CanvasErrorBoundary>
-      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-        {/* Performance Monitor */}
-        <GraphPerformanceMonitor
-          graphData={optimizedGraphData}
-          onPerformanceModeChange={setPerformanceMode}
-          currentMode={performanceMode}
+    <div style={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      position: 'relative'
+    }}>
+      {/* Graph controls */}
+      <div style={{ 
+        padding: '8px', 
+        borderBottom: `1px solid ${colors.border}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '8px'
+      }}>
+        <RenderModeSelector
+          currentMode={renderMode}
+          onModeChange={handleRenderModeChange}
         />
-
-        {/* Render Mode Selector */}
-        <div style={{
-          position: 'absolute',
-          top: '10px',
-          left: '10px',
-          zIndex: 1000
-        }}>
-          <RenderModeSelector
-            currentMode={renderMode}
-            onModeChange={handleRenderModeChange}
+        
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Search nodes..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              padding: '4px 8px',
+              border: `1px solid ${colors.border}`,
+              borderRadius: '4px',
+              fontSize: '12px'
+            }}
+            aria-label="Search graph nodes"
           />
-        </div>
-
-        {/* Filter Panel Toggle */}
-        <div style={{
-          position: 'absolute',
-          top: '10px',
-          right: '10px',
-          zIndex: 1000
-        }}>
+          
           <button
             onClick={() => setShowFilterPanel(!showFilterPanel)}
             style={{
-              padding: '8px 12px',
-              border: '1px solid #ddd',
+              padding: '4px 8px',
+              border: `1px solid ${colors.border}`,
               borderRadius: '4px',
-              background: showFilterPanel ? '#007bff' : 'white',
-              color: showFilterPanel ? 'white' : '#333',
+              background: showFilterPanel ? colors.primary : 'transparent',
+              color: showFilterPanel ? 'white' : colors.text,
               cursor: 'pointer',
-              fontSize: '14px'
+              fontSize: '12px'
             }}
+            aria-label={`${showFilterPanel ? 'Hide' : 'Show'} filter panel`}
+            aria-expanded={showFilterPanel}
           >
             🔍 Filters
           </button>
+          
+          <button
+            onClick={() => setShowMinimap(!showMinimap)}
+            style={{
+              padding: '4px 8px',
+              border: `1px solid ${colors.border}`,
+              borderRadius: '4px',
+              background: showMinimap ? colors.primary : 'transparent',
+              color: showMinimap ? 'white' : colors.text,
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+            aria-label={`${showMinimap ? 'Hide' : 'Show'} minimap`}
+            aria-expanded={showMinimap}
+          >
+            🗺️ Minimap
+          </button>
         </div>
+      </div>
 
-        {/* Advanced Filter Panel */}
-        {showFilterPanel && (
-          <div style={{
-            position: 'absolute',
-            top: '50px',
-            right: '10px',
-            width: '250px',
-            background: 'white',
-            border: '1px solid #ddd',
-            borderRadius: '8px',
-            padding: '16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            zIndex: 1000
-          }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 'bold' }}>
-              Advanced Filters
-            </h4>
-            
-            {/* Tag Filter */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>
-                Tags
+      {/* Filter panel */}
+      {showFilterPanel && (
+        <div style={{
+          padding: '12px',
+          borderBottom: `1px solid ${colors.border}`,
+          background: colors.surface
+        }}>
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+            {/* Tag filter */}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', display: 'block' }}>
+                Tags:
               </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                {Array.from(new Set(notes.flatMap(note => note.tags))).slice(0, 8).map(tag => (
-                  <button
-                    key={tag}
-                    onClick={() => setSelectedTags(prev => 
-                      prev.includes(tag) 
-                        ? prev.filter(t => t !== tag)
-                        : [...prev, tag]
-                    )}
-                    style={{
-                      padding: '2px 6px',
-                      border: '1px solid #ddd',
-                      borderRadius: '12px',
-                      background: selectedTags.includes(tag) ? '#007bff' : 'white',
-                      color: selectedTags.includes(tag) ? 'white' : '#333',
-                      cursor: 'pointer',
-                      fontSize: '11px'
-                    }}
-                  >
-                    {tag}
-                  </button>
+              <select
+                multiple
+                value={selectedTags}
+                onChange={(e) => {
+                  const values = Array.from(e.target.selectedOptions, option => option.value);
+                  setSelectedTags(values);
+                }}
+                style={{
+                  padding: '4px',
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  minWidth: '120px'
+                }}
+                aria-label="Filter by tags"
+              >
+                <option value="">All tags</option>
+                {Array.from(new Set(notes.flatMap(note => note.tags))).map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
                 ))}
-              </div>
+              </select>
             </div>
 
-            {/* Date Filter */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>
-                Date Range
+            {/* Date filter */}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', display: 'block' }}>
+                Date:
               </label>
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value as any)}
                 style={{
-                  width: '100%',
-                  padding: '4px 8px',
-                  border: '1px solid #ddd',
+                  padding: '4px',
+                  border: `1px solid ${colors.border}`,
                   borderRadius: '4px',
                   fontSize: '12px'
                 }}
+                aria-label="Filter by date"
               >
-                <option value="all">All Time</option>
+                <option value="all">All time</option>
                 <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="year">This Year</option>
+                <option value="week">This week</option>
+                <option value="month">This month</option>
+                <option value="year">This year</option>
               </select>
             </div>
 
-            {/* Content Filter */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>
-                Content Type
+            {/* Content filter */}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', display: 'block' }}>
+                Content:
               </label>
               <select
                 value={contentFilter}
                 onChange={(e) => setContentFilter(e.target.value as any)}
                 style={{
-                  width: '100%',
-                  padding: '4px 8px',
-                  border: '1px solid #ddd',
+                  padding: '4px',
+                  border: `1px solid ${colors.border}`,
                   borderRadius: '4px',
                   fontSize: '12px'
                 }}
+                aria-label="Filter by content type"
               >
-                <option value="all">All Notes</option>
-                <option value="has-links">With Internal Links</option>
-                <option value="has-tags">With Tags</option>
-                <option value="has-content">With Content</option>
+                <option value="all">All notes</option>
+                <option value="has-links">With links</option>
+                <option value="has-tags">With tags</option>
+                <option value="has-content">With content</option>
               </select>
             </div>
 
-            {/* Node Size Filter */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>
-                Node Size
+            {/* Node size filter */}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', display: 'block' }}>
+                Size:
               </label>
               <select
                 value={nodeSizeFilter}
                 onChange={(e) => setNodeSizeFilter(e.target.value as any)}
                 style={{
-                  width: '100%',
-                  padding: '4px 8px',
-                  border: '1px solid #ddd',
+                  padding: '4px',
+                  border: `1px solid ${colors.border}`,
                   borderRadius: '4px',
                   fontSize: '12px'
                 }}
+                aria-label="Filter by node size"
               >
-                <option value="all">All Sizes</option>
+                <option value="all">All sizes</option>
                 <option value="small">Small</option>
                 <option value="medium">Medium</option>
                 <option value="large">Large</option>
               </select>
             </div>
 
-            {/* Clear Filters */}
-            <button
-              onClick={() => {
-                setSelectedTags([]);
-                setDateFilter('all');
-                setContentFilter('all');
-                setNodeSizeFilter('all');
-              }}
-              style={{
-                width: '100%',
-                padding: '6px 12px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                background: '#f8f9fa',
-                color: '#666',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              Clear All Filters
-            </button>
+            {/* Clear filters */}
+            <div style={{ display: 'flex', alignItems: 'end' }}>
+              <button
+                onClick={() => {
+                  setSelectedTags([]);
+                  setDateFilter('all');
+                  setContentFilter('all');
+                  setNodeSizeFilter('all');
+                }}
+                style={{
+                  padding: '4px 8px',
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: '4px',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+                aria-label="Clear all filters"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+
+          {/* Filter summary */}
+          <div style={{ 
+            marginTop: '8px', 
+            fontSize: '11px', 
+            color: colors.textSecondary 
+          }}>
+            Showing {filteredNodes.length} of {originalNodeCount} nodes
+            {filteredNodes.length !== originalNodeCount && (
+              <span style={{ color: colors.primary }}>
+                {' '}(filtered)
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main graph area */}
+      <div style={{ flex: 1, position: 'relative' }}>
+        <Suspense fallback={
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            color: colors.textSecondary
+          }}>
+            Loading graph...
+          </div>
+        }>
+          <GraphCanvas
+            nodes={filteredNodes}
+            links={filteredLinks}
+            zoom={zoom}
+            pan={pan}
+            onNodeClick={handleNodeClick}
+            onNodeHover={handleNodeHover}
+            onCanvasClick={handleCanvasClick}
+            colors={colors}
+          />
+        </Suspense>
+
+        {/* Performance monitor */}
+        <div style={{ position: 'absolute', top: '8px', right: '8px' }}>
+          <GraphPerformanceMonitor
+            graphData={performanceData}
+            onPerformanceModeChange={setPerformanceMode}
+            currentMode={performanceMode}
+          />
+        </div>
+
+        {/* Minimap */}
+        {showMinimap && (
+          <div style={{ position: 'absolute', bottom: '8px', right: '8px' }}>
+            <Suspense fallback={<div>Loading minimap...</div>}>
+              <GraphControls
+                zoom={zoom}
+                pan={pan}
+                onZoomChange={setZoom}
+                onPanChange={setPan}
+                colors={colors}
+              />
+            </Suspense>
           </div>
         )}
-
-        {/* Canvas */}
-        <canvas
-          ref={canvasRef}
-          style={{
-            width: '100%',
-            height: '100%',
-            cursor: isDragging ? 'grabbing' : 'grab',
-            background: '#f8f9fa'
-          }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onWheel={handleWheel}
-        />
-
-        {/* Search Input and Filter Summary */}
-        <div style={{
-          position: 'absolute',
-          top: '10px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1000,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '4px'
-        }}>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search nodes..."
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '14px',
-              width: '200px'
-            }}
-          />
-          {(selectedTags.length > 0 || dateFilter !== 'all' || contentFilter !== 'all' || nodeSizeFilter !== 'all') && (
-            <div style={{
-              padding: '4px 8px',
-              background: 'rgba(0, 123, 255, 0.1)',
-              border: '1px solid rgba(0, 123, 255, 0.3)',
-              borderRadius: '4px',
-              fontSize: '11px',
-              color: '#007bff'
-            }}>
-              Showing {filteredNodes.length} of {nodes.length} nodes
-            </div>
-          )}
-        </div>
-
-        {/* Zoom Controls */}
-        <div style={{
-          position: 'absolute',
-          bottom: '10px',
-          right: '10px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '4px',
-          zIndex: 1000
-        }}>
-          <button
-            onClick={() => setZoom(prev => Math.min(GRAPH_CONSTANTS.ZOOM_MAX, prev * GRAPH_CONSTANTS.ZOOM_FACTOR))}
-            style={{
-              width: '32px',
-              height: '32px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              background: 'white',
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
-          >
-            +
-          </button>
-          <button
-            onClick={() => setZoom(prev => Math.max(GRAPH_CONSTANTS.ZOOM_MIN, prev / GRAPH_CONSTANTS.ZOOM_FACTOR))}
-            style={{
-              width: '32px',
-              height: '32px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              background: 'white',
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
-          >
-            −
-          </button>
-          <button
-            onClick={() => {
-              setZoom(1);
-              setPan({ x: 0, y: 0 });
-            }}
-            style={{
-              width: '32px',
-              height: '32px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              background: 'white',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            ⌂
-          </button>
-        </div>
       </div>
-    </CanvasErrorBoundary>
+
+      {/* Graph legend */}
+      <div style={{ 
+        padding: '8px', 
+        borderTop: `1px solid ${colors.border}`,
+        background: colors.surface
+      }}>
+        <Suspense fallback={<div>Loading legend...</div>}>
+          <GraphLegend
+            renderMode={renderMode}
+            nodeCount={filteredNodes.length}
+            linkCount={filteredLinks.length}
+            colors={colors}
+          />
+        </Suspense>
+      </div>
+    </div>
   );
 };
 
