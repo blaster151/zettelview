@@ -2,7 +2,9 @@ import React from 'react';
 import { useThemeStore } from '../store/themeStore';
 
 const ThemeToggle: React.FC = () => {
-  const { theme, toggleTheme, colors } = useThemeStore();
+  const theme = useThemeStore(state => state.theme);
+  const toggleTheme = useThemeStore(state => state.toggleTheme);
+  const colors = useThemeStore(state => state.colors);
 
   return (
     <button

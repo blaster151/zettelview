@@ -53,8 +53,9 @@ interface NoteAIProps {
 }
 
 const NoteAI: React.FC<NoteAIProps> = ({ noteId, isOpen, onClose }) => {
-  const { notes, updateNote } = useNoteStore();
-  const { colors } = useThemeStore();
+  const notes = useNoteStore(state => state.notes);
+  const updateNote = useNoteStore(state => state.updateNote);
+  const colors = useThemeStore(state => state.colors);
   
   const [activeTab, setActiveTab] = useState<'features' | 'generation' | 'suggestions' | 'analysis'>('features');
   const [isProcessing, setIsProcessing] = useState(false);

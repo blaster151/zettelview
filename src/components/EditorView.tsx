@@ -6,8 +6,9 @@ import { ErrorBoundary } from './utils';
 import { NoteIdProps } from '../types/domain';
 
 const EditorView: React.FC<NoteIdProps> = ({ noteId }) => {
-  const { getNote, updateNote } = useNoteStore();
-  const { colors } = useThemeStore();
+  const getNote = useNoteStore(state => state.getNote);
+  const updateNote = useNoteStore(state => state.updateNote);
+  const colors = useThemeStore(state => state.colors);
   
   const selectedNote = getNote(noteId);
 

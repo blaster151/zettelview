@@ -135,8 +135,9 @@ const useGraphInteractions = (
 
 // Main GraphView component with performance optimizations
 const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) => {
-  const { notes, selectNote } = useNoteStore();
-  const { colors } = useThemeStore();
+  const notes = useNoteStore(state => state.notes);
+  const selectNote = useNoteStore(state => state.selectNote);
+  const colors = useThemeStore(state => state.colors);
   
   // State management with performance considerations
   const [isDragging, setIsDragging] = useState(false);

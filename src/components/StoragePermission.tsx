@@ -2,7 +2,9 @@ import React from 'react';
 import { useNoteStore } from '../store/noteStore';
 
 const StoragePermission: React.FC = () => {
-  const { storagePermission, isInitialized, requestStoragePermission } = useNoteStore();
+  const storagePermission = useNoteStore(state => state.storagePermission);
+  const isInitialized = useNoteStore(state => state.isInitialized);
+  const requestStoragePermission = useNoteStore(state => state.requestStoragePermission);
 
   if (!isInitialized) {
     return (

@@ -12,8 +12,9 @@ interface CalendarViewProps {
 }
 
 const CalendarView: React.FC<CalendarViewProps> = ({ onNoteClick, selectedNoteId }) => {
-  const { notes, selectNote } = useNoteStore();
-  const { colors } = useThemeStore();
+  const notes = useNoteStore(state => state.notes);
+  const selectNote = useNoteStore(state => state.selectNote);
+  const colors = useThemeStore(state => state.colors);
   const { getCalendarData, getMonthName, getDayNames, isToday } = useCalendarData();
   
   const [currentDate, setCurrentDate] = useState(new Date());

@@ -5,8 +5,11 @@ import EnhancedSearch from './EnhancedSearch';
 import VirtualizedNoteList from './VirtualizedNoteList';
 
 const NoteSidebar: React.FC = () => {
-  const { notes, selectedId, selectNote, addNote } = useNoteStore();
-  const { colors } = useThemeStore();
+  const notes = useNoteStore(state => state.notes);
+  const selectedId = useNoteStore(state => state.selectedId);
+  const selectNote = useNoteStore(state => state.selectNote);
+  const addNote = useNoteStore(state => state.addNote);
+  const colors = useThemeStore(state => state.colors);
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

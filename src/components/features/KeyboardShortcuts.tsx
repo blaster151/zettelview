@@ -27,20 +27,22 @@ interface CommandPaletteItem {
 }
 
 const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
-  const { notes, selectedId, selectNote, addNote, deleteNote } = useNoteStore();
-  const { colors } = useThemeStore();
-  const {
-    viewMode,
-    setViewMode,
-    openAISummaryPanel,
-    openExportImport,
-    openTemplateSelector,
-    openSaveAsTemplate,
-    openCollaborationPanel,
-    openPluginManager,
-    openPluginStore,
-    openHelpPanel
-  } = useUIStore();
+  const notes = useNoteStore(state => state.notes);
+  const selectedId = useNoteStore(state => state.selectedId);
+  const selectNote = useNoteStore(state => state.selectNote);
+  const addNote = useNoteStore(state => state.addNote);
+  const deleteNote = useNoteStore(state => state.deleteNote);
+  const colors = useThemeStore(state => state.colors);
+  const viewMode = useUIStore(state => state.viewMode);
+  const setViewMode = useUIStore(state => state.setViewMode);
+  const openAISummaryPanel = useUIStore(state => state.openAISummaryPanel);
+  const openExportImport = useUIStore(state => state.openExportImport);
+  const openTemplateSelector = useUIStore(state => state.openTemplateSelector);
+  const openSaveAsTemplate = useUIStore(state => state.openSaveAsTemplate);
+  const openCollaborationPanel = useUIStore(state => state.openCollaborationPanel);
+  const openPluginManager = useUIStore(state => state.openPluginManager);
+  const openPluginStore = useUIStore(state => state.openPluginStore);
+  const openHelpPanel = useUIStore(state => state.openHelpPanel);
   
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [commandPaletteQuery, setCommandPaletteQuery] = useState('');

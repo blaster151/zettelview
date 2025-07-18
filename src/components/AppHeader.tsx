@@ -19,17 +19,16 @@ interface AppHeaderProps {
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({ onViewChange, currentView }) => {
-  const { addNote } = useNoteStore();
-  const { colors, toggleTheme } = useThemeStore();
-  const {
-    openPluginManager,
-    openPluginStore,
-    openExportImport,
-    openCollaborationPanel,
-    openAISummaryPanel,
-    openTemplateSelector,
-    openSaveAsTemplate
-  } = useUIStore();
+  const addNote = useNoteStore(state => state.addNote);
+  const colors = useThemeStore(state => state.colors);
+  const toggleTheme = useThemeStore(state => state.toggleTheme);
+  const openPluginManager = useUIStore(state => state.openPluginManager);
+  const openPluginStore = useUIStore(state => state.openPluginStore);
+  const openExportImport = useUIStore(state => state.openExportImport);
+  const openCollaborationPanel = useUIStore(state => state.openCollaborationPanel);
+  const openAISummaryPanel = useUIStore(state => state.openAISummaryPanel);
+  const openTemplateSelector = useUIStore(state => state.openTemplateSelector);
+  const openSaveAsTemplate = useUIStore(state => state.openSaveAsTemplate);
 
   const handleCreateNote = async () => {
     const title = prompt('Enter note title:');

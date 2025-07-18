@@ -23,9 +23,11 @@ interface AISummarizerProps {
 }
 
 const AISummarizer: React.FC<AISummarizerProps> = ({ noteId, isOpen, onClose }) => {
-  const { notes, selectedId, updateNote } = useNoteStore();
-  const { colors } = useThemeStore();
-  const { showAISummaryPanel } = useUIStore();
+  const notes = useNoteStore(state => state.notes);
+  const selectedId = useNoteStore(state => state.selectedId);
+  const updateNote = useNoteStore(state => state.updateNote);
+  const colors = useThemeStore(state => state.colors);
+  const showAISummaryPanel = useUIStore(state => state.showAISummaryPanel);
   
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
