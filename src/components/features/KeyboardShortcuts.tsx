@@ -123,6 +123,30 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ children }) => {
       category: 'Navigation',
       condition: () => !!currentNote
     },
+    {
+      key: 'Ctrl+Shift+N',
+      description: 'Create chained note',
+      action: () => {
+        if (currentNote) {
+          // This will be handled by the useNoteChaining hook
+          loggingService.info('Chained note shortcut triggered', { noteId: currentNote.id });
+          // The actual implementation will be in the MarkdownEditor component
+        }
+      },
+      category: 'Navigation',
+      condition: () => !!currentNote
+    },
+    {
+      key: 'Ctrl+Alt+N',
+      description: 'Quick chained note',
+      action: () => {
+        if (currentNote) {
+          loggingService.info('Quick chained note shortcut triggered', { noteId: currentNote.id });
+        }
+      },
+      category: 'Navigation',
+      condition: () => !!currentNote
+    },
 
     // View shortcuts
     {

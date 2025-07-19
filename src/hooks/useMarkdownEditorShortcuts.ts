@@ -5,13 +5,15 @@ interface UseMarkdownEditorShortcutsOptions {
   setIsPreview: (isPreview: boolean) => void;
   isWYSIWYG?: boolean;
   setIsWYSIWYG?: (isWYSIWYG: boolean) => void;
+  onChainedNoteRequest?: (hotkey: string) => void;
 }
 
 export function useMarkdownEditorShortcuts({ 
   isPreview, 
   setIsPreview, 
   isWYSIWYG = false, 
-  setIsWYSIWYG 
+  setIsWYSIWYG,
+  onChainedNoteRequest
 }: UseMarkdownEditorShortcutsOptions) {
   // Returns a handler for textarea keydown
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
@@ -38,7 +40,23 @@ export function useMarkdownEditorShortcuts({
       setIsPreview(false);
       setIsWYSIWYG?.(false);
     }
-  }, [isPreview, setIsPreview, isWYSIWYG, setIsWYSIWYG]);
+
+    // Note chaining shortcuts
+    if (event.ctrlKey && event.shiftKey && event.key === 'N' && !event.altKey) {
+      event.preventDefault();
+      onChainedNoteRequest?.('Ctrl+Shift+N');
+    }
+
+    if (event.ctrlKey && event.altKey && event.key === 'N' && !event.shiftKey) {
+      event.preventDefault();
+      onChainedNoteRequest?.('Ctrl+Alt+N');
+    }
+
+    if (event.ctrlKey && event.shiftKey && event.altKey && event.key === 'N') {
+      event.preventDefault();
+      onChainedNoteRequest?.('Ctrl+Shift+Alt+N');
+    }
+  }, [isPreview, setIsPreview, isWYSIWYG, setIsWYSIWYG, onChainedNoteRequest]);
 
   return { handleKeyDown };
 } 

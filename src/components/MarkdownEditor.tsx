@@ -23,6 +23,8 @@ import { useDebouncedCallback } from '../hooks/useDebounce';
 import { useMarkdownEditorShortcuts } from '../hooks/useMarkdownEditorShortcuts';
 import { useCollaboration } from '../hooks/useCollaboration';
 import UserCursors from './collaboration/UserCursors';
+import { useNoteChaining } from '../hooks/useNoteChaining';
+import { loggingService } from '../services/loggingService';
 
 // Constants
 const INTERNAL_LINK_PATTERN = /\[\[([^[\]]+)\]\]/g;
@@ -240,12 +242,29 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     } as AutoSaveOptions
   );
 
-  // Keyboard shortcut handler (extracted)
+  // Add note chaining functionality
+  const { createChainedNoteWithHotkey, isCreating: isChaining } = useNoteChaining({
+    onNoteCreated: (note) => {
+      // Navigate to the new note
+      if (note.id) {
+        // This would need to be connected to the note store's selectNote
+        loggingService.info('Navigating to chained note', { noteId: note.id });
+      }
+    }
+  });
+
+  // Enhanced keyboard shortcut handler
   const { handleKeyDown } = useMarkdownEditorShortcuts({ 
     isPreview, 
     setIsPreview, 
     isWYSIWYG, 
-    setIsWYSIWYG 
+    setIsWYSIWYG,
+    // Add chaining shortcuts
+    onChainedNoteRequest: (hotkey: string) => {
+      if (noteId) {
+        createChainedNoteWithHotkey(noteId, hotkey);
+      }
+    }
   });
 
   // Collaboration integration
