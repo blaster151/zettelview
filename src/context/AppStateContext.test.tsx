@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { vi, describe, test, expect } from 'vitest';
 import { AppStateProvider, useAppState } from './AppStateContext';
 
 // Test component that uses the context
@@ -120,11 +121,13 @@ describe('AppStateContext', () => {
       </AppStateProvider>
     );
 
-    // Show both modals
+    // Show both modals (but export will close AI panel due to reducer logic)
     fireEvent.click(screen.getByText('Show AI Panel'));
-    fireEvent.click(screen.getByText('Show Export'));
-    
     expect(screen.getByTestId('ai-panel')).toHaveTextContent('true');
+    expect(screen.getByTestId('export-import')).toHaveTextContent('false');
+    
+    fireEvent.click(screen.getByText('Show Export'));
+    expect(screen.getByTestId('ai-panel')).toHaveTextContent('false');
     expect(screen.getByTestId('export-import')).toHaveTextContent('true');
     
     // Reset modals
@@ -159,7 +162,7 @@ describe('AppStateContext', () => {
   test('throws error when used outside provider', () => {
     // Suppress console.error for this test
     const originalError = console.error;
-    console.error = jest.fn();
+    console.error = vi.fn();
     
     expect(() => {
       render(<TestComponent />);

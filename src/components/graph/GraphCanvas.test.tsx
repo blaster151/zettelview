@@ -1,71 +1,72 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 import GraphCanvas from './GraphCanvas';
 import { GraphNode, GraphLink } from '../../types/graph';
 import { ThemeColors } from '../../types/theme';
 
 // Mock D3
-jest.mock('d3', () => ({
+vi.mock('d3', () => ({
   forceSimulation: jest.fn(() => ({
-    force: jest.fn().mockReturnThis(),
-    alphaDecay: jest.fn().mockReturnThis(),
-    velocityDecay: jest.fn().mockReturnThis(),
-    on: jest.fn().mockReturnThis(),
-    stop: jest.fn(),
-    alpha: jest.fn().mockReturnThis(),
-    restart: jest.fn(),
-    alphaTarget: jest.fn().mockReturnThis(),
-    nodes: jest.fn().mockReturnThis()
+    force: vi.fn().mockReturnThis(),
+    alphaDecay: vi.fn().mockReturnThis(),
+    velocityDecay: vi.fn().mockReturnThis(),
+    on: vi.fn().mockReturnThis(),
+    stop: vi.fn(),
+    alpha: vi.fn().mockReturnThis(),
+    restart: vi.fn(),
+    alphaTarget: vi.fn().mockReturnThis(),
+    nodes: vi.fn().mockReturnThis()
   })),
   forceLink: jest.fn(() => ({
-    id: jest.fn().mockReturnThis(),
-    distance: jest.fn().mockReturnThis(),
-    strength: jest.fn().mockReturnThis(),
-    links: jest.fn().mockReturnThis()
+    id: vi.fn().mockReturnThis(),
+    distance: vi.fn().mockReturnThis(),
+    strength: vi.fn().mockReturnThis(),
+    links: vi.fn().mockReturnThis()
   })),
   forceManyBody: jest.fn(() => ({
-    strength: jest.fn().mockReturnThis(),
-    distanceMax: jest.fn().mockReturnThis()
+    strength: vi.fn().mockReturnThis(),
+    distanceMax: vi.fn().mockReturnThis()
   })),
   forceCenter: jest.fn(() => ({
-    strength: jest.fn().mockReturnThis()
+    strength: vi.fn().mockReturnThis()
   })),
   forceCollide: jest.fn(() => ({
-    radius: jest.fn().mockReturnThis(),
-    strength: jest.fn().mockReturnThis()
+    radius: vi.fn().mockReturnThis(),
+    strength: vi.fn().mockReturnThis()
   })),
   forceX: jest.fn(() => ({
-    strength: jest.fn().mockReturnThis()
+    strength: vi.fn().mockReturnThis()
   })),
   forceY: jest.fn(() => ({
-    strength: jest.fn().mockReturnThis()
+    strength: vi.fn().mockReturnThis()
   })),
   select: jest.fn(() => ({
     select: jest.fn(() => ({
-      attr: jest.fn().mockReturnThis(),
+      attr: vi.fn().mockReturnThis(),
       append: jest.fn(() => ({
-        attr: jest.fn().mockReturnThis(),
-        style: jest.fn().mockReturnThis(),
-        on: jest.fn().mockReturnThis(),
+        attr: vi.fn().mockReturnThis(),
+        style: vi.fn().mockReturnThis(),
+        on: vi.fn().mockReturnThis(),
         selectAll: jest.fn(() => ({
           data: jest.fn(() => ({
             enter: jest.fn(() => ({
               append: jest.fn(() => ({
-                attr: jest.fn().mockReturnThis(),
-                style: jest.fn().mockReturnThis(),
-                on: jest.fn().mockReturnThis(),
-                text: jest.fn().mockReturnThis(),
-                call: jest.fn().mockReturnThis()
+                attr: vi.fn().mockReturnThis(),
+                style: vi.fn().mockReturnThis(),
+                on: vi.fn().mockReturnThis(),
+                text: vi.fn().mockReturnThis(),
+                call: vi.fn().mockReturnThis()
               }))
             }))
           }))
         })),
-        remove: jest.fn()
+        remove: vi.fn()
       }))
     }))
   })),
   drag: jest.fn(() => ({
-    on: jest.fn().mockReturnThis()
+    on: vi.fn().mockReturnThis()
   }))
 }));
 
@@ -119,7 +120,7 @@ const mockLinks: GraphLink[] = [
 
 describe('GraphCanvas', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('should render without crashing', () => {
@@ -137,7 +138,7 @@ describe('GraphCanvas', () => {
   });
 
   test('should handle canvas click', () => {
-    const mockOnCanvasClick = jest.fn();
+    const mockOnCanvasClick = vi.fn();
     
     render(
       <GraphCanvas
@@ -223,7 +224,7 @@ describe('GraphCanvas', () => {
   });
 
   test('should handle node hover', () => {
-    const mockOnNodeHover = jest.fn();
+    const mockOnNodeHover = vi.fn();
     
     render(
       <GraphCanvas
@@ -242,7 +243,7 @@ describe('GraphCanvas', () => {
   });
 
   test('should handle node click', () => {
-    const mockOnNodeClick = jest.fn();
+    const mockOnNodeClick = vi.fn();
     
     render(
       <GraphCanvas

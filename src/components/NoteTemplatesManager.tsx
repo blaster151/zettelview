@@ -30,11 +30,11 @@ export const NoteTemplatesManager: React.FC<NoteTemplatesManagerProps> = ({
     if (isOpen) {
       loadData();
     }
-  }, [isOpen]);
+  }, [isOpen, loadData]);
 
   useEffect(() => {
     loadData();
-  }, [filter]);
+  }, [filter, loadData]);
 
   const loadData = () => {
     const templateFilters: any = {};

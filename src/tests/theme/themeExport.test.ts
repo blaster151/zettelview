@@ -5,14 +5,14 @@ import { useThemeStore } from '../../store/themeStore';
 
 // Mock jsPDF
 const jsPDFMock = jest.fn(() => ({
-  setFontSize: jest.fn(),
-  setTextColor: jest.fn(),
-  setFillColor: jest.fn(),
-  text: jest.fn(),
-  rect: jest.fn(),
-  save: jest.fn(),
-  addPage: jest.fn(),
-  setFont: jest.fn(),
+  setFontSize: vi.fn(),
+  setTextColor: vi.fn(),
+  setFillColor: vi.fn(),
+  text: vi.fn(),
+  rect: vi.fn(),
+  save: vi.fn(),
+  addPage: vi.fn(),
+  setFont: vi.fn(),
   getTextWidth: jest.fn(() => 50),
   getTextDimensions: jest.fn(() => ({ w: 50, h: 10 })),
 }));
@@ -33,22 +33,22 @@ jest.mock('html2canvas', () => ({
 
 // Mock localStorage
 const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
   length: 0,
-  key: jest.fn(),
+  key: vi.fn(),
 };
 
 // Mock document methods
-const createElementMock = jest.fn();
-const appendChildMock = jest.fn();
-const removeChildMock = jest.fn();
+const createElementMock = vi.fn();
+const appendChildMock = vi.fn();
+const removeChildMock = vi.fn();
 
 beforeEach(() => {
   // Clear all mocks
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   
   // Clear localStorage to prevent quota exceeded errors
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -103,12 +103,12 @@ beforeEach(() => {
   Object.defineProperty(document, 'documentElement', {
     value: {
       classList: {
-        add: jest.fn(),
-        remove: jest.fn(),
-        contains: jest.fn(),
+        add: vi.fn(),
+        remove: vi.fn(),
+        contains: vi.fn(),
       },
-      setAttribute: jest.fn(),
-      getAttribute: jest.fn(),
+      setAttribute: vi.fn(),
+      getAttribute: vi.fn(),
     },
     writable: true,
   });
@@ -116,7 +116,7 @@ beforeEach(() => {
 
 afterEach(() => {
   // Clean up
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('Theme Export', () => {
@@ -471,7 +471,7 @@ describe('Theme Export', () => {
 
     it('should not block UI during export', () => {
       // Arrange
-      const mockRequestIdleCallback = jest.fn();
+      const mockRequestIdleCallback = vi.fn();
       Object.defineProperty(window, 'requestIdleCallback', {
         value: mockRequestIdleCallback,
         writable: true,

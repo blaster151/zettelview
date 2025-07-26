@@ -212,7 +212,7 @@ export function useSmartBlocks(options: UseSmartBlocksOptions = {}): UseSmartBlo
       notificationService.error(message);
       throw error;
     }
-  }, []);
+  }, [getBlockById, updateBlockMetadata]);
 
   // Suggest reordering
   const suggestReorder = useCallback(async (options: BlockReorderOptions = {}): Promise<number[]> => {

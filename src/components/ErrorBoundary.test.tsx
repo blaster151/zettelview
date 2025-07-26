@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import ErrorBoundary from './ErrorBoundary';
 
 // Component that throws an error
@@ -26,11 +27,11 @@ const ThrowErrorInEffect = () => {
 describe('ErrorBoundary', () => {
   beforeEach(() => {
     // Suppress console.error for expected errors in tests
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   test('renders children when no error occurs', () => {
@@ -57,7 +58,7 @@ describe('ErrorBoundary', () => {
   });
 
   test('calls onError callback when error occurs', () => {
-    const onError = jest.fn();
+    const onError = vi.fn();
     
     render(
       <ErrorBoundary onError={onError}>
@@ -198,7 +199,7 @@ describe('ErrorBoundary', () => {
   });
 
   test('reloads page when Reload Page is clicked', () => {
-    const reloadSpy = jest.spyOn(window.location, 'reload').mockImplementation(() => {});
+    const reloadSpy = vi.spyOn(window.location, 'reload').mockImplementation(() => {});
     
     render(
       <ErrorBoundary>

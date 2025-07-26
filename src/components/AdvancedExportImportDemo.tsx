@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AdvancedExportImport, ExportOptions, ImportOptions, ExportTemplate, ValidationRule, BatchOperation } from '../services/advancedExportImport';
 import { Note } from '../types/note';
 
@@ -31,7 +31,7 @@ const AdvancedExportImportDemo: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'export' | 'import' | 'templates' | 'validation' | 'batch'>('export');
 
   // Sample notes for demonstration
-  const sampleNotes: Note[] = [
+  const sampleNotes = useMemo((): Note[] => [
     {
       id: '1',
       title: 'Project Planning Notes',
@@ -72,14 +72,14 @@ const AdvancedExportImportDemo: React.FC = () => {
       createdAt: '2024-01-14T15:45:00Z',
       updatedAt: '2024-01-26T12:10:00Z'
     }
-  ];
+  ], []);
 
   useEffect(() => {
     setNotes(sampleNotes);
     setTemplates(exportImportService.getTemplates());
     setValidationRules(exportImportService.getValidationRules());
     setBatchOperations(exportImportService.getBatchOperations());
-  }, [exportImportService]);
+  }, [exportImportService, sampleNotes]);
 
   const handleExport = async () => {
     try {

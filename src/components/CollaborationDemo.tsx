@@ -337,7 +337,7 @@ export const CollaborationDemo: React.FC = () => {
                 <div className="text-3xl mb-2">👥</div>
                 <h3 className="font-medium text-gray-900 mb-2">Real-Time Users</h3>
                 <p className="text-sm text-gray-600">
-                  See who's currently editing the document in real-time
+                  See who&apos;s currently editing the document in real-time
                 </p>
               </div>
               
@@ -463,7 +463,7 @@ export const CollaborationDemo: React.FC = () => {
                         
                         {event.type === 'change_applied' && (
                           <p className="text-sm text-gray-700">
-                            <span className="font-medium">{event.change.userId}</span> made a change: "{event.change.content}"
+                            <span className="font-medium">{event.change.userId}</span> made a change: &quot;{event.change.content}&quot;
                           </p>
                         )}
                         
@@ -535,7 +535,7 @@ export const CollaborationDemo: React.FC = () => {
                   <div>
                     <h3 className="font-medium text-gray-900">User Presence</h3>
                     <p className="text-sm text-gray-600">
-                      Know who's online and actively editing
+                      Know who&apos;s online and actively editing
                     </p>
                   </div>
                 </div>

@@ -23,25 +23,10 @@ export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
   regexTimeoutMs: 5000, // 5 seconds
   allowedFileExtensions: ['.md', '.markdown', '.txt'],
   blockedPatterns: [
-    // Catastrophic backtracking patterns
-    /(a+)+b/,
-    /(a|a)+b/,
-    /(a|aa)+b/,
-    /(a|a?)+b/,
-    /(a|a*)+b/,
-    /(a|a+)+b/,
-    /(a|a*)*b/,
-    /(a|a+)*b/,
-    // ReDoS patterns
-    /^(a+)+$/,
-    /^(a|a)+$/,
-    /^(a|a*)+$/,
-    /^(a|a+)+$/,
-    // Unicode patterns that could cause issues
-    /[\u{1F600}-\u{1F64F}]/u, // Emoji ranges
-    /[\u{1F300}-\u{1F5FF}]/u, // Miscellaneous symbols
-    /[\u{1F680}-\u{1F6FF}]/u, // Transport symbols
-    /[\u{1F1E0}-\u{1F1FF}]/u, // Regional indicator symbols
+    // Only block actual attack patterns, not normal text
+    // These patterns are specifically crafted for ReDoS attacks
+    /^(a+){100,}/,
+    /^(a{100,})/,
   ]
 };
 
@@ -240,7 +225,7 @@ export class SecurityValidator {
         id: this.sanitizeString(note.id),
         title: this.sanitizeString(note.title),
         body: this.sanitizeString(note.body),
-        tags: Array.isArray(note.tags) ? note.tags.map(tag => this.sanitizeString(tag)) : [],
+        tags: Array.isArray(note.tags) ? note.tags.map((tag: any) => this.sanitizeString(tag)) : [],
         createdAt: this.sanitizeDate(note.createdAt),
         updatedAt: this.sanitizeDate(note.updatedAt)
       };

@@ -1,11 +1,12 @@
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 import { noteChainingService } from '../../services/noteChainingService';
 import { useNoteChaining } from '../../hooks/useNoteChaining';
 import { renderHook, act } from '@testing-library/react';
 
 // Mock dependencies
-jest.mock('../../store/noteStore');
-jest.mock('../../services/notificationService');
-jest.mock('../../services/loggingService');
+vi.mock('../../store/noteStore');
+vi.mock('../../services/notificationService');
+vi.mock('../../services/loggingService');
 
 describe('Edge Cases: Async', () => {
   beforeEach(() => {
@@ -19,9 +20,9 @@ describe('Edge Cases: Async', () => {
       // Mock store to reject promises
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockRejectedValue(new Error('Store rejection')),
-        updateNote: jest.fn().mockRejectedValue(new Error('Update rejection')),
-        getNote: jest.fn().mockReturnValue({
+        addNote: vi.fn().mockRejectedValue(new Error('Store rejection')),
+        updateNote: vi.fn().mockRejectedValue(new Error('Update rejection')),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -43,13 +44,13 @@ describe('Edge Cases: Async', () => {
       // Mock store with timeout
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockImplementation(() => 
+        addNote: vi.fn().mockImplementation(() => 
           new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Timeout')), 100)
           )
         ),
-        updateNote: jest.fn().mockResolvedValue(undefined),
-        getNote: jest.fn().mockReturnValue({
+        updateNote: vi.fn().mockResolvedValue(undefined),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -71,7 +72,7 @@ describe('Edge Cases: Async', () => {
       let callCount = 0;
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockImplementation(() => {
+        addNote: vi.fn().mockImplementation(() => {
           callCount++;
           return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -83,8 +84,8 @@ describe('Edge Cases: Async', () => {
             }, Math.random() * 50);
           });
         }),
-        updateNote: jest.fn().mockResolvedValue(undefined),
-        getNote: jest.fn().mockReturnValue({
+        updateNote: vi.fn().mockResolvedValue(undefined),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -114,7 +115,7 @@ describe('Edge Cases: Async', () => {
       // Mock store with cancellable promise
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockImplementation(() => {
+        addNote: vi.fn().mockImplementation(() => {
           const controller = new AbortController();
           const promise = new Promise((resolve, reject) => {
             setTimeout(() => resolve(undefined), 1000);
@@ -122,8 +123,8 @@ describe('Edge Cases: Async', () => {
           });
           return promise;
         }),
-        updateNote: jest.fn().mockResolvedValue(undefined),
-        getNote: jest.fn().mockReturnValue({
+        updateNote: vi.fn().mockResolvedValue(undefined),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -150,15 +151,15 @@ describe('Edge Cases: Async', () => {
       let failureCount = 0;
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockImplementation(() => {
+        addNote: vi.fn().mockImplementation(() => {
           failureCount++;
           if (failureCount <= 2) {
             return Promise.reject(new Error('Temporary failure'));
           }
           return Promise.resolve(undefined);
         }),
-        updateNote: jest.fn().mockResolvedValue(undefined),
-        getNote: jest.fn().mockReturnValue({
+        updateNote: vi.fn().mockResolvedValue(undefined),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -187,9 +188,9 @@ describe('Edge Cases: Async', () => {
 
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockResolvedValue(undefined),
-        updateNote: jest.fn().mockRejectedValue(new Error('Update failed')),
-        getNote: jest.fn().mockReturnValue({
+        addNote: vi.fn().mockResolvedValue(undefined),
+        updateNote: vi.fn().mockRejectedValue(new Error('Update failed')),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -207,7 +208,7 @@ describe('Edge Cases: Async', () => {
     });
 
     test('should handle async error in error callback', async () => {
-      const onError = jest.fn().mockImplementation(async () => {
+      const onError = vi.fn().mockImplementation(async () => {
         await new Promise(resolve => setTimeout(resolve, 100));
         throw new Error('Async error in callback');
       });
@@ -218,9 +219,9 @@ describe('Edge Cases: Async', () => {
 
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockRejectedValue(new Error('Store error')),
-        updateNote: jest.fn(),
-        getNote: jest.fn().mockReturnValue({
+        addNote: vi.fn().mockRejectedValue(new Error('Store error')),
+        updateNote: vi.fn(),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -244,13 +245,13 @@ describe('Edge Cases: Async', () => {
 
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockImplementation(() => 
+        addNote: vi.fn().mockImplementation(() => 
           new Promise(resolve => setTimeout(resolve, Math.random() * 100))
         ),
-        updateNote: jest.fn().mockImplementation(() => 
+        updateNote: vi.fn().mockImplementation(() => 
           new Promise(resolve => setTimeout(resolve, Math.random() * 50))
         ),
-        getNote: jest.fn().mockReturnValue({
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -276,14 +277,14 @@ describe('Edge Cases: Async', () => {
       let callCount = 0;
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockImplementation(() => {
+        addNote: vi.fn().mockImplementation(() => {
           callCount++;
           return new Promise(resolve => 
             setTimeout(resolve, callCount * 50)
           );
         }),
-        updateNote: jest.fn().mockResolvedValue(undefined),
-        getNote: jest.fn().mockReturnValue({
+        updateNote: vi.fn().mockResolvedValue(undefined),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -309,7 +310,7 @@ describe('Edge Cases: Async', () => {
       let callCount = 0;
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockImplementation(() => {
+        addNote: vi.fn().mockImplementation(() => {
           callCount++;
           return new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -321,8 +322,8 @@ describe('Edge Cases: Async', () => {
             }, 50);
           });
         }),
-        updateNote: jest.fn().mockResolvedValue(undefined),
-        getNote: jest.fn().mockReturnValue({
+        updateNote: vi.fn().mockResolvedValue(undefined),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -353,11 +354,11 @@ describe('Edge Cases: Async', () => {
 
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockImplementation(() => 
+        addNote: vi.fn().mockImplementation(() => 
           new Promise(resolve => setTimeout(resolve, 200))
         ),
-        updateNote: jest.fn().mockResolvedValue(undefined),
-        getNote: jest.fn().mockReturnValue({
+        updateNote: vi.fn().mockResolvedValue(undefined),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -387,11 +388,11 @@ describe('Edge Cases: Async', () => {
 
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockImplementation(() => 
+        addNote: vi.fn().mockImplementation(() => 
           new Promise(resolve => setTimeout(resolve, 100))
         ),
-        updateNote: jest.fn().mockResolvedValue(undefined),
-        getNote: jest.fn().mockReturnValue({
+        updateNote: vi.fn().mockResolvedValue(undefined),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -423,9 +424,9 @@ describe('Edge Cases: Async', () => {
 
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockRejectedValue(new Error('Async error')),
-        updateNote: jest.fn(),
-        getNote: jest.fn().mockReturnValue({
+        addNote: vi.fn().mockRejectedValue(new Error('Async error')),
+        updateNote: vi.fn(),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -453,7 +454,7 @@ describe('Edge Cases: Async', () => {
 
   describe('Async Callback Handling', () => {
     test('should handle async onNoteCreated callback', async () => {
-      const onNoteCreated = jest.fn().mockImplementation(async (note) => {
+      const onNoteCreated = vi.fn().mockImplementation(async (note) => {
         await new Promise(resolve => setTimeout(resolve, 100));
         return note;
       });
@@ -464,9 +465,9 @@ describe('Edge Cases: Async', () => {
 
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockResolvedValue(undefined),
-        updateNote: jest.fn().mockResolvedValue(undefined),
-        getNote: jest.fn().mockReturnValue({
+        addNote: vi.fn().mockResolvedValue(undefined),
+        updateNote: vi.fn().mockResolvedValue(undefined),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -484,7 +485,7 @@ describe('Edge Cases: Async', () => {
     });
 
     test('should handle async onError callback', async () => {
-      const onError = jest.fn().mockImplementation(async (error) => {
+      const onError = vi.fn().mockImplementation(async (error) => {
         await new Promise(resolve => setTimeout(resolve, 100));
         return error;
       });
@@ -495,9 +496,9 @@ describe('Edge Cases: Async', () => {
 
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockRejectedValue(new Error('Store error')),
-        updateNote: jest.fn(),
-        getNote: jest.fn().mockReturnValue({
+        addNote: vi.fn().mockRejectedValue(new Error('Store error')),
+        updateNote: vi.fn(),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -515,7 +516,7 @@ describe('Edge Cases: Async', () => {
     });
 
     test('should handle callback errors without breaking flow', async () => {
-      const onNoteCreated = jest.fn().mockImplementation(async () => {
+      const onNoteCreated = vi.fn().mockImplementation(async () => {
         await new Promise(resolve => setTimeout(resolve, 50));
         throw new Error('Callback error');
       });
@@ -526,9 +527,9 @@ describe('Edge Cases: Async', () => {
 
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockResolvedValue(undefined),
-        updateNote: jest.fn().mockResolvedValue(undefined),
-        getNote: jest.fn().mockReturnValue({
+        addNote: vi.fn().mockResolvedValue(undefined),
+        updateNote: vi.fn().mockResolvedValue(undefined),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -553,7 +554,7 @@ describe('Edge Cases: Async', () => {
       let resourceCount = 0;
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockImplementation(() => {
+        addNote: vi.fn().mockImplementation(() => {
           resourceCount++;
           return new Promise((resolve) => {
             setTimeout(() => {
@@ -561,8 +562,8 @@ describe('Edge Cases: Async', () => {
             }, 100);
           });
         }),
-        updateNote: jest.fn().mockResolvedValue(undefined),
-        getNote: jest.fn().mockReturnValue({
+        updateNote: vi.fn().mockResolvedValue(undefined),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',
@@ -587,7 +588,7 @@ describe('Edge Cases: Async', () => {
 
       const { useNoteStore } = require('../../store/noteStore');
       useNoteStore.mockReturnValue({
-        addNote: jest.fn().mockImplementation(() => 
+        addNote: vi.fn().mockImplementation(() => 
           new Promise(resolve => {
             // Simulate memory allocation
             const largeArray = new Array(1000000).fill('data');
@@ -598,8 +599,8 @@ describe('Edge Cases: Async', () => {
             }, 50);
           })
         ),
-        updateNote: jest.fn().mockResolvedValue(undefined),
-        getNote: jest.fn().mockReturnValue({
+        updateNote: vi.fn().mockResolvedValue(undefined),
+        getNote: vi.fn().mockReturnValue({
           id: 'test-note',
           title: 'Test Note',
           body: 'Content',

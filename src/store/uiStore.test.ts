@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useUIStore } from './uiStore';
 
@@ -107,7 +108,7 @@ describe('UIStore', () => {
 });
 
 describe('Persist Middleware', () => {
-  it('should persist viewMode to localStorage', () => {
+  test('should persist viewMode to localStorage', () => {
     const { result } = renderHook(() => useUIStore());
     
     act(() => {
@@ -118,7 +119,7 @@ describe('Persist Middleware', () => {
     expect(persisted).toContain('graph');
   });
 
-  it('should persist selectedNoteId to localStorage', () => {
+  test('should persist selectedNoteId to localStorage', () => {
     const { result } = renderHook(() => useUIStore());
     
     act(() => {
@@ -129,7 +130,7 @@ describe('Persist Middleware', () => {
     expect(persisted).toContain('test-note-id');
   });
 
-  it('should restore viewMode from localStorage on initialization', () => {
+  test('should restore viewMode from localStorage on initialization', () => {
     // Set up localStorage with persisted data
     localStorage.setItem('zettelview-ui', JSON.stringify({
       state: { viewMode: 'calendar' },
@@ -141,7 +142,7 @@ describe('Persist Middleware', () => {
     expect(result.current.viewMode).toBe('calendar');
   });
 
-  it('should restore selectedNoteId from localStorage on initialization', () => {
+  test('should restore selectedNoteId from localStorage on initialization', () => {
     // Set up localStorage with persisted data
     localStorage.setItem('zettelview-ui', JSON.stringify({
       state: { selectedNoteId: 'persisted-note-id' },
@@ -153,7 +154,7 @@ describe('Persist Middleware', () => {
     expect(result.current.selectedNoteId).toBe('persisted-note-id');
   });
 
-  it('should not persist modal states to localStorage', () => {
+  test('should not persist modal states to localStorage', () => {
     const { result } = renderHook(() => useUIStore());
     
     act(() => {

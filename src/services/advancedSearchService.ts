@@ -665,4 +665,5 @@ class NLProcessor {
   }
 }
 
-export const AdvancedSearchService = new AdvancedSearchService(); 
+// Export a single instance
+export const advancedSearchService = new AdvancedSearchService(); 

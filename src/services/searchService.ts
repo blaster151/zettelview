@@ -727,4 +727,5 @@ class SearchTemplates {
   }
 }
 
-export const SearchTemplates = new SearchTemplates(); 
+// Export a single instance
+export const searchTemplates = new SearchTemplates(); 

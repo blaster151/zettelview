@@ -1,34 +1,32 @@
-// Remove Vitest import and use Jest globals
-// import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useThemeStore } from '../../store/themeStore';
 
 // Mock localStorage
 const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
   length: 0,
-  key: jest.fn(),
+  key: vi.fn(),
 };
 
 // Mock performance API
 const performanceMock = {
   now: jest.fn(() => Date.now()),
-  mark: jest.fn(),
-  measure: jest.fn(),
+  mark: vi.fn(),
+  measure: vi.fn(),
   getEntriesByName: jest.fn(() => []),
-  clearMarks: jest.fn(),
-  clearMeasures: jest.fn(),
+  clearMarks: vi.fn(),
+  clearMeasures: vi.fn(),
 };
 
 // Mock requestAnimationFrame
-const requestAnimationFrameMock = jest.fn();
+const requestAnimationFrameMock = vi.fn();
 
 beforeEach(() => {
   // Clear all mocks
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   
   // Clear localStorage to prevent quota exceeded errors
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -79,12 +77,12 @@ beforeEach(() => {
   Object.defineProperty(document, 'documentElement', {
     value: {
       classList: {
-        add: jest.fn(),
-        remove: jest.fn(),
-        contains: jest.fn(),
+        add: vi.fn(),
+        remove: vi.fn(),
+        contains: vi.fn(),
       },
-      setAttribute: jest.fn(),
-      getAttribute: jest.fn(),
+      setAttribute: vi.fn(),
+      getAttribute: vi.fn(),
     },
     writable: true,
   });
@@ -92,7 +90,7 @@ beforeEach(() => {
 
 afterEach(() => {
   // Clean up
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('Theme Performance', () => {
@@ -112,7 +110,7 @@ describe('Theme Performance', () => {
 
     it('should not cause layout thrashing during theme switch', () => {
       // Arrange
-      const observer = new MutationObserver(jest.fn());
+      const observer = new MutationObserver(vi.fn());
       
       // Act
       useThemeStore.getState().setTheme('dark');
@@ -147,7 +145,7 @@ describe('Theme Performance', () => {
   describe('System Preference Detection Performance', () => {
     it('should detect system preference efficiently', () => {
       // Arrange
-      const matchMediaMock = jest.fn();
+      const matchMediaMock = vi.fn();
       Object.defineProperty(window, 'matchMedia', {
         value: matchMediaMock,
         writable: true,
@@ -155,8 +153,8 @@ describe('Theme Performance', () => {
 
       matchMediaMock.mockReturnValue({
         matches: true,
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       });
 
       const startTime = performance.now();
@@ -172,7 +170,7 @@ describe('Theme Performance', () => {
 
     it('should not block main thread during preference detection', () => {
       // Arrange
-      const matchMediaMock = jest.fn();
+      const matchMediaMock = vi.fn();
       Object.defineProperty(window, 'matchMedia', {
         value: matchMediaMock,
         writable: true,
@@ -180,8 +178,8 @@ describe('Theme Performance', () => {
 
       matchMediaMock.mockReturnValue({
         matches: false,
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       });
 
       // Act & Assert
@@ -196,12 +194,12 @@ describe('Theme Performance', () => {
       // Arrange
       const mockDocumentElement = {
         classList: {
-          add: jest.fn(),
-          remove: jest.fn(),
-          contains: jest.fn(),
+          add: vi.fn(),
+          remove: vi.fn(),
+          contains: vi.fn(),
         },
-        setAttribute: jest.fn(),
-        getAttribute: jest.fn(),
+        setAttribute: vi.fn(),
+        getAttribute: vi.fn(),
       };
 
       Object.defineProperty(document, 'documentElement', {
@@ -225,12 +223,12 @@ describe('Theme Performance', () => {
       // Arrange
       const mockDocumentElement = {
         classList: {
-          add: jest.fn(),
-          remove: jest.fn(),
-          contains: jest.fn(),
+          add: vi.fn(),
+          remove: vi.fn(),
+          contains: vi.fn(),
         },
-        setAttribute: jest.fn(),
-        getAttribute: jest.fn(),
+        setAttribute: vi.fn(),
+        getAttribute: vi.fn(),
       };
 
       Object.defineProperty(document, 'documentElement', {
@@ -268,14 +266,14 @@ describe('Theme Performance', () => {
 
     it('should clean up event listeners properly', () => {
       // Arrange
-      const matchMediaMock = jest.fn();
+      const matchMediaMock = vi.fn();
       Object.defineProperty(window, 'matchMedia', {
         value: matchMediaMock,
         writable: true,
       });
 
-      const addEventListenerMock = jest.fn();
-      const removeEventListenerMock = jest.fn();
+      const addEventListenerMock = vi.fn();
+      const removeEventListenerMock = vi.fn();
 
       matchMediaMock.mockReturnValue({
         matches: false,
@@ -329,14 +327,14 @@ describe('Theme Performance', () => {
       // Arrange
       const mockDocumentElement = {
         classList: {
-          add: jest.fn(),
-          remove: jest.fn(),
-          contains: jest.fn(),
+          add: vi.fn(),
+          remove: vi.fn(),
+          contains: vi.fn(),
         },
-        setAttribute: jest.fn(),
-        getAttribute: jest.fn(),
+        setAttribute: vi.fn(),
+        getAttribute: vi.fn(),
         style: {
-          setProperty: jest.fn(),
+          setProperty: vi.fn(),
         },
       };
 
@@ -359,14 +357,14 @@ describe('Theme Performance', () => {
       // Arrange
       const mockDocumentElement = {
         classList: {
-          add: jest.fn(),
-          remove: jest.fn(),
-          contains: jest.fn(),
+          add: vi.fn(),
+          remove: vi.fn(),
+          contains: vi.fn(),
         },
-        setAttribute: jest.fn(),
-        getAttribute: jest.fn(),
+        setAttribute: vi.fn(),
+        getAttribute: vi.fn(),
         style: {
-          setProperty: jest.fn(),
+          setProperty: vi.fn(),
         },
       };
 

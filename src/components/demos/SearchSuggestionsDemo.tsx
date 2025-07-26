@@ -535,7 +535,7 @@ const SearchSuggestionsDemo: React.FC = () => {
               </h3>
               <ul style={{ fontSize: '14px', color: colors.textSecondary, lineHeight: '1.6' }}>
                 <li>Type partial words for fuzzy matching</li>
-                <li>Use "tag:" prefix for tag searches</li>
+                <li>Use &quot;tag:&quot; prefix for tag searches</li>
                 <li>Try related concepts for broader results</li>
                 <li>Check popular suggestions for common queries</li>
               </ul>

@@ -15,14 +15,14 @@ export function useNoteChaining(options: UseNoteChainingOptions = {}) {
   const [isCreating, setIsCreating] = useState(false);
   const [lastCreatedNote, setLastCreatedNote] = useState<ChainedNote | null>(null);
 
-  const defaultOptions: ChainingOptions = {
+  const defaultOptions = useMemo((): ChainingOptions => ({
     inheritTags: true,
     addBacklink: true,
     sequentialId: true,
     autoTitle: true,
     idFormat: 'numeric',
     ...options.defaultOptions
-  };
+  }), [options.defaultOptions]);
 
   /**
    * Create a chained note from the currently selected note

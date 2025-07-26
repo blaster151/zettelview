@@ -329,6 +329,20 @@ export class AdvancedQueryParser {
    * Validate a query string
    */
   static validate(query: string): { isValid: boolean; error?: string } {
+    const trimmedQuery = query.trim();
+    
+    if (!trimmedQuery) {
+      return { isValid: true };
+    }
+
+    // Check for standalone NOT operator
+    if (trimmedQuery.toUpperCase() === 'NOT') {
+      return { 
+        isValid: false, 
+        error: 'NOT operator must have an operand' 
+      };
+    }
+
     try {
       const parsed = this.parse(query);
       return { isValid: parsed.isValid, error: parsed.error };

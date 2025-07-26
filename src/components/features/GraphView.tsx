@@ -4,13 +4,13 @@ import { useThemeStore } from '../../store/themeStore';
 import { GraphNode, GraphLink, GraphRenderMode } from '../../types/graph';
 import { GraphLinkService } from '../../services/graphLinkService';
 import { GraphOptimizationService } from '../../services/graphOptimizationService';
-import { RenderModeSelector } from '../graph/RenderModeSelector';
-import { GraphPerformanceMonitor } from '../graph/GraphPerformanceMonitor';
 
 // Lazy load heavy components
 const GraphCanvas = React.lazy(() => import('../graph/GraphCanvas'));
 const GraphControls = React.lazy(() => import('../graph/GraphControls'));
 const GraphLegend = React.lazy(() => import('../graph/GraphLegend'));
+const RenderModeSelector = React.lazy(() => import('../graph/RenderModeSelector'));
+const GraphPerformanceMonitor = React.lazy(() => import('../graph/GraphPerformanceMonitor'));
 
 // Performance constants
 const PERFORMANCE_CONSTANTS = {
@@ -21,6 +21,11 @@ const PERFORMANCE_CONSTANTS = {
   MAX_NODES_FOR_QUALITY: 100,
   MAX_NODES_FOR_PERFORMANCE: 500
 } as const;
+
+interface GraphViewProps {
+  onNodeClick?: (nodeId: string) => void;
+  selectedNodeId?: string;
+}
 
 // Memoized graph data calculation
 const useGraphData = (notes: any[], renderMode: GraphRenderMode, selectedNodeId?: string, hoveredNode?: string) => {
@@ -163,8 +168,11 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
   
   // Render mode state with localStorage persistence
   const [renderMode, setRenderMode] = useState<GraphRenderMode>(() => {
-    const saved = localStorage.getItem('zettelview_graph_render_mode');
-    return (saved as GraphRenderMode) || 'internal-links';
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('zettelview_graph_render_mode');
+      return (saved as GraphRenderMode) || 'internal-links';
+    }
+    return 'internal-links';
   });
   
   // Persistent node positions
@@ -201,7 +209,7 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
         onNodeClick?.(nodeId);
       }
     },
-    setHoveredNode
+    (nodeId: string | null) => setHoveredNode(nodeId || undefined)
   );
 
   // Memoized filtered nodes
@@ -307,7 +315,8 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
     performanceMetrics,
     cullingEfficiency: originalNodeCount > 0 ? (originalNodeCount - filteredNodes.length) / originalNodeCount : 0,
     clusteringEfficiency: 0, // Would be calculated if clustering was implemented
-    renderTime: performanceMetrics.calculationTime
+    renderTime: performanceMetrics.calculationTime,
+    clusteringLevel: 'none' as const
   }), [originalNodeCount, originalLinkCount, filteredNodes.length, filteredLinks.length, optimizationLevel, performanceMetrics]);
 
   return (
@@ -327,12 +336,14 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
         flexWrap: 'wrap',
         gap: '8px'
       }}>
-        <RenderModeSelector
-          currentMode={renderMode}
-          onModeChange={handleRenderModeChange}
-        />
-        
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <Suspense fallback={<div>Loading...</div>}>
+            <RenderModeSelector
+              currentMode={renderMode}
+              onModeChange={handleRenderModeChange}
+            />
+          </Suspense>
+
           <input
             type="text"
             placeholder="Search nodes..."
@@ -657,11 +668,13 @@ const GraphView: React.FC<GraphViewProps> = ({ onNodeClick, selectedNodeId }) =>
 
         {/* Performance monitor */}
         <div style={{ position: 'absolute', top: '8px', right: '8px' }}>
-          <GraphPerformanceMonitor
-            graphData={performanceData}
-            onPerformanceModeChange={setPerformanceMode}
-            currentMode={performanceMode}
-          />
+          <Suspense fallback={<div>Loading...</div>}>
+            <GraphPerformanceMonitor
+              graphData={performanceData}
+              onPerformanceModeChange={setPerformanceMode}
+              currentMode={performanceMode}
+            />
+          </Suspense>
         </div>
 
         {/* Minimap */}

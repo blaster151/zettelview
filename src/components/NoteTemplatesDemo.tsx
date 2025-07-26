@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NoteTemplatesService, NoteTemplate, NoteWorkflow } from '../services/noteTemplatesService';
+import { noteTemplatesService, NoteTemplate, NoteWorkflow } from '../services/noteTemplatesService';
 
 export const NoteTemplatesDemo: React.FC = () => {
   const [templates, setTemplates] = useState<NoteTemplate[]>([]);
@@ -15,8 +15,8 @@ export const NoteTemplatesDemo: React.FC = () => {
   }, []);
 
   const loadData = () => {
-    setTemplates(NoteTemplatesService.getTemplates());
-    setWorkflows(NoteTemplatesService.getWorkflows());
+    setTemplates(noteTemplatesService.getTemplates());
+    setWorkflows(noteTemplatesService.getWorkflows());
   };
 
   const handleTemplateSelect = (template: NoteTemplate) => {
@@ -33,7 +33,7 @@ export const NoteTemplatesDemo: React.FC = () => {
     if (!selectedTemplate) return;
 
     try {
-      const content = NoteTemplatesService.useTemplate(selectedTemplate.id, templateVariables);
+      const content = noteTemplatesService.generateContent(selectedTemplate.id, templateVariables);
       setGeneratedContent(content);
     } catch (error) {
       alert(`Error generating content: ${error}`);

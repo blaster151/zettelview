@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import { usePlugins, usePluginSettings } from '../../hooks/usePlugins';
 import { Plugin } from '../../types/plugins';
 import { useThemeStore } from '../../store/themeStore';
+import { Badge } from '../ui/Badge';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { Select } from '../ui/Select';
+import { Modal } from '../ui/Modal';
+import { Checkbox } from '../ui/Checkbox';
 
 interface PluginManagerProps {
   isOpen: boolean;
@@ -89,19 +95,20 @@ export function PluginManager({ isOpen, onClose }: PluginManagerProps) {
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.7)',
-      zIndex: 9999,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      animation: 'fadeIn 0.3s ease-in-out'
-    }}>
+    <>
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.7)',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        animation: 'fadeIn 0.3s ease-in-out'
+      }}>
       <div style={{
         background: colors.surface,
         border: `1px solid ${colors.border}`,
@@ -299,7 +306,7 @@ export function PluginManager({ isOpen, onClose }: PluginManagerProps) {
             )}
           </div>
         </div>
-      </Modal>
+      </div>
 
       {/* Plugin Settings Modal */}
       {selectedPlugin && (

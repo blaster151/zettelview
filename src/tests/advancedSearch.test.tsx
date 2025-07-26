@@ -1,24 +1,25 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 import { AdvancedSearch } from '../components/features/AdvancedSearch';
 import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
 
 // Mock the stores
-jest.mock('../store/noteStore');
-jest.mock('../store/themeStore');
-jest.mock('../services/loggingService');
-jest.mock('../services/performanceMonitor');
+vi.mock('../store/noteStore');
+vi.mock('../store/themeStore');
+vi.mock('../services/loggingService');
+vi.mock('../services/performanceMonitor');
 
-const mockUseNoteStore = useNoteStore as jest.MockedFunction<typeof useNoteStore>;
-const mockUseThemeStore = useThemeStore as jest.MockedFunction<typeof useThemeStore>;
+const mockUseNoteStore = useNoteStore as vi.MockedFunction<typeof useNoteStore>;
+const mockUseThemeStore = useThemeStore as vi.MockedFunction<typeof useThemeStore>;
 
 // Mock localStorage
 const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
 };
 Object.defineProperty(window, 'localStorage', {
   value: localStorageMock
@@ -76,20 +77,20 @@ describe('Advanced Search', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     mockUseNoteStore.mockReturnValue({
       notes: mockNotes,
-      searchNotes: jest.fn(),
-      getSearchSuggestions: jest.fn(),
-      advancedSearch: jest.fn(),
-      validateAdvancedQuery: jest.fn(),
-      getAdvancedSearchSuggestions: jest.fn()
+      searchNotes: vi.fn(),
+      getSearchSuggestions: vi.fn(),
+      advancedSearch: vi.fn(),
+      validateAdvancedQuery: vi.fn(),
+      getAdvancedSearchSuggestions: vi.fn()
     });
 
     mockUseThemeStore.mockReturnValue({
       colors: mockColors,
-      toggleTheme: jest.fn()
+      toggleTheme: vi.fn()
     });
 
     localStorageMock.getItem.mockReturnValue(null);
@@ -97,7 +98,7 @@ describe('Advanced Search', () => {
 
   describe('Search Operators', () => {
     test('contains operator returns correct filtered notes', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       // Add a filter with contains operator
       const addFilterButton = screen.getByText('Add Filter');
@@ -118,7 +119,7 @@ describe('Advanced Search', () => {
     });
 
     test('starts_with operator returns correct filtered notes', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const addFilterButton = screen.getByText('Add Filter');
       fireEvent.click(addFilterButton);
@@ -139,7 +140,7 @@ describe('Advanced Search', () => {
     });
 
     test('ends_with operator returns correct filtered notes', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const addFilterButton = screen.getByText('Add Filter');
       fireEvent.click(addFilterButton);
@@ -160,7 +161,7 @@ describe('Advanced Search', () => {
     });
 
     test('equals operator returns correct filtered notes', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const addFilterButton = screen.getByText('Add Filter');
       fireEvent.click(addFilterButton);
@@ -181,7 +182,7 @@ describe('Advanced Search', () => {
     });
 
     test('regex operator returns correct filtered notes', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const addFilterButton = screen.getByText('Add Filter');
       fireEvent.click(addFilterButton);
@@ -204,7 +205,7 @@ describe('Advanced Search', () => {
     });
 
     test('invalid regex pattern handles gracefully', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const addFilterButton = screen.getByText('Add Filter');
       fireEvent.click(addFilterButton);
@@ -240,7 +241,7 @@ describe('Advanced Search', () => {
 
       localStorageMock.getItem.mockReturnValue(JSON.stringify(savedQueries));
 
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const savedQueriesButton = screen.getByText('Saved Queries');
       fireEvent.click(savedQueriesButton);
@@ -261,14 +262,14 @@ describe('Advanced Search', () => {
     test('saved queries handle malformed data gracefully', () => {
       localStorageMock.getItem.mockReturnValue('invalid json');
 
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       // Should not crash and should show empty state
       expect(screen.getByText('Advanced Search')).toBeInTheDocument();
     });
 
     test('save current search as query', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const queryInput = screen.getByPlaceholderText('Search notes...');
       fireEvent.change(queryInput, { target: { value: 'important meeting' } });
@@ -292,7 +293,7 @@ describe('Advanced Search', () => {
 
   describe('No-Match Search', () => {
     test('no-match search returns clean empty UI', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const queryInput = screen.getByPlaceholderText('Search notes...');
       fireEvent.change(queryInput, { target: { value: 'nonexistent term' } });
@@ -307,7 +308,7 @@ describe('Advanced Search', () => {
     });
 
     test('empty search shows appropriate message', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const searchButton = screen.getByText('Search');
       fireEvent.click(searchButton);
@@ -320,7 +321,7 @@ describe('Advanced Search', () => {
 
   describe('Sort Options', () => {
     test('sort by relevance affects result order', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const queryInput = screen.getByPlaceholderText('Search notes...');
       fireEvent.change(queryInput, { target: { value: 'notes' } });
@@ -339,7 +340,7 @@ describe('Advanced Search', () => {
     });
 
     test('sort by date affects result order', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const queryInput = screen.getByPlaceholderText('Search notes...');
       fireEvent.change(queryInput, { target: { value: 'notes' } });
@@ -358,7 +359,7 @@ describe('Advanced Search', () => {
     });
 
     test('sort by title affects result order', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const queryInput = screen.getByPlaceholderText('Search notes...');
       fireEvent.change(queryInput, { target: { value: 'notes' } });
@@ -379,7 +380,7 @@ describe('Advanced Search', () => {
     });
 
     test('sort order (asc/desc) affects result order', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const queryInput = screen.getByPlaceholderText('Search notes...');
       fireEvent.change(queryInput, { target: { value: 'notes' } });
@@ -403,7 +404,7 @@ describe('Advanced Search', () => {
 
   describe('Search Result Snippets', () => {
     test('search result snippets contain highlighted matches', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const queryInput = screen.getByPlaceholderText('Search notes...');
       fireEvent.change(queryInput, { target: { value: 'project' } });
@@ -422,7 +423,7 @@ describe('Advanced Search', () => {
     });
 
     test('snippets are truncated appropriately', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const queryInput = screen.getByPlaceholderText('Search notes...');
       fireEvent.change(queryInput, { target: { value: 'important' } });
@@ -438,7 +439,7 @@ describe('Advanced Search', () => {
     });
 
     test('multiple matches in snippet are all highlighted', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const queryInput = screen.getByPlaceholderText('Search notes...');
       fireEvent.change(queryInput, { target: { value: 'and' } });
@@ -458,7 +459,7 @@ describe('Advanced Search', () => {
 
   describe('Filter Combinations', () => {
     test('multiple filters work together', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       // Add first filter
       const addFilterButton = screen.getByText('Add Filter');
@@ -482,7 +483,7 @@ describe('Advanced Search', () => {
     });
 
     test('field-specific filters work correctly', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const addFilterButton = screen.getByText('Add Filter');
       fireEvent.click(addFilterButton);
@@ -505,7 +506,7 @@ describe('Advanced Search', () => {
 
   describe('Date Range Filtering', () => {
     test('date range filter works correctly', async () => {
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const dateRangeStart = screen.getByLabelText('Start Date');
       const dateRangeEnd = screen.getByLabelText('End Date');
@@ -538,14 +539,14 @@ describe('Advanced Search', () => {
 
       mockUseNoteStore.mockReturnValue({
         notes: largeNotes,
-        searchNotes: jest.fn(),
-        getSearchSuggestions: jest.fn(),
-        advancedSearch: jest.fn(),
-        validateAdvancedQuery: jest.fn(),
-        getAdvancedSearchSuggestions: jest.fn()
+        searchNotes: vi.fn(),
+        getSearchSuggestions: vi.fn(),
+        advancedSearch: vi.fn(),
+        validateAdvancedQuery: vi.fn(),
+        getAdvancedSearchSuggestions: vi.fn()
       });
 
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const queryInput = screen.getByPlaceholderText('Search notes...');
       fireEvent.change(queryInput, { target: { value: 'test' } });
@@ -561,14 +562,14 @@ describe('Advanced Search', () => {
     test('handles search errors gracefully', async () => {
       mockUseNoteStore.mockReturnValue({
         notes: mockNotes,
-        searchNotes: jest.fn().mockRejectedValue(new Error('Search failed')),
-        getSearchSuggestions: jest.fn(),
-        advancedSearch: jest.fn(),
-        validateAdvancedQuery: jest.fn(),
-        getAdvancedSearchSuggestions: jest.fn()
+        searchNotes: vi.fn().mockRejectedValue(new Error('Search failed')),
+        getSearchSuggestions: vi.fn(),
+        advancedSearch: vi.fn(),
+        validateAdvancedQuery: vi.fn(),
+        getAdvancedSearchSuggestions: vi.fn()
       });
 
-      render(<AdvancedSearch isOpen={true} onClose={jest.fn()} onSelectNote={jest.fn()} />);
+      render(<AdvancedSearch isOpen={true} onClose={vi.fn()} onSelectNote={vi.fn()} />);
       
       const queryInput = screen.getByPlaceholderText('Search notes...');
       fireEvent.change(queryInput, { target: { value: 'test' } });

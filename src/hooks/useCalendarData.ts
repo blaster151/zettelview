@@ -114,14 +114,14 @@ export const useCalendarData = (): CalendarDataHandlers => {
    */
   const getMonthName = useMemo(() => (date: Date): string => {
     return monthNames[date.getMonth()];
-  }, []);
+  }, [monthNames]);
 
   /**
    * Get day names array
    */
   const getDayNames = useMemo(() => (): string[] => {
     return [...dayNames];
-  }, []);
+  }, [dayNames]);
 
   /**
    * Check if a date is today

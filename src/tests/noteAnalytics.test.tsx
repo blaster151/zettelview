@@ -1,17 +1,18 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 import { NoteAnalytics } from '../components/features/NoteAnalytics';
 import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
 
 // Mock the stores
-jest.mock('../store/noteStore');
-jest.mock('../store/themeStore');
-jest.mock('../services/loggingService');
-jest.mock('../services/performanceMonitor');
+vi.mock('../store/noteStore');
+vi.mock('../store/themeStore');
+vi.mock('../services/loggingService');
+vi.mock('../services/performanceMonitor');
 
-const mockUseNoteStore = useNoteStore as jest.MockedFunction<typeof useNoteStore>;
-const mockUseThemeStore = useThemeStore as jest.MockedFunction<typeof useThemeStore>;
+const mockUseNoteStore = useNoteStore as vi.MockedFunction<typeof useNoteStore>;
+const mockUseThemeStore = useThemeStore as vi.MockedFunction<typeof useThemeStore>;
 
 describe('Note Analytics', () => {
   const mockNotes = [
@@ -73,26 +74,26 @@ describe('Note Analytics', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     mockUseNoteStore.mockReturnValue({
       notes: mockNotes,
-      searchNotes: jest.fn(),
-      getSearchSuggestions: jest.fn(),
-      advancedSearch: jest.fn(),
-      validateAdvancedQuery: jest.fn(),
-      getAdvancedSearchSuggestions: jest.fn()
+      searchNotes: vi.fn(),
+      getSearchSuggestions: vi.fn(),
+      advancedSearch: vi.fn(),
+      validateAdvancedQuery: vi.fn(),
+      getAdvancedSearchSuggestions: vi.fn()
     });
 
     mockUseThemeStore.mockReturnValue({
       colors: mockColors,
-      toggleTheme: jest.fn()
+      toggleTheme: vi.fn()
     });
   });
 
   describe('Word and Character Counts', () => {
     test('word counts are accurate for various markdown inputs', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       await waitFor(() => {
         // Total words should be calculated correctly
@@ -108,7 +109,7 @@ describe('Note Analytics', () => {
     });
 
     test('character counts are accurate', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       await waitFor(() => {
         const totalCharsElement = screen.getByText('Total Characters');
@@ -120,14 +121,14 @@ describe('Note Analytics', () => {
     test('handles empty notes correctly', async () => {
       mockUseNoteStore.mockReturnValue({
         notes: [],
-        searchNotes: jest.fn(),
-        getSearchSuggestions: jest.fn(),
-        advancedSearch: jest.fn(),
-        validateAdvancedQuery: jest.fn(),
-        getAdvancedSearchSuggestions: jest.fn()
+        searchNotes: vi.fn(),
+        getSearchSuggestions: vi.fn(),
+        advancedSearch: vi.fn(),
+        validateAdvancedQuery: vi.fn(),
+        getAdvancedSearchSuggestions: vi.fn()
       });
 
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       await waitFor(() => {
         expect(screen.getByText('0')).toBeInTheDocument(); // Total notes
@@ -149,14 +150,14 @@ describe('Note Analytics', () => {
 
       mockUseNoteStore.mockReturnValue({
         notes: notesWithFormatting,
-        searchNotes: jest.fn(),
-        getSearchSuggestions: jest.fn(),
-        advancedSearch: jest.fn(),
-        validateAdvancedQuery: jest.fn(),
-        getAdvancedSearchSuggestions: jest.fn()
+        searchNotes: vi.fn(),
+        getSearchSuggestions: vi.fn(),
+        advancedSearch: vi.fn(),
+        validateAdvancedQuery: vi.fn(),
+        getAdvancedSearchSuggestions: vi.fn()
       });
 
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       await waitFor(() => {
         const totalWordsElement = screen.getByText('Total Words');
@@ -168,7 +169,7 @@ describe('Note Analytics', () => {
 
   describe('Chart Updates', () => {
     test('charts update correctly with date range filter changes', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Switch to month view
       const timeRangeSelect = screen.getByDisplayValue('All Time');
@@ -193,7 +194,7 @@ describe('Note Analytics', () => {
     });
 
     test('trends chart shows correct monthly data', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Switch to trends tab
       const trendsTab = screen.getByText('Trends');
@@ -207,7 +208,7 @@ describe('Note Analytics', () => {
     });
 
     test('writing pattern chart shows hourly distribution', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Switch to writing tab
       const writingTab = screen.getByText('Writing');
@@ -224,7 +225,7 @@ describe('Note Analytics', () => {
 
   describe('Tag Analysis', () => {
     test('tag analysis reflects changes after tag updates', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Switch to tags tab
       const tagsTab = screen.getByText('Tags');
@@ -242,7 +243,7 @@ describe('Note Analytics', () => {
     });
 
     test('tag diversity calculation is accurate', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       await waitFor(() => {
         // 5 notes with 10 unique tags total = 2.0 average tags per note
@@ -266,14 +267,14 @@ describe('Note Analytics', () => {
 
       mockUseNoteStore.mockReturnValue({
         notes: notesWithoutTags,
-        searchNotes: jest.fn(),
-        getSearchSuggestions: jest.fn(),
-        advancedSearch: jest.fn(),
-        validateAdvancedQuery: jest.fn(),
-        getAdvancedSearchSuggestions: jest.fn()
+        searchNotes: vi.fn(),
+        getSearchSuggestions: vi.fn(),
+        advancedSearch: vi.fn(),
+        validateAdvancedQuery: vi.fn(),
+        getAdvancedSearchSuggestions: vi.fn()
       });
 
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       await waitFor(() => {
         const tagDiversityElement = screen.getByText('Tag Diversity');
@@ -306,14 +307,14 @@ describe('Note Analytics', () => {
 
       mockUseNoteStore.mockReturnValue({
         notes: sparseNotes,
-        searchNotes: jest.fn(),
-        getSearchSuggestions: jest.fn(),
-        advancedSearch: jest.fn(),
-        validateAdvancedQuery: jest.fn(),
-        getAdvancedSearchSuggestions: jest.fn()
+        searchNotes: vi.fn(),
+        getSearchSuggestions: vi.fn(),
+        advancedSearch: vi.fn(),
+        validateAdvancedQuery: vi.fn(),
+        getAdvancedSearchSuggestions: vi.fn()
       });
 
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Switch to trends tab
       const trendsTab = screen.getByText('Trends');
@@ -356,14 +357,14 @@ describe('Note Analytics', () => {
 
       mockUseNoteStore.mockReturnValue({
         notes: consecutiveNotes,
-        searchNotes: jest.fn(),
-        getSearchSuggestions: jest.fn(),
-        advancedSearch: jest.fn(),
-        validateAdvancedQuery: jest.fn(),
-        getAdvancedSearchSuggestions: jest.fn()
+        searchNotes: vi.fn(),
+        getSearchSuggestions: vi.fn(),
+        advancedSearch: vi.fn(),
+        validateAdvancedQuery: vi.fn(),
+        getAdvancedSearchSuggestions: vi.fn()
       });
 
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Switch to writing tab
       const writingTab = screen.getByText('Writing');
@@ -390,14 +391,14 @@ describe('Note Analytics', () => {
 
       mockUseNoteStore.mockReturnValue({
         notes: singleNote,
-        searchNotes: jest.fn(),
-        getSearchSuggestions: jest.fn(),
-        advancedSearch: jest.fn(),
-        validateAdvancedQuery: jest.fn(),
-        getAdvancedSearchSuggestions: jest.fn()
+        searchNotes: vi.fn(),
+        getSearchSuggestions: vi.fn(),
+        advancedSearch: vi.fn(),
+        validateAdvancedQuery: vi.fn(),
+        getAdvancedSearchSuggestions: vi.fn()
       });
 
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       await waitFor(() => {
         const writingStreakElement = screen.getByText('Writing Streak');
@@ -409,7 +410,7 @@ describe('Note Analytics', () => {
 
   describe('Content Analysis', () => {
     test('most common words analysis is accurate', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Switch to content tab
       const contentTab = screen.getByText('Content');
@@ -424,7 +425,7 @@ describe('Note Analytics', () => {
     });
 
     test('reading time calculation is accurate', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Switch to content tab
       const contentTab = screen.getByText('Content');
@@ -438,7 +439,7 @@ describe('Note Analytics', () => {
     });
 
     test('complexity distribution calculation is accurate', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Switch to content tab
       const contentTab = screen.getByText('Content');
@@ -466,14 +467,14 @@ describe('Note Analytics', () => {
 
       mockUseNoteStore.mockReturnValue({
         notes: notesWithLinks,
-        searchNotes: jest.fn(),
-        getSearchSuggestions: jest.fn(),
-        advancedSearch: jest.fn(),
-        validateAdvancedQuery: jest.fn(),
-        getAdvancedSearchSuggestions: jest.fn()
+        searchNotes: vi.fn(),
+        getSearchSuggestions: vi.fn(),
+        advancedSearch: vi.fn(),
+        validateAdvancedQuery: vi.fn(),
+        getAdvancedSearchSuggestions: vi.fn()
       });
 
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Switch to content tab
       const contentTab = screen.getByText('Content');
@@ -489,7 +490,7 @@ describe('Note Analytics', () => {
 
   describe('Exported Reports', () => {
     test('exported reports match on-screen analytics', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Wait for analytics to load
       await waitFor(() => {
@@ -507,7 +508,7 @@ describe('Note Analytics', () => {
     });
 
     test('export includes all analytics data', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Wait for analytics to load
       await waitFor(() => {
@@ -527,14 +528,14 @@ describe('Note Analytics', () => {
     test('export handles empty data gracefully', async () => {
       mockUseNoteStore.mockReturnValue({
         notes: [],
-        searchNotes: jest.fn(),
-        getSearchSuggestions: jest.fn(),
-        advancedSearch: jest.fn(),
-        validateAdvancedQuery: jest.fn(),
-        getAdvancedSearchSuggestions: jest.fn()
+        searchNotes: vi.fn(),
+        getSearchSuggestions: vi.fn(),
+        advancedSearch: vi.fn(),
+        validateAdvancedQuery: vi.fn(),
+        getAdvancedSearchSuggestions: vi.fn()
       });
 
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Wait for empty state
       await waitFor(() => {
@@ -564,14 +565,14 @@ describe('Note Analytics', () => {
 
       mockUseNoteStore.mockReturnValue({
         notes: largeNotes,
-        searchNotes: jest.fn(),
-        getSearchSuggestions: jest.fn(),
-        advancedSearch: jest.fn(),
-        validateAdvancedQuery: jest.fn(),
-        getAdvancedSearchSuggestions: jest.fn()
+        searchNotes: vi.fn(),
+        getSearchSuggestions: vi.fn(),
+        advancedSearch: vi.fn(),
+        validateAdvancedQuery: vi.fn(),
+        getAdvancedSearchSuggestions: vi.fn()
       });
 
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       await waitFor(() => {
         expect(screen.getByText('1000')).toBeInTheDocument(); // Total notes
@@ -583,7 +584,7 @@ describe('Note Analytics', () => {
       // Mock a calculation error
       jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       await waitFor(() => {
         expect(screen.getByText('Error calculating analytics')).toBeInTheDocument();
@@ -593,7 +594,7 @@ describe('Note Analytics', () => {
     });
 
     test('loading states are displayed correctly', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       // Should show loading initially
       expect(screen.getByText('Calculating analytics...')).toBeInTheDocument();
@@ -607,7 +608,7 @@ describe('Note Analytics', () => {
 
   describe('Accessibility', () => {
     test('all interactive elements have proper ARIA labels', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       await waitFor(() => {
         // Check for ARIA labels on interactive elements
@@ -620,7 +621,7 @@ describe('Note Analytics', () => {
     });
 
     test('keyboard navigation works correctly', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       await waitFor(() => {
         // Tab through interactive elements
@@ -636,7 +637,7 @@ describe('Note Analytics', () => {
     });
 
     test('screen reader announcements work correctly', async () => {
-      render(<NoteAnalytics isOpen={true} onClose={jest.fn()} />);
+      render(<NoteAnalytics isOpen={true} onClose={vi.fn()} />);
       
       await waitFor(() => {
         // Check for screen reader announcements

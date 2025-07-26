@@ -429,7 +429,7 @@ const QueryTemplatesDemo: React.FC = () => {
             </h3>
             <ol style={{ fontSize: '14px', color: colors.textSecondary, margin: 0, paddingLeft: '20px' }}>
               <li>Set up your search with filters and query</li>
-              <li>Click "Save Current" in the templates dropdown</li>
+              <li>Click &quot;Save Current&quot; in the templates dropdown</li>
               <li>Enter a name and description</li>
               <li>Choose a category for organization</li>
             </ol>

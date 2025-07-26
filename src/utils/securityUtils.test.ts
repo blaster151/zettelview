@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { 
   SecurityValidator, 
   SecurityError, 
@@ -332,8 +333,8 @@ describe('SecurityMonitor', () => {
     // Mock console methods to suppress output during tests
     originalConsoleWarn = console.warn;
     originalConsoleError = console.error;
-    console.warn = jest.fn();
-    console.error = jest.fn();
+    console.warn = vi.fn();
+    console.error = vi.fn();
   });
 
   afterEach(() => {

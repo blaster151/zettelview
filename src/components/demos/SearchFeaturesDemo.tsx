@@ -103,7 +103,7 @@ const SearchFeaturesDemo: React.FC = () => {
             lineHeight: '1.5',
             marginBottom: '16px'
           }}>
-            Experience the full power of ZettelView's intelligent search capabilities
+            Experience the full power of ZettelView&apos;s intelligent search capabilities
           </p>
           <div style={{
             display: 'flex',

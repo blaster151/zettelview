@@ -1,20 +1,18 @@
-// Remove Vitest import and use Jest globals
-// import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { useThemeStore } from '../../store/themeStore';
 
 // Mock localStorage
 const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
   length: 0,
-  key: jest.fn(),
+  key: vi.fn(),
 };
 
 // Mock matchMedia
-const matchMediaMock = jest.fn();
+const matchMediaMock = vi.fn();
 
 beforeAll(() => {
   // Mock localStorage
@@ -33,12 +31,12 @@ beforeAll(() => {
   Object.defineProperty(document, 'documentElement', {
     value: {
       classList: {
-        add: jest.fn(),
-        remove: jest.fn(),
-        contains: jest.fn(),
+        add: vi.fn(),
+        remove: vi.fn(),
+        contains: vi.fn(),
       },
-      setAttribute: jest.fn(),
-      getAttribute: jest.fn(),
+      setAttribute: vi.fn(),
+      getAttribute: vi.fn(),
     },
     writable: true,
   });
@@ -46,13 +44,13 @@ beforeAll(() => {
 
 afterAll(() => {
   // Clean up
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('Theme System Integration', () => {
   beforeEach(() => {
     // Clear all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     // Clear localStorage to prevent quota exceeded errors
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -117,8 +115,8 @@ describe('Theme System Integration', () => {
       // Arrange
       matchMediaMock.mockReturnValue({
         matches: true,
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       });
 
       // Act
@@ -132,8 +130,8 @@ describe('Theme System Integration', () => {
       // Arrange
       matchMediaMock.mockReturnValue({
         matches: true,
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       });
 
       // Act
@@ -171,12 +169,12 @@ describe('Theme System Integration', () => {
       // Arrange
       const mockDocumentElement = {
         classList: {
-          add: jest.fn(),
-          remove: jest.fn(),
-          contains: jest.fn(),
+          add: vi.fn(),
+          remove: vi.fn(),
+          contains: vi.fn(),
         },
-        setAttribute: jest.fn(),
-        getAttribute: jest.fn(),
+        setAttribute: vi.fn(),
+        getAttribute: vi.fn(),
       };
 
       Object.defineProperty(document, 'documentElement', {
@@ -195,12 +193,12 @@ describe('Theme System Integration', () => {
       // Arrange
       const mockDocumentElement = {
         classList: {
-          add: jest.fn(),
-          remove: jest.fn(),
+          add: vi.fn(),
+          remove: vi.fn(),
           contains: jest.fn(() => true),
         },
-        setAttribute: jest.fn(),
-        getAttribute: jest.fn(),
+        setAttribute: vi.fn(),
+        getAttribute: vi.fn(),
       };
 
       Object.defineProperty(document, 'documentElement', {
@@ -256,12 +254,12 @@ describe('Theme System Integration', () => {
       // Arrange
       const mockDocumentElement = {
         classList: {
-          add: jest.fn(),
-          remove: jest.fn(),
-          contains: jest.fn(),
+          add: vi.fn(),
+          remove: vi.fn(),
+          contains: vi.fn(),
         },
-        setAttribute: jest.fn(),
-        getAttribute: jest.fn(),
+        setAttribute: vi.fn(),
+        getAttribute: vi.fn(),
       };
 
       Object.defineProperty(document, 'documentElement', {

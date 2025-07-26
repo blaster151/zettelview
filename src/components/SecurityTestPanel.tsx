@@ -154,7 +154,7 @@ const SecurityTestPanel: React.FC<SecurityTestPanelProps> = ({ isOpen, onClose }
               Security Testing
             </h3>
             <p style={{ margin: 0, fontSize: '14px', color: colors.textSecondary }}>
-              Test the app's defenses against malicious files
+              Test the app&apos;s defenses against malicious files
             </p>
           </div>
           <Button

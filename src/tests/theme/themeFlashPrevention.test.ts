@@ -1,29 +1,27 @@
-// Remove Vitest import and use Jest globals
-// import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useThemeStore } from '../../store/themeStore';
 
 // Mock localStorage
 const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
   length: 0,
-  key: jest.fn(),
+  key: vi.fn(),
 };
 
 // Mock matchMedia
-const matchMediaMock = jest.fn();
+const matchMediaMock = vi.fn();
 
 // Mock document methods
-const createElementMock = jest.fn();
-const querySelectorMock = jest.fn();
-const setAttributeMock = jest.fn();
+const createElementMock = vi.fn();
+const querySelectorMock = vi.fn();
+const setAttributeMock = vi.fn();
 
 beforeEach(() => {
   // Clear all mocks
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   
   // Clear localStorage to prevent quota exceeded errors
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -79,14 +77,14 @@ beforeEach(() => {
   Object.defineProperty(document, 'documentElement', {
     value: {
       classList: {
-        add: jest.fn(),
-        remove: jest.fn(),
-        contains: jest.fn(),
+        add: vi.fn(),
+        remove: vi.fn(),
+        contains: vi.fn(),
       },
       setAttribute: setAttributeMock,
-      getAttribute: jest.fn(),
+      getAttribute: vi.fn(),
       style: {
-        setProperty: jest.fn(),
+        setProperty: vi.fn(),
       },
     },
     writable: true,
@@ -95,7 +93,7 @@ beforeEach(() => {
 
 afterEach(() => {
   // Clean up
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('Theme Flash Prevention', () => {
@@ -104,7 +102,7 @@ describe('Theme Flash Prevention', () => {
       // Arrange
       const mockScript = {
         textContent: '',
-        setAttribute: jest.fn(),
+        setAttribute: vi.fn(),
       };
       createElementMock.mockReturnValue(mockScript);
 
@@ -130,18 +128,18 @@ describe('Theme Flash Prevention', () => {
     it('should prevent flash of unstyled content', () => {
       // Arrange
       const mockStyle = {
-        setProperty: jest.fn(),
+        setProperty: vi.fn(),
       };
 
       Object.defineProperty(document, 'documentElement', {
         value: {
           classList: {
-            add: jest.fn(),
-            remove: jest.fn(),
-            contains: jest.fn(),
+            add: vi.fn(),
+            remove: vi.fn(),
+            contains: vi.fn(),
           },
           setAttribute: setAttributeMock,
-          getAttribute: jest.fn(),
+          getAttribute: vi.fn(),
           style: mockStyle,
         },
         writable: true,
@@ -159,18 +157,18 @@ describe('Theme Flash Prevention', () => {
     it('should apply critical CSS styles', () => {
       // Arrange
       const mockStyle = {
-        setProperty: jest.fn(),
+        setProperty: vi.fn(),
       };
 
       Object.defineProperty(document, 'documentElement', {
         value: {
           classList: {
-            add: jest.fn(),
-            remove: jest.fn(),
-            contains: jest.fn(),
+            add: vi.fn(),
+            remove: vi.fn(),
+            contains: vi.fn(),
           },
           setAttribute: setAttributeMock,
-          getAttribute: jest.fn(),
+          getAttribute: vi.fn(),
           style: mockStyle,
         },
         writable: true,
@@ -186,18 +184,18 @@ describe('Theme Flash Prevention', () => {
     it('should remove visibility hidden after theme application', () => {
       // Arrange
       const mockStyle = {
-        setProperty: jest.fn(),
+        setProperty: vi.fn(),
       };
 
       Object.defineProperty(document, 'documentElement', {
         value: {
           classList: {
-            add: jest.fn(),
-            remove: jest.fn(),
-            contains: jest.fn(),
+            add: vi.fn(),
+            remove: vi.fn(),
+            contains: vi.fn(),
           },
           setAttribute: setAttributeMock,
-          getAttribute: jest.fn(),
+          getAttribute: vi.fn(),
           style: mockStyle,
         },
         writable: true,
@@ -217,8 +215,8 @@ describe('Theme Flash Prevention', () => {
       // Arrange
       matchMediaMock.mockReturnValue({
         matches: true,
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       });
 
       // Act
@@ -232,8 +230,8 @@ describe('Theme Flash Prevention', () => {
       // Arrange
       matchMediaMock.mockReturnValue({
         matches: true,
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       });
 
       // Act
@@ -331,7 +329,7 @@ describe('Theme Flash Prevention', () => {
 
     it('should not block rendering during theme application', () => {
       // Arrange
-      const mockRequestIdleCallback = jest.fn();
+      const mockRequestIdleCallback = vi.fn();
       Object.defineProperty(window, 'requestIdleCallback', {
         value: mockRequestIdleCallback,
         writable: true,
@@ -350,14 +348,14 @@ describe('Theme Flash Prevention', () => {
       // Arrange
       const mockDocumentElement = {
         classList: {
-          add: jest.fn(),
-          remove: jest.fn(),
-          contains: jest.fn(),
+          add: vi.fn(),
+          remove: vi.fn(),
+          contains: vi.fn(),
         },
         setAttribute: setAttributeMock,
-        getAttribute: jest.fn(),
+        getAttribute: vi.fn(),
         style: {
-          setProperty: jest.fn(),
+          setProperty: vi.fn(),
         },
       };
 
@@ -379,14 +377,14 @@ describe('Theme Flash Prevention', () => {
         if (query === '(prefers-reduced-motion: reduce)') {
           return {
             matches: true,
-            addEventListener: jest.fn(),
-            removeEventListener: jest.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
           };
         }
         return {
           matches: false,
-          addEventListener: jest.fn(),
-          removeEventListener: jest.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
         };
       });
 
@@ -424,8 +422,8 @@ describe('Theme Flash Prevention', () => {
     it('should handle older browser APIs', () => {
       // Arrange
       const oldMatchMedia = {
-        addListener: jest.fn(), // Older API
-        removeListener: jest.fn(),
+        addListener: vi.fn(), // Older API
+        removeListener: vi.fn(),
         matches: false,
       };
 
@@ -443,18 +441,18 @@ describe('Theme Flash Prevention', () => {
     it('should disable transitions during initial load', () => {
       // Arrange
       const mockStyle = {
-        setProperty: jest.fn(),
+        setProperty: vi.fn(),
       };
 
       Object.defineProperty(document, 'documentElement', {
         value: {
           classList: {
-            add: jest.fn(),
-            remove: jest.fn(),
-            contains: jest.fn(),
+            add: vi.fn(),
+            remove: vi.fn(),
+            contains: vi.fn(),
           },
           setAttribute: setAttributeMock,
-          getAttribute: jest.fn(),
+          getAttribute: vi.fn(),
           style: mockStyle,
         },
         writable: true,
@@ -470,18 +468,18 @@ describe('Theme Flash Prevention', () => {
     it('should re-enable transitions after theme application', () => {
       // Arrange
       const mockStyle = {
-        setProperty: jest.fn(),
+        setProperty: vi.fn(),
       };
 
       Object.defineProperty(document, 'documentElement', {
         value: {
           classList: {
-            add: jest.fn(),
-            remove: jest.fn(),
-            contains: jest.fn(),
+            add: vi.fn(),
+            remove: vi.fn(),
+            contains: vi.fn(),
           },
           setAttribute: setAttributeMock,
-          getAttribute: jest.fn(),
+          getAttribute: vi.fn(),
           style: mockStyle,
         },
         writable: true,
@@ -500,8 +498,8 @@ describe('Theme Flash Prevention', () => {
     it('should remove existing theme classes before applying new theme', () => {
       // Arrange
       const mockClassList = {
-        add: jest.fn(),
-        remove: jest.fn(),
+        add: vi.fn(),
+        remove: vi.fn(),
         contains: jest.fn(() => true),
       };
 
@@ -509,9 +507,9 @@ describe('Theme Flash Prevention', () => {
         value: {
           classList: mockClassList,
           setAttribute: setAttributeMock,
-          getAttribute: jest.fn(),
+          getAttribute: vi.fn(),
           style: {
-            setProperty: jest.fn(),
+            setProperty: vi.fn(),
           },
         },
         writable: true,
@@ -527,18 +525,18 @@ describe('Theme Flash Prevention', () => {
     it('should apply theme classes correctly', () => {
       // Arrange
       const mockClassList = {
-        add: jest.fn(),
-        remove: jest.fn(),
-        contains: jest.fn(),
+        add: vi.fn(),
+        remove: vi.fn(),
+        contains: vi.fn(),
       };
 
       Object.defineProperty(document, 'documentElement', {
         value: {
           classList: mockClassList,
           setAttribute: setAttributeMock,
-          getAttribute: jest.fn(),
+          getAttribute: vi.fn(),
           style: {
-            setProperty: jest.fn(),
+            setProperty: vi.fn(),
           },
         },
         writable: true,
@@ -557,8 +555,8 @@ describe('Theme Flash Prevention', () => {
       // Arrange
       const mockMediaQuery = {
         matches: true,
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       };
 
       matchMediaMock.mockReturnValue(mockMediaQuery);
@@ -574,8 +572,8 @@ describe('Theme Flash Prevention', () => {
       // Arrange
       const mockMediaQuery = {
         matches: false,
-        addListener: jest.fn(), // Older API
-        removeListener: jest.fn(),
+        addListener: vi.fn(), // Older API
+        removeListener: vi.fn(),
       };
 
       matchMediaMock.mockReturnValue(mockMediaQuery);

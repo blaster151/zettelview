@@ -312,7 +312,7 @@ export function useFormValidation<T>(schema: ValidationSchema<T>) {
     const fieldRules = schema[field];
     if (!fieldRules) return true;
 
-    const result = validateField(value, fieldRules);
+    const result = validateFieldValue(value, fieldRules);
     
     setErrors(prev => {
       const newErrors = prev.filter(e => e.field !== field);

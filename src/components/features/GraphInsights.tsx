@@ -15,31 +15,33 @@ const GraphInsights: React.FC = () => {
   // Compute graph metrics
   const metrics = useMemo<GraphMetric[]>(() => {
     const totalNotes = notes.length;
-    const allLinks = notes.flatMap(n => n.links || []);
-    const uniqueLinks = Array.from(new Set(allLinks));
-    const orphanedNotes = notes.filter(n => !n.links || n.links.length === 0);
-    const mostLinked = notes.reduce((max, n) => (n.links && n.links.length > (max?.links?.length || 0) ? n : max), notes[0]);
+    const orphanedNotes = notes.filter(n => n.tags.length === 0);
+    const mostTagged = notes.reduce((max, n) => {
+      const maxTags = max?.tags?.length || 0;
+      const currentTags = n.tags?.length || 0;
+      return currentTags > maxTags ? n : max;
+    }, notes[0] || null);
     const clusters = 1; // Placeholder for cluster detection
     return [
       { label: 'Total Notes', value: totalNotes, description: 'All notes in your knowledge base.' },
-      { label: 'Unique Links', value: uniqueLinks.length, description: 'Unique internal links between notes.' },
-      { label: 'Orphaned Notes', value: orphanedNotes.length, description: 'Notes with no links to or from others.' },
-      { label: 'Most Linked Note', value: mostLinked?.title || 'N/A', description: 'Note with the most incoming/outgoing links.' },
+      { label: 'Total Tags', value: notes.reduce((sum, n) => sum + n.tags.length, 0), description: 'Total number of tags across all notes.' },
+      { label: 'Orphaned Notes', value: orphanedNotes.length, description: 'Notes with no tags.' },
+      { label: 'Most Tagged Note', value: mostTagged?.title || 'N/A', description: 'Note with the most tags.' },
       { label: 'Clusters', value: clusters, description: 'Topic clusters detected in your graph.' }
     ];
   }, [notes]);
 
   // Recommendations
   const recommendations = useMemo(() => {
-    const orphaned = notes.filter(n => !n.links || n.links.length === 0);
+    const orphaned = notes.filter(n => n.tags.length === 0);
     return [
       ...(orphaned.length > 0 ? [{
         type: 'link',
-        message: `You have ${orphaned.length} orphaned notes. Consider linking them to related topics for better connectivity.`
+        message: `You have ${orphaned.length} orphaned notes. Consider adding tags to them for better organization.`
       }] : []),
       {
         type: 'refactor',
-        message: 'Review notes with many links for possible refactoring or splitting into subtopics.'
+        message: 'Review notes with many tags for possible refactoring or splitting into subtopics.'
       }
     ];
   }, [notes]);

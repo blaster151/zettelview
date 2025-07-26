@@ -1,32 +1,33 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { act } from 'react-dom/test-utils';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 import CalendarView from './CalendarView';
 import { useNoteStore } from '../store/noteStore';
 import { useThemeStore } from '../store/themeStore';
 import { Note } from '../types/domain';
 
 // Mock the stores
-jest.mock('../store/noteStore');
-jest.mock('../store/themeStore');
+vi.mock('../store/noteStore');
+vi.mock('../store/themeStore');
 
-const mockUseNoteStore = useNoteStore as jest.MockedFunction<typeof useNoteStore>;
-const mockUseThemeStore = useThemeStore as jest.MockedFunction<typeof useThemeStore>;
+const mockUseNoteStore = useNoteStore as vi.MockedFunction<typeof useNoteStore>;
+const mockUseThemeStore = useThemeStore as vi.MockedFunction<typeof useThemeStore>;
 
 // Mock localStorage
 const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
 };
 Object.defineProperty(window, 'localStorage', {
   value: localStorageMock
 });
 
 describe('CalendarView', () => {
-  const mockSelectNote = jest.fn();
-  const mockOnNoteClick = jest.fn();
+  const mockSelectNote = vi.fn();
+  const mockOnNoteClick = vi.fn();
   
   const mockNotes: Note[] = [
     {
@@ -69,7 +70,7 @@ describe('CalendarView', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     localStorage.clear();
     
     mockUseNoteStore.mockReturnValue({
@@ -80,26 +81,26 @@ describe('CalendarView', () => {
       storagePermission: true,
       searchResults: [],
       isSearching: false,
-      initialize: jest.fn(),
-      requestStoragePermission: jest.fn(),
-      addNote: jest.fn(),
-      updateNote: jest.fn(),
-      getNote: jest.fn(),
-      findOrCreateNote: jest.fn(),
-      deleteNote: jest.fn(),
-      loadNotesFromStorage: jest.fn(),
-      searchNotes: jest.fn(),
-      quickSearch: jest.fn(),
-      searchByTags: jest.fn(),
-      clearSearch: jest.fn(),
-      getSearchSuggestions: jest.fn()
+      initialize: vi.fn(),
+      requestStoragePermission: vi.fn(),
+      addNote: vi.fn(),
+      updateNote: vi.fn(),
+      getNote: vi.fn(),
+      findOrCreateNote: vi.fn(),
+      deleteNote: vi.fn(),
+      loadNotesFromStorage: vi.fn(),
+      searchNotes: vi.fn(),
+      quickSearch: vi.fn(),
+      searchByTags: vi.fn(),
+      clearSearch: vi.fn(),
+      getSearchSuggestions: vi.fn()
     });
 
     mockUseThemeStore.mockReturnValue({
       colors: mockColors,
       theme: 'light',
-      toggleTheme: jest.fn(),
-      setTheme: jest.fn()
+      toggleTheme: vi.fn(),
+      setTheme: vi.fn()
     });
 
     localStorageMock.getItem.mockReturnValue(null);
@@ -386,19 +387,19 @@ describe('CalendarView', () => {
       storagePermission: true,
       searchResults: [],
       isSearching: false,
-      initialize: jest.fn(),
-      requestStoragePermission: jest.fn(),
-      addNote: jest.fn(),
-      updateNote: jest.fn(),
-      getNote: jest.fn(),
-      findOrCreateNote: jest.fn(),
-      deleteNote: jest.fn(),
-      loadNotesFromStorage: jest.fn(),
-      searchNotes: jest.fn(),
-      quickSearch: jest.fn(),
-      searchByTags: jest.fn(),
-      clearSearch: jest.fn(),
-      getSearchSuggestions: jest.fn()
+      initialize: vi.fn(),
+      requestStoragePermission: vi.fn(),
+      addNote: vi.fn(),
+      updateNote: vi.fn(),
+      getNote: vi.fn(),
+      findOrCreateNote: vi.fn(),
+      deleteNote: vi.fn(),
+      loadNotesFromStorage: vi.fn(),
+      searchNotes: vi.fn(),
+      quickSearch: vi.fn(),
+      searchByTags: vi.fn(),
+      clearSearch: vi.fn(),
+      getSearchSuggestions: vi.fn()
     });
 
     render(

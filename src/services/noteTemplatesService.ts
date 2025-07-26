@@ -765,7 +765,7 @@ class NoteTemplatesService {
             }
             break;
           case 'date':
-            if (!(value instanceof Date) && isNaN(Date.parse(value))) {
+            if (!(value instanceof Date) && (typeof value !== 'string' || isNaN(Date.parse(value)))) {
               throw new Error(`Variable ${variable.name} must be a valid date`);
             }
             break;
@@ -1276,4 +1276,4 @@ class NoteTemplatesService {
   }
 }
 
-export const NoteTemplatesService = new NoteTemplatesService(); 
+export const noteTemplatesService = new NoteTemplatesService(); 

@@ -123,7 +123,7 @@ const WelcomeOnboarding: React.FC<WelcomeOnboardingProps> = ({ onComplete, onSki
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [handleSkip]);
 
   if (!isVisible) {
     return null;
